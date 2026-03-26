@@ -1,0 +1,1965 @@
+/* =========================================
+   Video Call Module Styles
+   混合风格：通话界面深色沉浸 (旧版恢复)，模态框浅色 iOS 风格 (保留)
+   ========================================= */
+
+:root {
+    /* --- 模态框/列表变量 (浅色 iOS 风格 - 保留) --- */
+    --vc-modal-bg: #ffffff;
+    --vc-modal-bg-sec: #f2f2f7;
+    --vc-modal-text: #000000;
+    --vc-modal-text-sub: #8e8e93;
+    --vc-modal-border: #c6c6c8;
+    
+    /* --- 通话界面变量 (深色沉浸风格 - 恢复旧版) --- */
+    --vc-bg-color: #050505;
+    
+    /* AI 阵营色 (冷调) */
+    --vc-ai-color: #a3c2c2; 
+    --vc-ai-glow: rgba(163, 194, 194, 0.3);
+    --vc-ai-voice: #f0f0f0;
+
+    /* 玩家 阵营色 (暖调) */
+    --vc-user-color: #e3decb;
+    --vc-user-glow: rgba(227, 222, 203, 0.3);
+    --vc-user-voice: #e3decb;
+    
+    --vc-text-sub: #666;
+    --vc-font-serif: "Songti SC", "Noto Serif SC", serif;
+    
+    /* --- 通用功能色 --- */
+    --vc-accent-color: #007aff;
+    --vc-danger-color: #ff3b30;
+    --vc-success-color: #34c759;
+    
+    /* 阴影与模糊 */
+    --vc-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --vc-backdrop-blur: blur(20px);
+    
+    /* 字体 */
+    --vc-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --vc-font-mono: "SF Mono", "Menlo", "Monaco", "Courier New", monospace;
+
+    /* 浮窗尺寸 - 在这里调整大小 */
+    --vc-float-width: 76.5px;
+    --vc-float-height: 102px;
+}
+
+/* 场景容器 */
+.vc-scene {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    /* 垫纯黑底板，避免漏出底层聊天界面 */
+    background-color: #000 !important;
+    font-family: var(--vc-font-sans);
+    overflow: hidden;
+    color: #fff;
+    z-index: 20000;
+}
+
+.vc-hidden {
+    pointer-events: none;
+    z-index: -1;
+    display: none !important;
+}
+
+/* =========================================
+   SCENE 1: 加载/连线界面 (Loading) - 恢复旧版深色
+   ========================================= */
+#vc-scene-loading {
+    flex-direction: column;
+    z-index: 20100;
+    background: radial-gradient(circle at 50% 50%, #111 0%, #000 80%);
+    padding-top: env(safe-area-inset-top);
+}
+
+.vc-center-wrapper {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding-bottom: 60px;
+}
+
+.vc-connection-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 40px;
+    max-width: 450px;
+    position: relative;
+    height: 140px;
+}
+
+.vc-avatar-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+}
+
+.vc-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    transition: all 0.5s ease;
+    background-color: #333;
+}
+
+.vc-avatar.ai {
+    border: 1px solid rgba(163, 194, 194, 0.5);
+    box-shadow: 0 0 20px var(--vc-ai-glow);
+}
+
+.vc-avatar.user {
+    border: 1px solid rgba(227, 222, 203, 0.5);
+    box-shadow: 0 0 20px var(--vc-user-glow);
+}
+
+.vc-avatar-label {
+    margin-top: 12px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    text-transform: uppercase;
+}
+
+/* SVG 连线 (旧版心电图) */
+.vc-signal-bridge {
+    flex: 1;
+    height: 60px;
+    margin: 0 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+}
+
+.vc-ekg-svg { width: 100%; height: 100%; overflow: visible; }
+.vc-ekg-line {
+    fill: none;
+    stroke: url(#vcSignalGradient);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 200; 
+    stroke-dashoffset: 200;
+    animation: vc-signal-flow 3s infinite linear;
+    opacity: 0.8;
+}
+.vc-ekg-line.ghost { opacity: 0.2; stroke-width: 1; transform: scaleY(1.2); }
+
+.vc-status-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    height: 60px;
+    margin-top: 20px; 
+}
+
+.vc-status-text {
+    font-size: 15px;
+    color: rgba(255,255,255,0.9);
+    letter-spacing: 1.5px;
+    font-weight: 300;
+}
+
+.vc-sub-status {
+    font-size: 10px;
+    color: var(--vc-text-sub);
+    font-family: Consolas, monospace;
+    background: rgba(255,255,255,0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.vc-loading-footer {
+    padding-bottom: 60px;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+/* =========================================
+   SCENE 2: 通话界面 (Call Interface) - 恢复旧版深色
+   ========================================= */
+#vc-scene-call {
+    background: var(--vc-bg-color);
+    z-index: 20050;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* 新主卧：全屏沉浸式通话界面 */
+#vc-scene-master {
+    z-index: 20060;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* ========== 赛博任意门：全局画中画 pip-mode ========== */
+#vc-scene-master.pip-mode {
+    position: fixed !important;
+    width: 110px !important;
+    height: 160px !important;
+    max-width: none !important;
+    max-height: none !important;
+    /* 顶至少 62px；左右与 JS 防撞条一致用 25px */
+    top: max(62px, calc(8px + env(safe-area-inset-top)));
+    right: 25px;
+    left: auto;
+    bottom: auto;
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 110000 !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    display: flex !important;
+    flex-direction: column;
+}
+
+/* 背景不接收事件，由上层 overlay 承接触摸/鼠标 */
+#vc-scene-master.pip-mode .vc-master-bg {
+    transform: scale(1) !important;
+    pointer-events: none;
+}
+
+/* 整窗交互面：无伪元素，避免部分内核上 ::before 与命中异常 */
+#vc-scene-master.pip-mode .vc-master-overlay {
+    pointer-events: auto;
+    touch-action: none;
+}
+
+/* 底部约 30%：极弱黑渐变 */
+#vc-scene-master.pip-mode .vc-master-overlay::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 30%;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0) 100%);
+    pointer-events: none;
+}
+
+/* 计时器：画中画内强制纯白，不受渐变/继承透明度影响 */
+#vc-scene-master.pip-mode .vc-master-timer {
+    position: absolute;
+    top: auto !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: 6px;
+    transform: translateX(-50%);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    font-weight: 400;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+    filter: none !important;
+    text-shadow: none !important;
+    pointer-events: none;
+    z-index: 10000;
+}
+
+/* JS 动态插入：透明拖拽层，盖在最上（事件只绑在此层） */
+.vc-master-pip-drag-handle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    touch-action: none;
+    background: transparent;
+    box-sizing: border-box;
+}
+
+/* 仅保留背景 + 计时器 */
+#vc-scene-master.pip-mode .vc-master-raven-btn,
+#vc-scene-master.pip-mode .vc-master-vinyl-btn,
+#vc-scene-master.pip-mode .vc-master-cinema-subtitle,
+#vc-scene-master.pip-mode .vc-master-controls,
+#vc-scene-master.pip-mode .vc-master-text-panel,
+#vc-scene-master.pip-mode #vc-master-input-overlay,
+#vc-scene-master.pip-mode .vc-scratch-float-root,
+#vc-scene-master.pip-mode .vc-film-counter,
+#vc-scene-master.pip-mode .vc-film-roll-btn {
+    display: none !important;
+}
+
+.vc-master-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    /* 不压暗、不加遮罩：背景图 100% 原始色彩 */
+    transform: scale(1.02);
+    transition: transform 0.6s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.vc-scene:not(.vc-hidden) .vc-master-bg {
+    transform: scale(1);
+}
+
+.vc-master-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* 新主卧：顶部居中极简计时器（避开刘海安全区） */
+.vc-master-timer {
+    position: absolute;
+    top: calc(14px + env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 110;
+    padding: 0;
+    margin: 0;
+    font-family: var(--vc-font-mono);
+    font-size: 14px;
+    font-weight: 300;
+    letter-spacing: 0.12em;
+    color: #ffffff;
+    background: transparent;
+    text-shadow: none;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* 左上角画中画：外框全透明，仅靠图标 drop-shadow 保证可见性 */
+.vc-master-raven-btn {
+    position: absolute;
+    top: calc(20px + env(safe-area-inset-top));
+    left: 20px;
+    z-index: 110;
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: transform 0.18s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* 本地 PNG：固定框 + contain；微弱黑轮廓投影，浅色底不隐形、深色底仍有边缘 */
+.vc-master-pip-icon,
+.vc-master-archive-icon {
+    display: block;
+    flex-shrink: 0;
+    object-fit: contain;
+    object-position: center;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.3));
+}
+
+.vc-master-pip-icon {
+    width: 28px;
+    height: 28px;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.vc-master-raven-btn:active {
+    transform: scale(0.9);
+}
+
+/* 左下角历史档案室：外框全透明，与左上同为「裸图标」 */
+.vc-master-vinyl-btn {
+    position: absolute;
+    left: 20px;
+    bottom: calc(26px + env(safe-area-inset-bottom));
+    z-index: 110;
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: transform 0.18s ease;
+    overflow: visible;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* 44×44 点击区内尽量撑满，contain 不拉伸 */
+.vc-master-archive-icon {
+    width: 40px;
+    height: 40px;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.vc-master-vinyl-btn:active {
+    transform: scale(0.92);
+}
+
+/* 新主卧：右侧透明文字滚动玻璃板 */
+.vc-master-text-panel {
+    position: absolute;
+    right: 0;
+    width: 52%;
+    z-index: 115;
+    top: calc(76px + env(safe-area-inset-top)); /* 略低于左上角乌鸦底边 */
+    bottom: calc(160px + env(safe-area-inset-bottom)); /* 稍高于底部三个按钮 */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding-right: 26px; /* 与底部输入浮层右侧对齐，同一条垂直线 */
+    padding-left: 12px;
+    background: transparent; /* 完全透明，无背景色、无边框 */
+    border: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: auto;
+    scrollbar-width: none; /* Firefox 隐藏滚动条 */
+    /* 继承自 #vc-scene-master 的禁止选中会误伤玻璃板复制，此处显式恢复 */
+    user-select: text;
+    -webkit-user-select: text;
+    -webkit-touch-callout: default;
+    transition: bottom 0.25s ease;
+}
+
+/* 重听状态 + 字幕播放中：玻璃板自动上移，避免与底部电影字幕重叠 */
+.vc-master-text-panel.vc-text-panel-subtitle-avoid {
+    bottom: calc(300px + env(safe-area-inset-bottom));
+}
+
+.vc-master-text-panel::-webkit-scrollbar {
+    display: none; /* WebKit 隐藏滚动条 */
+}
+
+.vc-master-text-line {
+    align-self: flex-end;
+    text-align: left; /* 单条消息整体靠右停靠；内部多行按左对齐阅读 */
+    color: #fff;
+    font-size: 15px;
+    font-weight: 300;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+    margin-bottom: 6px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5); /* 微弱黑色弥散阴影，保证复杂背景下清晰度 */
+}
+
+/* 玻璃板内：中文（）或英文 () 包裹的片段，斜体 + 略灰略透，与正文区分 */
+.vc-master-text-line .vc-master-paren-aside {
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.68);
+    opacity: 0.88;
+}
+
+/* 新主卧：电影字幕（无动画、无背景，硬切换行） */
+.vc-master-cinema-subtitle {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 105;
+    /* 控制条 bottom:90px、按钮高约 60px → 条顶约 150px；字幕底边再上移 20px 呼吸距 */
+    bottom: calc(170px + env(safe-area-inset-bottom));
+    width: min(85vw, 450px);
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: clamp(18px, 4.5vw, 20px);
+    font-weight: 400;
+    line-height: 1.6;
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+    overflow: visible;
+    word-break: break-word;
+    pointer-events: none;
+    /* 禁止淡入淡出/位移动画，保持硬切 */
+    transition: none;
+}
+
+/* 底部控制键区（三个圆形按钮） */
+.vc-master-controls {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(90px + env(safe-area-inset-bottom));
+    z-index: 120;
+    width: auto;
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    align-items: center;
+    pointer-events: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.vc-master-control-btn {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.9);
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: none;
+    transition: transform 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    overflow: visible;
+}
+
+.vc-master-control-btn:active {
+    transform: scale(0.9);
+    box-shadow: none;
+}
+
+.vc-master-control-btn.is-disabled,
+.vc-c-btn.is-disabled {
+    opacity: 0.42;
+}
+
+.vc-master-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+}
+
+.vc-master-icon svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+}
+
+.vc-master-hangup {
+    border-color: var(--vc-danger-color);
+    color: var(--vc-danger-color);
+}
+
+.vc-master-hangup .vc-master-icon {
+    background: transparent;
+}
+
+.vc-master-hangup .vc-icon-hangup {
+    background: var(--vc-danger-color);
+}
+
+/* Camera 按钮专属等待涟漪
+   按钮尺寸 60px（radius 30px），gap 48px
+   center-to-center = 60 + 48 = 108px → 安全扩散上限 ≈ 46px（scale 1.53x）
+   此处保守取 scale(1.48)，确保波纹绝对不触及旁侧麦克风/挂断按钮 */
+.vc-camera-ripple-host {
+    position: absolute;
+    inset: -2px;          /* 与按钮外边框齐平 */
+    border-radius: 50%;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 0;
+}
+
+.vc-camera-ripple-ring {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 100%;
+    height: 100%;
+    margin-left: -50%;
+    margin-top: -50%;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    box-sizing: border-box;
+    opacity: 0;
+    animation: vc-camera-ripple 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    will-change: transform, opacity;
+}
+
+@keyframes vc-camera-ripple {
+    0%   { transform: scale(1);    opacity: 0.72; }
+    100% { transform: scale(1.65); opacity: 0; }
+}
+
+/* 新主卧：纯图标悬浮发送钮（无圆形容器，仅 scratch.png；点击涟漪仍由 JS 注入） */
+.vc-scratch-float-root {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 110500;
+}
+
+.vc-scratch-float-btn {
+    position: absolute;
+    right: 12px;
+    top: clamp(220px, 44vh, 380px);
+    width: auto;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 10px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    touch-action: none;
+    overflow: visible;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    z-index: 1;
+    transform: translateZ(0);
+}
+
+.vc-scratch-float-btn:active {
+    opacity: 0.88;
+}
+
+.vc-scratch-float-btn img {
+    display: block;
+    width: 56px;
+    height: 56px;
+    max-width: none;
+    max-height: none;
+    object-fit: contain;
+    opacity: 0.72;
+    filter: brightness(1.28) contrast(1.06) saturate(1.2);
+    transform: rotate(-15deg);
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.vc-scratch-float-ripple-host {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.vc-scratch-float-ripple-ring {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 100%;
+    height: 100%;
+    margin-left: -50%;
+    margin-top: -50%;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.92);
+    box-sizing: border-box;
+    opacity: 0;
+    /* 极弱外晕，柔化硬边；线条仍为 1px */
+    box-shadow:
+        0 0 5px 1px rgba(255, 255, 255, 0.18),
+        0 0 14px rgba(255, 255, 255, 0.08);
+    animation: vc-scratch-ripple-out 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    will-change: transform, opacity;
+}
+
+.vc-master-live-video-layer {
+    position: absolute;
+    inset: 0;
+    display: none;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.vc-master-live-video-layer.is-visible {
+    display: block;
+}
+
+.vc-master-live-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #000;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.vc-camera-preview-host {
+    position: fixed;
+    top: 62px;
+    right: 25px;
+    width: 120px;
+    height: 160px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.88);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+    z-index: 110200;
+    display: none;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    cursor: grab;
+}
+
+.vc-camera-preview-host.is-visible {
+    display: block;
+}
+
+.vc-camera-preview-host.is-photo-mode .vc-camera-preview-video {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.vc-camera-preview-host.is-photo-mode .vc-camera-preview-photo {
+    opacity: 1;
+}
+
+.vc-camera-preview-photo,
+.vc-camera-preview-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.vc-camera-preview-photo {
+    opacity: 0;
+    background-color: #000;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: opacity 0.18s ease;
+}
+
+.vc-camera-preview-video {
+    object-fit: cover;
+    background: #000;
+    transition: opacity 0.18s ease;
+}
+
+.vc-camera-flip-btn {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    min-width: 48px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    cursor: pointer;
+    z-index: 2;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+
+/* 仅 0%→100% 线性插值；timing 用阻尼贝塞尔实现前快后慢的水波感 */
+@keyframes vc-scratch-ripple-out {
+    0% {
+        transform: scale(1);
+        opacity: 0.9;
+    }
+    100% {
+        transform: scale(1.88);
+        opacity: 0;
+    }
+}
+
+
+.vc-call-header {
+    position: relative;
+    height: auto;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: calc(30px + env(safe-area-inset-top));
+    padding-bottom: 10px;
+    background: linear-gradient(to bottom, var(--vc-bg-color) 40%, transparent);
+    z-index: 120;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.vc-contact-info .name { font-size: 16px; font-weight: 500; text-align: center; margin-bottom: 5px; color: #fff; }
+.vc-contact-info .time { font-size: 12px; color: rgba(255,255,255,0.4); font-family: monospace; text-align: center; }
+
+.vc-header-avatar {
+    width: 50px; height: 50px;
+    border-radius: 50%;
+    margin-top: 15px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    background-color: #333;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.vc-header-avatar:active { transform: scale(0.95); }
+
+.vc-online-dot {
+    width: 8px; height: 8px; background: #32d74b;
+    border: 1px solid #000; border-radius: 50%;
+    position: absolute; bottom: -2px; right: -2px;
+}
+
+/* 聊天区 */
+.vc-chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    mask-image: linear-gradient(to bottom, transparent 0%, black 10%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 10%);
+    
+    /* 禁用文本选中和系统长按菜单 */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.vc-msg-row { display: flex; flex-direction: column; max-width: 85%; opacity: 0; animation: vc-slideUp 0.5s forwards; }
+.vc-msg-row.ai { align-self: flex-start; text-align: left; }
+.vc-msg-row.user { align-self: flex-end; text-align: right; align-items: flex-end; }
+
+.vc-text-visual {
+    font-family: var(--vc-font-serif); font-size: 13px; line-height: 1.5; margin-bottom: 4px; font-style: italic;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+.vc-text-visual.ai { color: var(--vc-ai-color); }
+.vc-text-visual.user { color: #9e998e; }
+
+.vc-text-voice {
+    font-size: 15px;
+    line-height: 1.5;
+    font-weight: 300;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+.vc-text-voice.ai { color: var(--vc-ai-voice); text-shadow: 0 0 8px rgba(255,255,255,0.15); }
+.vc-text-voice.user { color: var(--vc-user-voice); }
+
+.vc-deco-line { width: 1px; height: 10px; margin-bottom: 5px; opacity: 0.4; background: currentColor; }
+
+/* 底部控制区 */
+.vc-controls-wrapper {
+    padding: 20px 0 40px 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+    border-top: none; /* 移除新版的边框 */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* 历史档案室内隐藏原底部操作按钮，由新主卧承担通话控制 */
+#vc-scene-call .vc-controls-wrapper {
+    display: none;
+}
+.vc-controls {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    align-items: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.vc-c-btn {
+    display: flex; flex-direction: column; align-items: center;
+    background: none; border: none; cursor: pointer;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+.vc-c-icon-box {
+    width: 56px; height: 56px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.03); backdrop-filter: blur(5px);
+    margin-bottom: 8px; transition: transform 0.2s;
+    color: #fff; /* 确保 SVG 图标为白色 */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+.vc-c-btn:active .vc-c-icon-box { transform: scale(0.92); background: rgba(255,255,255,0.1); }
+
+/* 挂断按钮 */
+.vc-btn-hangup .vc-c-icon-box { border-color: rgba(255,80,80,0.4); background: rgba(255,80,80,0.08); }
+.vc-btn-hangup span { color: #ff5050; opacity: 0.8; }
+.vc-icon-hangup { width: 14px; height: 14px; background: #ff5050; transform: rotate(45deg); border-radius: 2px; }
+
+.vc-c-label { font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 1px; text-transform: uppercase; }
+
+/* 简单图标绘制 (保留以防万一，虽然新版用SVG) */
+.vc-icon-eye { width: 18px; height: 10px; border: 1px solid #fff; border-radius: 50%; position: relative; }
+.vc-icon-eye::after { content:''; position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); width: 4px; height: 4px; background: #fff; border-radius: 50%; }
+.vc-icon-mic { width: 10px; height: 16px; border: 1px solid #fff; border-radius: 5px; }
+
+/* 适配新版 SVG 图标 */
+.vc-c-icon-box svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+}
+
+/* =========================================
+   Input Overlay (通话输入框) - 深色适配 (保留新功能)
+   ========================================= */
+.vc-input-overlay {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.3);
+    z-index: 20060;
+    display: flex;
+    align-items: flex-end;
+    padding-bottom: 140px;
+    justify-content: center;
+    pointer-events: auto;
+}
+
+.vc-input-box {
+    width: 85%;
+    max-width: 400px;
+    background: rgba(40,40,40,0.9);
+    backdrop-filter: blur(20px);
+    border-radius: 28px;
+    padding: 6px 12px 6px 20px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    animation: vc-slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.vc-input-box input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    outline: none;
+    padding: 8px 0;
+}
+.vc-input-box input::placeholder { color: rgba(255,255,255,0.4); }
+
+#vc-input-help-btn {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: rgba(255,255,255,0.6);
+    display: flex; align-items: center; justify-content: center;
+    margin-left: 10px;
+    cursor: pointer;
+}
+
+/* 新主卧：极简输入浮层（键盘上方的小输入框） */
+#vc-master-input-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 130;
+    /* 仅保留下边距：与羽毛区同一水平中线（44px 高 + bottom 26px+safe），不改动羽毛与三键坐标 */
+    padding: 0 0 calc(26px + env(safe-area-inset-bottom)) 0;
+    display: none;
+    background: transparent;
+    pointer-events: auto;
+}
+
+.vc-master-input-box {
+    position: absolute;
+    /* 横向新规则：右侧固定 26px；左侧固定离“羽毛图标右缘”26px */
+    /* 羽毛图标右缘 = 左侧按钮 left(20px) + (44-40)/2 + 40 = 62px；输入框 left = 62 + 26 = 88px */
+    left: calc(20px + (44px - 40px) / 2 + 40px + 26px);
+    right: 26px;
+    bottom: calc(26px + env(safe-area-inset-bottom));
+    height: 44px; /* 与左侧羽毛按钮等高，保证纵向中轴线对齐 */
+    background: rgba(0,0,0,0.55);
+    border-radius: 999px;
+    padding: 0 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.18);
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.vc-master-input-box input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 300;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    padding: 4px 0;
+    user-select: text;
+    -webkit-user-select: text;
+    -webkit-touch-callout: default;
+}
+
+.vc-master-input-box input::placeholder {
+    color: rgba(255,255,255,0.5);
+}
+
+/* =========================================
+   Call Type Modal (极简 Action Sheet) - 浅色 iOS 风格 (保留)
+   ========================================= */
+.vc-type-modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(2px);
+    z-index: 20150; /* 提升层级，高于通话界面(20050)和加载界面(20100) */
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+/* 确保操作菜单/确认框在历史记录之上 */
+#vc-type-modal {
+    z-index: 20250;
+}
+.vc-type-modal.visible { display: flex; opacity: 1; }
+
+.vc-type-sheet {
+    width: 95%;
+    max-width: 400px;
+    background: transparent;
+    padding: 0 0 20px 0;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.vc-type-modal.visible .vc-type-sheet { transform: translateY(0); }
+
+.vc-type-header { display: none; }
+
+/* 按钮组容器 */
+.vc-type-group {
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(20px);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+/* 极简按钮样式 */
+.vc-type-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    color: var(--vc-accent-color);
+    font-size: 18px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background 0.2s;
+    text-align: center;
+}
+.vc-type-btn:last-child { border-bottom: none; }
+.vc-type-btn:active { background: rgba(0,0,0,0.05); }
+
+/* 取消按钮单独样式 */
+.vc-type-cancel {
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(20px);
+    border-radius: 14px;
+    padding: 16px;
+    color: var(--vc-accent-color);
+    font-size: 18px;
+    font-weight: 600;
+    border: none;
+    width: 100%;
+    cursor: pointer;
+}
+.vc-type-cancel:active { background: rgba(255,255,255,0.7); }
+
+.vc-type-icon, .vc-type-desc { display: none; }
+.vc-type-info { align-items: center; }
+.vc-type-label { font-weight: 400; font-size: 18px; }
+
+
+/* =========================================
+   Call History List (iOS 原生风格) - 浅色 (保留)
+   ========================================= */
+#vc-history-modal .vc-type-sheet {
+    background: var(--vc-modal-bg);
+    border-radius: 20px 20px 0 0;
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 85vh;
+    gap: 0;
+}
+
+#vc-history-modal .vc-type-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--vc-modal-border);
+    background: var(--vc-modal-bg);
+    border-radius: 20px 20px 0 0;
+}
+
+.vc-type-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--vc-modal-text);
+}
+
+/* 关闭按钮样式 */
+.vc-type-close {
+    background: rgba(142, 142, 147, 0.12);
+    border: none;
+    color: var(--vc-modal-text-sub);
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    font-size: 20px;
+    line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    padding: 0;
+}
+.vc-type-close:active { background: rgba(142, 142, 147, 0.2); }
+
+.vc-history-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 0 0 0 20px;
+}
+
+.vc-history-empty {
+    text-align: center;
+    color: var(--vc-modal-text-sub);
+    margin-top: 60px;
+    font-size: 15px;
+}
+
+/* 列表项容器 */
+.vc-history-item-container {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--vc-modal-border);
+    padding-right: 20px;
+}
+.vc-history-item-container:last-child { border-bottom: none; }
+
+/* 列表项头部 */
+.vc-history-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    cursor: pointer;
+    background: transparent;
+    min-height: 60px;
+}
+.vc-history-header:active { opacity: 0.6; }
+
+.vc-history-icon {
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    margin-right: 12px;
+    color: var(--vc-modal-text-sub);
+    background: transparent;
+    border-radius: 0;
+}
+
+.vc-history-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+}
+.vc-history-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--vc-modal-text);
+}
+.vc-history-subtitle {
+    font-size: 13px;
+    color: var(--vc-modal-text-sub);
+}
+
+.vc-history-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.vc-history-date {
+    font-size: 15px;
+    color: var(--vc-modal-text-sub);
+}
+.vc-history-info-icon {
+    width: 22px; height: 22px;
+    border: 1px solid var(--vc-accent-color);
+    border-radius: 50%;
+    color: var(--vc-accent-color);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    font-family: serif;
+    font-weight: bold;
+}
+
+/* 详情折叠区域 */
+.vc-history-detail {
+    height: 0;
+    overflow: hidden;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--vc-modal-bg-sec);
+    margin-left: -20px;
+    padding-left: 20px;
+}
+
+.vc-history-item-container.expanded .vc-history-detail {
+    height: auto;
+    border-bottom: 1px solid var(--vc-modal-border);
+}
+
+.vc-detail-content {
+    padding: 16px 20px 16px 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--vc-modal-text);
+}
+
+/* 总结部分 */
+.vc-detail-summary {
+    margin-bottom: 12px;
+    padding: 10px;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+.vc-summary-label {
+    font-size: 11px;
+    color: var(--vc-modal-text-sub);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.vc-summary-text { font-weight: 500; }
+
+/* 对话记录部分 */
+.vc-detail-log {
+    white-space: pre-wrap;
+    font-family: var(--vc-font-sans);
+    color: var(--vc-modal-text);
+}
+.vc-log-line { margin-bottom: 6px; display: block; }
+.vc-log-role { font-weight: 600; margin-right: 4px; font-size: 13px; color: var(--vc-modal-text-sub); }
+.vc-log-text { color: var(--vc-modal-text); }
+.vc-log-visual { color: var(--vc-modal-text-sub); font-style: italic; }
+
+/* =========================================
+   Incoming Call Notification (iOS Style) - 保留
+   ========================================= */
+.vc-incoming-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: transparent;
+    z-index: 20200;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: calc(12px + env(safe-area-inset-top));
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none !important;
+}
+
+.vc-incoming-overlay.visible { display: flex; opacity: 1; }
+
+.vc-incoming-banner {
+    width: 94%;
+    max-width: 380px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 40px; /* 灵动岛风格 */
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    transform: translateY(-150%);
+    transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+    border: 1px solid rgba(255,255,255,0.5);
+    pointer-events: auto;
+}
+
+.vc-incoming-overlay.visible .vc-incoming-banner { transform: translateY(0); }
+
+/* 修复：添加内容容器布局 */
+.vc-incoming-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    margin-right: 10px;
+}
+
+.vc-incoming-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    margin-right: 12px;
+    background-color: #f0f0f0;
+    flex-shrink: 0;
+    box-shadow: var(--vc-shadow-sm);
+}
+
+.vc-incoming-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    margin-right: 10px;
+}
+
+.vc-incoming-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #000;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vc-incoming-type {
+    font-size: 12px;
+    color: #666;
+    margin-top: 2px;
+}
+
+.vc-incoming-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.vc-incoming-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+    flex: none;
+    color: #fff;
+}
+.vc-incoming-btn:active { transform: scale(0.9); }
+
+.vc-incoming-btn.reject { background-color: var(--vc-danger-color); }
+.vc-incoming-btn.accept { background-color: var(--vc-success-color); }
+
+/* =========================================
+   Floating Window (Mini Mode)
+   ========================================= */
+.vc-floating-window {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: var(--vc-float-width);
+    height: var(--vc-float-height); /* 3:4 比例 */
+    background: #000;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    z-index: 20300;
+    overflow: hidden;
+    cursor: move;
+    transition: transform 0.1s;
+    touch-action: none; /* 防止滚动 */
+}
+
+.vc-float-avatar {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-color: #333;
+}
+
+.vc-float-timer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 4px 0;
+    background: transparent; /* 去掉黑色遮幕 */
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8); /* 增加阴影保证清晰度 */
+    color: #fff;
+    font-size: 10px;
+    text-align: center;
+    font-family: monospace;
+    pointer-events: none;
+}
+
+/* 缩小按钮 (全屏界面左上角) */
+.vc-minimize-btn {
+    position: absolute;
+    top: calc(15px + env(safe-area-inset-top));
+    left: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(5px);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    cursor: pointer;
+    z-index: 20;
+    transition: background 0.2s;
+}
+.vc-minimize-btn:active { background: rgba(255,255,255,0.3); }
+.vc-minimize-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+/* 动画 */
+@keyframes vc-signal-flow { 0% { stroke-dashoffset: 200; } 100% { stroke-dashoffset: -200; } }
+@keyframes vc-slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes vc-fadePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+
+/* 确保 Toast 在视频通话界面之上，并且允许换行 */
+#toast-notification {
+    z-index: 21000 !important;
+    height: auto;
+    min-height: 44px;
+}
+
+#toast-notification .toast-message {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.4;
+}
+
+/* 上下文菜单 (长按菜单) */
+.vc-context-menu {
+    position: fixed;
+    background: rgba(40, 40, 40, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    z-index: 20100;
+    display: flex;
+    flex-direction: column;
+    min-width: 100px;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+}
+
+.vc-context-menu.visible {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+
+.vc-context-item {
+    padding: 10px 16px;
+    color: #fff;
+    font-size: 15px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.vc-context-item:active {
+    background: rgba(255,255,255,0.15);
+}
+
+/* 双语字幕样式 */
+.vc-voice-origin {
+    display: block;
+}
+
+.vc-voice-trans {
+    display: block;
+    font-size: 12px;
+    opacity: 0.7;
+    margin-top: 4px;
+    font-weight: normal;
+    line-height: 1.4;
+    letter-spacing: 0.5px;
+}
+
+/* =========================================
+   胶片相机：左上角乌鸦下方倒计时/进度容器
+   ========================================= */
+.vc-film-counter {
+    position: absolute;
+    top: calc(68px + env(safe-area-inset-top));
+    left: 20px;
+    z-index: 110;
+    width: 40px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.vc-film-counter.is-visible {
+    display: flex;
+}
+
+.vc-film-counter-text {
+    font-family: var(--vc-font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    letter-spacing: 0.05em;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    line-height: 1;
+    text-align: center;
+}
+
+/* 倒计时数字（3/2/1）：放大字号，严禁加粗，保持纤细骨架与进度数字视觉衔接 */
+.vc-film-counter-text.is-countdown {
+    font-size: 22px;
+    font-weight: 300;
+}
+
+/* 进度数字（1/12...） */
+.vc-film-counter-text.is-progress {
+    font-size: 11px;
+    font-weight: 300;
+    opacity: 0.92;
+}
+
+/* 左上角乌鸦下方：胶片入口按钮 */
+.vc-film-roll-btn {
+    position: absolute;
+    top: calc(66px + env(safe-area-inset-top));
+    left: 20px;
+    z-index: 110;
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: transform 0.18s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.vc-film-roll-btn.is-visible {
+    display: flex;
+}
+
+.vc-film-roll-btn:active {
+    transform: scale(0.9);
+}
+
+.vc-film-roll-btn img {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    /* 与乌鸦图标一致的极细投影：防白底隐身，不产生大面积浑浊阴影 */
+    filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.3));
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* =========================================
+   胶片相册面板
+   ========================================= */
+.vc-film-album-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 115000;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.vc-film-album-overlay.is-visible {
+    display: flex;
+}
+
+.vc-film-album-sheet {
+    width: 100%;
+    max-width: 520px;
+    background: rgba(18,18,18,0.97);
+    border-radius: 20px 20px 0 0;
+    padding: 0 0 0 0;
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+    overflow: hidden;
+}
+
+.vc-film-album-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 10px 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+}
+
+.vc-film-album-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.04em;
+}
+
+.vc-film-album-close-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: rgba(255,255,255,0.7);
+    font-size: 16px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s;
+}
+.vc-film-album-close-btn:active { background: rgba(255,255,255,0.2); }
+
+.vc-film-album-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+    padding: 10px 10px 4px 10px;
+    overflow-y: auto;
+    flex: 1;
+    -webkit-overflow-scrolling: touch;
+}
+
+.vc-film-thumb-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    background: #222;
+    border: 2px solid transparent;
+    box-sizing: border-box;
+    transition: border-color 0.16s;
+}
+
+.vc-film-thumb-item.is-selected {
+    border-color: #fff;
+}
+
+.vc-film-thumb-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.vc-film-thumb-check {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto !important;
+    z-index: 10;
+    transition: background 0.16s, border-color 0.16s;
+}
+
+.vc-film-thumb-item.is-selected .vc-film-thumb-check {
+    background: #fff;
+    border-color: #fff;
+}
+
+.vc-film-thumb-check::after {
+    content: '';
+    width: 6px;
+    height: 4px;
+    border-left: 1.5px solid #111;
+    border-bottom: 1.5px solid #111;
+    transform: rotate(-45deg) translateY(-1px);
+    display: none;
+}
+
+.vc-film-thumb-item.is-selected .vc-film-thumb-check::after {
+    display: block;
+}
+
+.vc-film-album-footer {
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom)) 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+    gap: 10px;
+}
+
+.vc-film-select-all-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+    white-space: nowrap;
+}
+.vc-film-select-all-btn:active { background: rgba(255,255,255,0.1); }
+
+.vc-film-send-btn {
+    flex: 1;
+    background: #fff;
+    color: #111;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 10px 0;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    text-align: center;
+    transition: opacity 0.18s;
+}
+.vc-film-send-btn:active { opacity: 0.85; }
+.vc-film-send-btn:disabled { opacity: 0.38; pointer-events: none; }
+
+/* =========================================
+   胶片大图预览浮层
+   ========================================= */
+.vc-film-preview-overlay {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 120000;
+    display: none;
+    flex-direction: column;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.vc-film-preview-overlay.is-visible {
+    display: flex;
+}
+
+.vc-film-preview-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(14px + env(safe-area-inset-top)) 18px 14px 18px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
+}
+
+.vc-film-preview-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+}
+
+.vc-film-preview-index {
+    font-family: var(--vc-font-mono);
+    font-size: 13px;
+    color: rgba(255,255,255,0.8);
+}
+
+.vc-film-preview-check-btn {
+    background: transparent;
+    border: 2px solid rgba(255,255,255,0.6);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.16s, border-color 0.16s;
+}
+
+.vc-film-preview-check-btn.is-checked {
+    background: #fff;
+    border-color: #fff;
+}
+
+.vc-film-preview-check-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.vc-film-preview-track {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.vc-film-preview-slides {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+}
+
+.vc-film-preview-slide {
+    flex-shrink: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.vc-film-preview-slide img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
