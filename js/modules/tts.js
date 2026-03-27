@@ -454,11 +454,13 @@ const TTSModule = (() => {
 
     /**
      * 对已经过状态机过滤后的文本做轻量清洗：
-     *   - 仅合并多余空白并裁剪首尾空格，不再做任何正则级别的复杂删除，避免误杀。
+     *   - 将 \r、\n（及连续换行）统一替换为空格，避免 TTS 将换行当段落停顿、字幕出现破坏性空行。
+     *   - 合并其余多余空白并裁剪首尾空格，不做更激进的删除，避免误杀。
      */
     function cleanCallText(text) {
         if (!text) return '';
         return String(text)
+            .replace(/[\r\n]+/g, ' ')
             .replace(/\s{2,}/g, ' ')
             .trim();
     }
@@ -697,19 +699,18 @@ const TTSModule = (() => {
 
         const item = state.callAudioQueue.shift();
 
-        // 后台预加载下一条（如果存在），但不等待其完成
         const nextItem = state.callAudioQueue[0];
-        if (nextItem && !nextItem.blob && !nextItem.blobPromise) {
-            nextItem.blobPromise = synthesize(nextItem.text, nextItem.voiceId, nextItem.speed)
-                .then((b) => {
-                    nextItem.blob = b;
-                    return b;
-                })
-                .catch((e) => {
-                    nextItem.blobPromise = null;
-                    console.error('[TTS Call Queue Preload]', e);
-                });
+        const thirdItem = state.callAudioQueue[1];
+
+        function _kickCallQueuePreload(q) {
+            if (!q) return;
+            void _ensureItemBlob(q).catch((e) => {
+                console.error('[TTS Call Queue Preload]', e);
+            });
         }
+        // 当前条合成与播放期间，并行预热下一条、再下一条，压缩段间空窗
+        _kickCallQueuePreload(nextItem);
+        _kickCallQueuePreload(thirdItem);
 
         try {
             const blob = await _ensureItemBlob(item);

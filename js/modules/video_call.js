@@ -1217,7 +1217,7 @@ const VideoCallModule = {
 
         this.state.cameraBurstInProgress = true;
         const TOTAL = 12;
-        const INTERVAL_MS = 1500;
+        const INTERVAL_MS = 500;
         const capturedFrames = [];
 
         try {
@@ -1225,7 +1225,7 @@ const VideoCallModule = {
             const countdownOk = await this.showFilmCountdown();
             if (!countdownOk || !this.state.isCallActive) return;
 
-            /* 阶段二：连续抓拍 12 张，每张 1.5s */
+            /* 阶段二：连续抓拍 12 张，帧间间隔 0.5s */
             for (let i = 0; i < TOTAL; i++) {
                 if (!this.state.isCallActive || !this.state.cameraBurstInProgress) break;
                 this.setFilmCounterText(`${i + 1}/${TOTAL}`, 'progress');
