@@ -1,12 +1,6 @@
 // --- 数据库与全局状态 (js/db.js) ---
 
 // 常量定义
-const BLOCKED_API_DOMAINS = [
-    'api522.pro',
-    'api521.pro',
-    'api520.pro'
-];
-
 const colorThemes = {
     'white_pink': {
         name: '白/粉',

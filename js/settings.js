@@ -497,11 +497,6 @@ function setupApiSettingsApp() {
             return;
         }
 
-        if (BLOCKED_API_DOMAINS.some(domain => apiUrl.includes(domain))) {
-            if (showToastFlag) showToast('该 API 站点已被屏蔽，无法使用！');
-            return;
-        }
-
         if (apiUrl.endsWith('/')) apiUrl = apiUrl.slice(0, -1);
         
         const endpoint = provider === 'gemini' 
@@ -574,9 +569,6 @@ function setupApiSettingsApp() {
     e.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!a.value) return showToast('请选择模型后保存！');
-        if (BLOCKED_API_DOMAINS.some(domain => r.value.includes(domain))) {
-            return showToast('该 API 站点已被屏蔽，无法保存！');
-        }
         db.apiSettings = {
             provider: n.value,
             url: r.value,

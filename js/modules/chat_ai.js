@@ -39,13 +39,6 @@ async function getAiReply(chatId, chatType, isBackground = false) {
         return;
     }
 
-    // 确保 BLOCKED_API_DOMAINS 存在
-    const blockedDomains = (typeof BLOCKED_API_DOMAINS !== 'undefined') ? BLOCKED_API_DOMAINS : [];
-    if (blockedDomains.some(domain => url.includes(domain))) {
-        if (!isBackground) showToast('当前 API 站点已被屏蔽，无法发送消息！');
-        return;
-    }
-
     if (url.endsWith('/')) {
         url = url.slice(0, -1);
     }
