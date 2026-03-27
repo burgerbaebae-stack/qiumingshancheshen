@@ -454,13 +454,11 @@ const TTSModule = (() => {
 
     /**
      * 对已经过状态机过滤后的文本做轻量清洗：
-     *   - 将 \r、\n（及连续换行）统一替换为空格，避免 TTS 将换行当段落停顿、字幕出现破坏性空行。
-     *   - 合并其余多余空白并裁剪首尾空格，不做更激进的删除，避免误杀。
+     *   - 仅合并多余空白并裁剪首尾空格，不再做任何正则级别的复杂删除，避免误杀。
      */
     function cleanCallText(text) {
         if (!text) return '';
         return String(text)
-            .replace(/[\r\n]+/g, ' ')
             .replace(/\s{2,}/g, ' ')
             .trim();
     }
@@ -600,7 +598,10 @@ const TTSModule = (() => {
             }
         }
 
-        if (!state.isCallStreamPlaying) {
+        if (state.isCallStreamPlaying) {
+            // 正在播上一句时新句才入队：若不在这里预加载，要等 onended 后才开始合成，手机上句间会空很久
+            _preloadCallQueueHead(4);
+        } else {
             _processCallQueue();
         }
     }
@@ -618,7 +619,9 @@ const TTSModule = (() => {
         }
         state.callStreamBuffer = '';
 
-        if (!state.isCallStreamPlaying) {
+        if (state.isCallStreamPlaying) {
+            _preloadCallQueueHead(4);
+        } else {
             _processCallQueue();
         }
     }
@@ -683,6 +686,20 @@ const TTSModule = (() => {
     }
 
     /**
+     * 后台预热队列前若干条（不 await），用于压缩句与句之间的空窗。
+     * 流式入队在「正在播放」时不会再次进入 _processCallQueue，必须在 feed/flush 时主动 kick。
+     */
+    function _preloadCallQueueHead(maxAhead) {
+        const q = state.callAudioQueue;
+        const n = Math.min(Math.max(1, maxAhead || 4), q.length);
+        for (let i = 0; i < n; i++) {
+            void _ensureItemBlob(q[i]).catch((e) => {
+                console.error('[TTS Call Queue Preload]', e);
+            });
+        }
+    }
+
+    /**
      * 通话队列消费：
      *   - 当前项使用已预加载或现合成的 blob 播放
      *   - 同时后台预加载下一项，减少段与段之间的停顿
@@ -699,18 +716,8 @@ const TTSModule = (() => {
 
         const item = state.callAudioQueue.shift();
 
-        const nextItem = state.callAudioQueue[0];
-        const thirdItem = state.callAudioQueue[1];
-
-        function _kickCallQueuePreload(q) {
-            if (!q) return;
-            void _ensureItemBlob(q).catch((e) => {
-                console.error('[TTS Call Queue Preload]', e);
-            });
-        }
-        // 当前条合成与播放期间，并行预热下一条、再下一条，压缩段间空窗
-        _kickCallQueuePreload(nextItem);
-        _kickCallQueuePreload(thirdItem);
+        // 当前条播放期间并行预热后续多条（移动网络下合成较慢，多 lookahead 可明显减少句间停顿）
+        _preloadCallQueueHead(4);
 
         try {
             const blob = await _ensureItemBlob(item);
