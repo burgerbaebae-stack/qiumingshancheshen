@@ -470,6 +470,8 @@ const VideoCallModule = {
         master.style.top = '';
         master.style.right = '';
         master.style.bottom = '';
+        master.style.transform = '';
+        master.style.willChange = '';
         const pipHandle = this.ensureMasterPipDragHandle(master);
         pipHandle.style.display = 'block';
         this.state.isMasterPip = true;
@@ -490,6 +492,8 @@ const VideoCallModule = {
         master.style.width = '';
         master.style.height = '';
         master.style.transition = '';
+        master.style.transform = '';
+        master.style.willChange = '';
         const h = master.querySelector('.vc-master-pip-drag-handle');
         if (h) h.style.display = 'none';
         this.state.isMasterPip = false;
@@ -520,6 +524,8 @@ const VideoCallModule = {
         const self = this;
         let dragging = false;
         let startX, startY, initialLeft, initialTop;
+        let pipDragW = 0;
+        let pipDragH = 0;
         let moved = false;
 
         const arm = (clientX, clientY) => {
@@ -528,19 +534,23 @@ const VideoCallModule = {
             initialTop = rect.top;
             startX = clientX;
             startY = clientY;
+            pipDragW = master.offsetWidth;
+            pipDragH = master.offsetHeight;
             master.style.transition = 'none';
             master.style.right = 'auto';
             master.style.bottom = 'auto';
             master.style.left = `${initialLeft}px`;
             master.style.top = `${initialTop}px`;
+            master.style.transform = 'translate3d(0,0,0)';
+            master.style.willChange = 'transform';
         };
 
         const dragTo = (clientX, clientY) => {
             const dx = clientX - startX;
             const dy = clientY - startY;
             if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved = true;
-            const w = master.offsetWidth;
-            const h = master.offsetHeight;
+            const w = pipDragW;
+            const h = pipDragH;
             const marginX = 25;
             const marginBottom = 25;
             const marginTop = 62;
@@ -554,14 +564,22 @@ const VideoCallModule = {
             let top = initialTop + dy;
             left = Math.min(Math.max(minL, left), maxL);
             top = Math.min(Math.max(minT, top), maxT);
-            master.style.left = `${left}px`;
-            master.style.top = `${top}px`;
+            const tx = left - initialLeft;
+            const ty = top - initialTop;
+            master.style.transform = `translate3d(${tx}px,${ty}px,0)`;
         };
 
         const finish = () => {
             if (!dragging) return;
             dragging = false;
             master.style.transition = '';
+            master.style.willChange = '';
+            if (moved && master.classList.contains('pip-mode')) {
+                const r = master.getBoundingClientRect();
+                master.style.left = `${r.left}px`;
+                master.style.top = `${r.top}px`;
+                master.style.transform = '';
+            }
             if (!moved && master.classList.contains('pip-mode')) {
                 self.exitMasterPip();
             }
@@ -782,6 +800,8 @@ const VideoCallModule = {
         let startY = 0;
         let originLeft = 0;
         let originTop = 0;
+        let previewW = 0;
+        let previewH = 0;
         let moved = false;
 
         host.addEventListener('pointerdown', (e) => {
@@ -793,13 +813,17 @@ const VideoCallModule = {
             host.style.bottom = 'auto';
             host.style.left = `${rect.left}px`;
             host.style.top = `${rect.top}px`;
+            host.style.transform = 'translate3d(0,0,0)';
             host.style.transition = 'none';
+            host.style.willChange = 'transform';
 
             pointerId = e.pointerId;
             startX = e.clientX;
             startY = e.clientY;
             originLeft = rect.left;
             originTop = rect.top;
+            previewW = host.offsetWidth;
+            previewH = host.offsetHeight;
             moved = false;
             host.dataset.dragMoved = '0';
 
@@ -816,11 +840,12 @@ const VideoCallModule = {
             const next = this.clampFloatingPosition(
                 originLeft + dx,
                 originTop + dy,
-                host.offsetWidth,
-                host.offsetHeight
+                previewW,
+                previewH
             );
-            host.style.left = `${next.left}px`;
-            host.style.top = `${next.top}px`;
+            const tx = next.left - originLeft;
+            const ty = next.top - originTop;
+            host.style.transform = `translate3d(${tx}px,${ty}px,0)`;
         });
 
         const finish = (e) => {
@@ -830,6 +855,13 @@ const VideoCallModule = {
             } catch (_) { /* ignore */ }
             pointerId = null;
             host.style.transition = '';
+            host.style.willChange = '';
+            if (moved) {
+                const r = host.getBoundingClientRect();
+                host.style.left = `${r.left}px`;
+                host.style.top = `${r.top}px`;
+            }
+            host.style.transform = '';
             host.dataset.dragMoved = moved ? '1' : '0';
             setTimeout(() => {
                 host.dataset.dragMoved = '0';
