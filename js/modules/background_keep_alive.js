@@ -1,86 +1,108 @@
 // js/modules/background_keep_alive.js
 // 后台保活模块
-// 原理：在内存中动态生成一段极短的无声 WAV 音频（等同于 Base64 内嵌），
-// 以 loop 方式静默循环播放，触发浏览器的媒体会话机制，
-// 阻止系统在后台挂起网页进程，确保 API 轮询持续运作。
+// 原理：在用户开启开关时创建 Web Audio API 图：单帧静音 BufferSource 循环 + 增益 0，
+// 维持「活跃音频上下文」以配合系统媒体策略，避免主线程上 HTML5 Audio 高频 loop 解码与内存压力。
+// 关闭时 stop → disconnect → suspend → close，完整释放，无定时器、无轮询。
 
 const BackgroundKeepAliveModule = (() => {
 
     const STORAGE_KEY = 'bg_keep_alive_enabled';
 
-    let _audioEl  = null;
-    let _enabled  = false;
+    let _ctx   = null;
+    let _src   = null;
+    let _gain  = null;
+    let _enabled = false;
 
-    // ── 内存生成静音 WAV ──────────────────────────────────────────
-    // 规格：8 kHz / 8-bit / mono / 0.1 秒（800 样本）
-    // 完全等价于一段 Base64 编码的内嵌音频，不依赖任何外部文件。
-    function _buildSilentWavDataUrl() {
-        const sampleRate  = 8000;
-        const numSamples  = 800;                    // 0.1 s
-        const buf         = new ArrayBuffer(44 + numSamples);
-        const v           = new DataView(buf);
-
-        const writeStr = (off, str) => {
-            for (let i = 0; i < str.length; i++) v.setUint8(off + i, str.charCodeAt(i));
-        };
-
-        // RIFF 头
-        writeStr(0,  'RIFF');
-        v.setUint32(4, 36 + numSamples, true);      // 文件总大小 - 8
-        writeStr(8,  'WAVE');
-        // fmt  块
-        writeStr(12, 'fmt ');
-        v.setUint32(16, 16,         true);           // 块大小
-        v.setUint16(20,  1,         true);           // PCM
-        v.setUint16(22,  1,         true);           // 单声道
-        v.setUint32(24, sampleRate, true);           // 采样率
-        v.setUint32(28, sampleRate, true);           // 字节率 = sampleRate×1×1
-        v.setUint16(32,  1,         true);           // 块对齐
-        v.setUint16(34,  8,         true);           // 位深
-        // data 块
-        writeStr(36, 'data');
-        v.setUint32(40, numSamples, true);
-        for (let i = 0; i < numSamples; i++) {
-            v.setUint8(44 + i, 128);                // 0x80 = 8-bit 无符号 PCM 静音
-        }
-
-        // 转换为 Base64 data URL
-        const bytes = new Uint8Array(buf);
-        let bin = '';
-        for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
-        return 'data:audio/wav;base64,' + btoa(bin);
+    function _getAudioContextCtor() {
+        return window.AudioContext || window.webkitAudioContext || null;
     }
 
-    // ── 播放控制 ──────────────────────────────────────────────────
+    /** 构建极简静音图：1 样本缓冲 loop，增益 0，音频线程侧近乎零输出。 */
+    function _wireSilentGraph(ctx) {
+        const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        src.connect(gain);
+        gain.connect(ctx.destination);
+        src.start(0);
+        return { src, gain };
+    }
+
+    function _resumeContextIfNeeded() {
+        if (!_ctx || _ctx.state !== 'suspended') return;
+        const p = _ctx.resume();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+    }
+
+    function _attachGestureResumeOnce() {
+        const resume = () => {
+            _resumeContextIfNeeded();
+        };
+        document.addEventListener('touchstart', resume, { once: true, passive: true });
+        document.addEventListener('click', resume, { once: true });
+    }
 
     function _start() {
-        if (_audioEl) return;
+        if (_ctx) return;
 
-        const audio   = new Audio();
-        audio.src     = _buildSilentWavDataUrl();
-        audio.loop    = true;
-        audio.volume  = 0;
-        // 注意：muted=true 会被部分浏览器忽略媒体会话，必须保持 false
-        audio.muted   = false;
+        const Ctor = _getAudioContextCtor();
+        if (!Ctor) return;
 
-        const promise = audio.play();
-        if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => {
-                // 自动播放策略阻止时，等待用户下一次手势后重试
-                const resume = () => audio.play().catch(() => {});
-                document.addEventListener('touchstart', resume, { once: true });
-                document.addEventListener('click',      resume, { once: true });
-            });
+        let ctx;
+        try {
+            ctx = new Ctor();
+        } catch (e) {
+            return;
         }
 
-        _audioEl = audio;
+        let graph;
+        try {
+            graph = _wireSilentGraph(ctx);
+        } catch (e) {
+            ctx.close().catch(() => {});
+            return;
+        }
+
+        _ctx  = ctx;
+        _src  = graph.src;
+        _gain = graph.gain;
+
+        _resumeContextIfNeeded();
+        if (_ctx.state === 'suspended') {
+            _attachGestureResumeOnce();
+        }
     }
 
     function _stop() {
-        if (_audioEl) {
-            _audioEl.pause();
-            _audioEl.src = '';
-            _audioEl = null;
+        if (_src) {
+            try {
+                _src.stop(0);
+            } catch (e) {
+                /* 已 stop 或无效 */
+            }
+            try {
+                _src.disconnect();
+            } catch (e) {}
+            _src = null;
+        }
+        if (_gain) {
+            try {
+                _gain.disconnect();
+            } catch (e) {}
+            _gain = null;
+        }
+        if (_ctx) {
+            const c = _ctx;
+            _ctx = null;
+            const s = c.suspend();
+            if (s && typeof s.then === 'function') {
+                s.catch(() => {}).then(() => c.close().catch(() => {}));
+            } else {
+                c.close().catch(() => {});
+            }
         }
     }
 
@@ -112,13 +134,9 @@ const BackgroundKeepAliveModule = (() => {
             sw.addEventListener('change', e => setEnabled(e.target.checked));
         }
 
-        // 若上次退出时保活处于开启状态，则恢复播放
         if (_enabled) _start();
     }
 
-    // ── 自动初始化 ────────────────────────────────────────────────
-    // 脚本在 <body> 底部加载，DOM 已完全解析，可以直接调用 init()。
-    // 同时兼容极少数未解析完成的场景。
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
