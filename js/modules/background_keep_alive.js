@@ -1,23 +1,72 @@
 // js/modules/background_keep_alive.js
 // 后台保活模块
-// 原理：在用户开启开关时创建 Web Audio API 图：单帧静音 BufferSource 循环 + 增益 0，
-// 维持「活跃音频上下文」以配合系统媒体策略，避免主线程上 HTML5 Audio 高频 loop 解码与内存压力。
-// 关闭时 stop → disconnect → suspend → close，完整释放，无定时器、无轮询。
+//
+// · Chrome / Firefox / 等：Web Audio — 单样本静音 BufferSource loop + 增益 0，无 HTML5 Audio 解码循环。
+// · Safari / iOS WebKit：系统会强力挂起 AudioContext，单独使用 Web Audio 往往无效；改用 <audio> 静音循环
+//   以走媒体播放通道。静音 WAV 的 data URL 仅在模块加载时构建一次并缓存，避免每次开关重复分配与 btoa。
+//
+// 关闭时两类路径分别彻底释放；无定时器、无轮询。
 
 const BackgroundKeepAliveModule = (() => {
 
     const STORAGE_KEY = 'bg_keep_alive_enabled';
 
-    let _ctx   = null;
-    let _src   = null;
-    let _gain  = null;
+    /** 模块初始化时只算一次，供 WebKit 媒体回退使用（非每次 _start 动态生成）。 */
+    const SILENT_WAV_DATA_URL = (() => {
+        try {
+            const sampleRate = 8000;
+            const numSamples = 800;
+            const buf = new ArrayBuffer(44 + numSamples);
+            const v = new DataView(buf);
+            const writeStr = (off, str) => {
+                for (let i = 0; i < str.length; i++) v.setUint8(off + i, str.charCodeAt(i));
+            };
+            writeStr(0, 'RIFF');
+            v.setUint32(4, 36 + numSamples, true);
+            writeStr(8, 'WAVE');
+            writeStr(12, 'fmt ');
+            v.setUint32(16, 16, true);
+            v.setUint16(20, 1, true);
+            v.setUint16(22, 1, true);
+            v.setUint32(24, sampleRate, true);
+            v.setUint32(28, sampleRate, true);
+            v.setUint16(32, 1, true);
+            v.setUint16(34, 8, true);
+            writeStr(36, 'data');
+            v.setUint32(40, numSamples, true);
+            for (let i = 0; i < numSamples; i++) v.setUint8(44 + i, 128);
+            const bytes = new Uint8Array(buf);
+            let bin = '';
+            for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+            return 'data:audio/wav;base64,' + btoa(bin);
+        } catch (e) {
+            return '';
+        }
+    })();
+
+    let _ctx = null;
+    let _src = null;
+    let _gain = null;
+    let _audioEl = null;
     let _enabled = false;
+    let _onVisibility = null;
+
+    function _needsWebKitMediaFallback() {
+        const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+        if (/iPhone|iPod|iPad/i.test(ua)) return true;
+        if (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) {
+            return true;
+        }
+        if (/Safari/i.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|Edg|OPR|Opera|Android/i.test(ua)) {
+            return true;
+        }
+        return false;
+    }
 
     function _getAudioContextCtor() {
         return window.AudioContext || window.webkitAudioContext || null;
     }
 
-    /** 构建极简静音图：1 样本缓冲 loop，增益 0，音频线程侧近乎零输出。 */
     function _wireSilentGraph(ctx) {
         const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
         const src = ctx.createBufferSource();
@@ -45,9 +94,20 @@ const BackgroundKeepAliveModule = (() => {
         document.addEventListener('click', resume, { once: true });
     }
 
-    function _start() {
-        if (_ctx) return;
+    function _tryPlayHtmlAudio(audio) {
+        const promise = audio.play();
+        if (promise && typeof promise.catch === 'function') {
+            promise.catch(() => {
+                const resume = () => {
+                    audio.play().catch(() => {});
+                };
+                document.addEventListener('touchstart', resume, { once: true, passive: true });
+                document.addEventListener('click', resume, { once: true });
+            });
+        }
+    }
 
+    function _startWebAudio() {
         const Ctor = _getAudioContextCtor();
         if (!Ctor) return;
 
@@ -66,8 +126,8 @@ const BackgroundKeepAliveModule = (() => {
             return;
         }
 
-        _ctx  = ctx;
-        _src  = graph.src;
+        _ctx = ctx;
+        _src = graph.src;
         _gain = graph.gain;
 
         _resumeContextIfNeeded();
@@ -76,13 +136,30 @@ const BackgroundKeepAliveModule = (() => {
         }
     }
 
-    function _stop() {
+    function _startHtmlAudio() {
+        if (!SILENT_WAV_DATA_URL) return;
+        const audio = new Audio();
+        audio.src = SILENT_WAV_DATA_URL;
+        audio.loop = true;
+        audio.volume = 0;
+        audio.muted = false;
+        _tryPlayHtmlAudio(audio);
+        _audioEl = audio;
+
+        _onVisibility = () => {
+            if (!_enabled || !_audioEl || document.visibilityState !== 'visible') return;
+            if (_audioEl.paused) {
+                _tryPlayHtmlAudio(_audioEl);
+            }
+        };
+        document.addEventListener('visibilitychange', _onVisibility);
+    }
+
+    function _stopWebAudio() {
         if (_src) {
             try {
                 _src.stop(0);
-            } catch (e) {
-                /* 已 stop 或无效 */
-            }
+            } catch (e) {}
             try {
                 _src.disconnect();
             } catch (e) {}
@@ -106,13 +183,39 @@ const BackgroundKeepAliveModule = (() => {
         }
     }
 
+    function _stopHtmlAudio() {
+        if (_onVisibility) {
+            document.removeEventListener('visibilitychange', _onVisibility);
+            _onVisibility = null;
+        }
+        if (_audioEl) {
+            _audioEl.pause();
+            _audioEl.removeAttribute('src');
+            _audioEl.load();
+            _audioEl = null;
+        }
+    }
+
+    function _start() {
+        if (_ctx || _audioEl) return;
+        if (_needsWebKitMediaFallback()) {
+            _startHtmlAudio();
+        } else {
+            _startWebAudio();
+        }
+    }
+
+    function _stop() {
+        _stopWebAudio();
+        _stopHtmlAudio();
+    }
+
     // ── 公开方法 ──────────────────────────────────────────────────
 
     function setEnabled(val) {
         _enabled = !!val;
         localStorage.setItem(STORAGE_KEY, _enabled ? '1' : '0');
 
-        // 同步开关 UI 状态（可能从外部调用）
         const sw = document.getElementById('bg-keepalive-switch');
         if (sw) sw.checked = _enabled;
 
