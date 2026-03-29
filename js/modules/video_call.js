@@ -2290,6 +2290,9 @@ const VideoCallModule = {
     },
 
     sendInitialMessage: function() {
+        if (typeof TTSModule !== 'undefined' && typeof TTSModule.beginCallAiReplyTurn === 'function') {
+            TTSModule.beginCallAiReplyTurn();
+        }
         const chat = this.state.currentChat;
         const name = currentChatType === 'private' ? chat.remarkName : chat.name;
         
@@ -2306,21 +2309,23 @@ const VideoCallModule = {
                     this.addMessage('ai', 'visual', `[ 镜头微微晃动，${name} 似乎正在调整角度 ]`);
                 }, 500);
                 setTimeout(() => {
-                    const fallbackVideoText = `"……信号这下稳定了吗？让我看看你。"`;
-                    this.addMessage('ai', 'voice', fallbackVideoText);
+                    const fallbackVideoInner = `"……信号这下稳定了吗？让我看看你。"`;
+                    const fallbackVideoWrapped = `[声音：${fallbackVideoInner}]`;
                     if (typeof TTSModule !== 'undefined') {
-                        TTSModule.feedCallChunk(fallbackVideoText);
+                        TTSModule.feedCallChunk(fallbackVideoWrapped);
                         TTSModule.flushCallBuffer();
                     }
+                    this.addMessage('ai', 'voice', fallbackVideoInner);
                 }, 1500);
             } else {
                 setTimeout(() => {
-                    const fallbackVoiceText = `"喂？听得到吗？"`;
-                    this.addMessage('ai', 'voice', fallbackVoiceText);
+                    const fallbackVoiceInner = `"喂？听得到吗？"`;
+                    const fallbackVoiceWrapped = `[声音：${fallbackVoiceInner}]`;
                     if (typeof TTSModule !== 'undefined') {
-                        TTSModule.feedCallChunk(fallbackVoiceText);
+                        TTSModule.feedCallChunk(fallbackVoiceWrapped);
                         TTSModule.flushCallBuffer();
                     }
+                    this.addMessage('ai', 'voice', fallbackVoiceInner);
                 }, 1000);
             }
         }
@@ -2360,6 +2365,19 @@ const VideoCallModule = {
         // 存储索引以便后续操作
         const index = this.state.currentCallContext.length;
         msgDiv.dataset.index = index;
+
+        let ttsAudioIdForRecord = null;
+        if (type === 'voice') {
+            if (who === 'user') {
+                ttsAudioIdForRecord = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+                    ? crypto.randomUUID()
+                    : ('tts-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11));
+            } else if (who === 'ai') {
+                ttsAudioIdForRecord = (typeof TTSModule !== 'undefined' && typeof TTSModule.takePendingVoiceTtsId === 'function')
+                    ? TTSModule.takePendingVoiceTtsId()
+                    : null;
+            }
+        }
 
         if (type === 'visual') {
             msgDiv.innerHTML = `
@@ -2438,12 +2456,21 @@ const VideoCallModule = {
         container.appendChild(msgDiv);
         container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
 
-        this.state.currentCallContext.push({
+        const ctxRecord = {
             role: who,
             type: type,
             content: content,
             timestamp: Date.now()
-        });
+        };
+        if (ttsAudioIdForRecord) {
+            ctxRecord.ttsAudioId = ttsAudioIdForRecord;
+        }
+        this.state.currentCallContext.push(ctxRecord);
+
+        if (who === 'user' && type === 'voice' && ctxRecord.ttsAudioId &&
+            typeof TTSModule !== 'undefined' && typeof TTSModule.prefetchCallUserLineAudio === 'function') {
+            TTSModule.prefetchCallUserLineAudio(ctxRecord.ttsAudioId, content, this.state.currentChat);
+        }
     },
 
     // --- 通话内 TTS 隐形重听交互 ---
@@ -2547,17 +2574,18 @@ const VideoCallModule = {
     },
 
     playVoiceSentenceByIndex: function(messageIndex, onEnded) {
-        if (typeof TTSModule === 'undefined' || typeof TTSModule.playTextForCallSequence !== 'function') return;
+        if (typeof TTSModule === 'undefined' || typeof TTSModule.playCallAudioById !== 'function') return;
         const ctx = this.state.currentCallContext[messageIndex];
         if (!ctx || ctx.type !== 'voice') return;
-
-        const text = ctx.content;
         const chat = this.state.currentChat;
-
-        // 使用与自动朗读完全一致的分句与入队规则进行重听，
-        // playTextForCallSequence 内部会依次调用 playTextForCall 播放每一小段。
-        TTSModule.playTextForCallSequence(text, chat, {
-            onEndedAll: onEnded
+        if (!ctx.ttsAudioId) {
+            if (typeof showToast === 'function') showToast('暂无本条语音缓存');
+            if (typeof onEnded === 'function') onEnded();
+            return;
+        }
+        TTSModule.playCallAudioById(ctx.ttsAudioId, chat, {
+            subtitleText: ctx.content,
+            onEnded: onEnded
         });
     },
 
@@ -2701,6 +2729,10 @@ const VideoCallModule = {
 
         this.state.isGenerating = true;
 
+        if (typeof TTSModule !== 'undefined' && typeof TTSModule.beginCallAiReplyTurn === 'function') {
+            TTSModule.beginCallAiReplyTurn();
+        }
+
         const avatar = document.getElementById('vc-call-avatar');
 
         if (avatar) {
@@ -2715,7 +2747,7 @@ const VideoCallModule = {
                 let fullText = "";
                 await getCallReply(this.state.currentChat, this.state.callType, this.state.currentCallContext, (chunk) => {
                     fullText += chunk;
-                    // 档案室：流结束后 parseAndAddAiResponse(fullText) 落完整原文；TTS：feedCallChunk 内 _filterCallTextChunk 仅对白入队
+                    // 档案室：流结束后 parseAndAddAiResponse(fullText) 落完整原文；TTS：feedCallChunk 与 parse 同规则解析 [标签：] 语音块并入队
                     if (typeof TTSModule !== 'undefined') {
                         TTSModule.feedCallChunk(chunk);
                     }

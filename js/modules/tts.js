@@ -33,11 +33,11 @@ const TTSModule = (() => {
         callStreamBuffer: '',     // 未处理完的流式文本片段
         isCallStreamPlaying: false, // 通话队列是否正在消费中
 
-        // 通话流式文本清洗用的方括号状态机
-        callBracketState: {
-            isInside: false,      // 当前是否处于方括号内部
-            buffer: '',           // 方括号内已累积的内容（跨 chunk）
-        },
+        // 单次 AI 通话回复：原始流累积 + 已入队的语音块数（与档案室 parse 规则一致）
+        callReplyRawBuffer: '',
+        callReplyEmittedVoiceCount: 0,
+        // AI 语音气泡按顺序领取 synthesize 时生成的 ttsAudioId（与 pending 入队一一对应）
+        pendingVoiceTtsIds: [],
 
         // 简单的页面级内存缓存：key -> Blob（音频数据）
         ttsCache: new Map(),
@@ -117,9 +117,16 @@ const TTSModule = (() => {
 
     const TTS_CACHE_MAX_ENTRIES = 100;
 
+    /** 非通话气泡等场景：无稳定 ID 时的去重键（通话合成一律使用 ttsAudioId，禁止用此文本质押） */
     function getTtsCacheKey(text, voiceId, speed, model) {
-        // 文本 + 声线 + 语速 + 模型 共同决定唯一性
         return `${model || ''}__${voiceId || ''}__${speed ?? ''}__${text}`;
+    }
+
+    function newTtsAudioId() {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID();
+        }
+        return 'tts-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11);
     }
 
     function getFromTtsCache(key) {
@@ -139,7 +146,11 @@ const TTSModule = (() => {
        核心合成请求（通过 Vercel 代理调用 MiniMax TTS）
     ────────────────────────────────────────────────────────────── */
 
-    async function synthesize(text, voiceId, speed) {
+    /**
+     * @param {object} [synthOptions]
+     * @param {string} [synthOptions.cacheId] - 若提供，仅按此 ID 读写缓存（通话气泡绑定）；不提供则沿用文本去重键（语音气泡/测试等）
+     */
+    async function synthesize(text, voiceId, speed, synthOptions = {}) {
         const cfg = getConfig();
         const apiUrl = (cfg.apiUrl || '').trim();   // 用户在前端填写的 MiniMax TTS 接口地址
         const apiKey = (cfg.apiKey || '').trim();
@@ -152,12 +163,15 @@ const TTSModule = (() => {
         const model = cfg.model || 'speech-2.8-turbo';
         const finalVoiceId = voiceId || cfg.defaultVoiceId || 'male-qn-qingse';
         const finalSpeed   = speed !== undefined ? Number(speed) : (cfg.defaultSpeed || 1.0);
+        const cacheId = synthOptions && synthOptions.cacheId ? String(synthOptions.cacheId) : '';
 
-        // 先尝试从页面级内存缓存中读取
-        const cacheKey = getTtsCacheKey(text, finalVoiceId, finalSpeed, model);
-        const cached = getFromTtsCache(cacheKey);
-        if (cached) {
-            return cached;
+        if (cacheId) {
+            const byId = getFromTtsCache(cacheId);
+            if (byId) return byId;
+        } else {
+            const cacheKey = getTtsCacheKey(text, finalVoiceId, finalSpeed, model);
+            const cached = getFromTtsCache(cacheKey);
+            if (cached) return cached;
         }
 
         // 调用同源的 Vercel 代理，由代理再请求 MiniMax
@@ -214,103 +228,89 @@ const TTSModule = (() => {
         }
         const blob = new Blob([bytes], { type: 'audio/mpeg' });
 
-        // 写入缓存，方便后续同一段语音重复播放直接复用
-        saveToTtsCache(cacheKey, blob);
+        if (cacheId) {
+            saveToTtsCache(cacheId, blob);
+        } else {
+            saveToTtsCache(getTtsCacheKey(text, finalVoiceId, finalSpeed, model), blob);
+        }
 
         return blob;
     }
 
     /**
-     * 通话场景下的单句重听播放：
-     *  - 优先命中内存缓存（ttsCache + getFromTtsCache）
-     *  - 未命中则走 synthesize（内部会复用相同缓存逻辑）
-     *  - 始终从 0 秒重新播放
+     * 档案室 / 通话重听：仅按气泡绑定的 ttsAudioId 取缓存播放，绝不因文本再请求 MiniMax。
      */
-    async function playTextForCall(text, chat, options = {}) {
-        if (!text || !chat) return;
+    async function playCallAudioById(ttsAudioId, chat, options = {}) {
+        if (!ttsAudioId || !chat) return;
 
-        // 通话 TTS 仍然遵守全局 & 角色开关
         if (!isCharEnabled(chat)) {
             if (typeof showToast === 'function') {
                 showToast(isGlobalEnabled() ? '该角色未开启专属语音' : 'TTS全局开关未开启');
             }
+            const onEnded = typeof options.onEnded === 'function' ? options.onEnded : null;
+            if (onEnded) onEnded();
             return;
         }
 
-        const cfg = getConfig();
-        const model = cfg.model || 'speech-2.8-turbo';
-        const voiceId = chat.ttsVoiceId || cfg.defaultVoiceId || 'male-qn-qingse';
-        const speed = chat.ttsSpeed !== undefined ? chat.ttsSpeed : (cfg.defaultSpeed || 1.0);
         const volume = options.volume !== undefined ? options.volume : 1.0;
         const onEnded = typeof options.onEnded === 'function' ? options.onEnded : null;
+        const blob = getFromTtsCache(ttsAudioId);
 
-        const cacheKey = getTtsCacheKey(text, voiceId, speed, model);
-        let blob = getFromTtsCache(cacheKey);
-
-        // 若命中缓存，直接播放；否则按照既有 synthesize 流程合成并写入缓存
         if (!blob) {
-            blob = await synthesize(text, voiceId, speed);
+            if (typeof showToast === 'function') {
+                showToast('暂无本条语音缓存，可能尚未合成或已被清理');
+            }
+            if (onEnded) onEnded();
+            return;
         }
 
-        _setCallCinemaSubtitle(text);
-        await _playBlob(blob, null, volume, onEnded);
+        const sub = options.subtitleText != null ? String(options.subtitleText) : '';
+        _setCallCinemaSubtitle(sub);
+        await _playBlob(blob, null, volume, () => {
+            _setCallCinemaSubtitle('');
+            if (onEnded) onEnded();
+        });
+    }
+
+    /** 新一段 AI 流式回复开始前清空方括号解析状态（由 VideoCallModule 在拉流前调用） */
+    function beginCallAiReplyTurn() {
+        state.callReplyRawBuffer = '';
+        state.callReplyEmittedVoiceCount = 0;
+        state.pendingVoiceTtsIds = [];
+    }
+
+    /** AI 语音气泡 addMessage 时按顺序领取与入队时 push 的 id */
+    function takePendingVoiceTtsId() {
+        const id = state.pendingVoiceTtsIds.shift();
+        return id || null;
+    }
+
+    /** 用户语音气泡：首次用 id 合成并写入缓存，供重听只走 ID */
+    function prefetchCallUserLineAudio(ttsAudioId, text, chat) {
+        if (!ttsAudioId || !text || !chat) return;
+        if (!isCharEnabled(chat)) return;
+        const cfg = getConfig();
+        const voiceId = chat.ttsVoiceId || cfg.defaultVoiceId || 'male-qn-qingse';
+        const speed = chat.ttsSpeed !== undefined ? chat.ttsSpeed : (cfg.defaultSpeed || 1.0);
+        void synthesize(text, voiceId, speed, { cacheId: ttsAudioId }).catch((e) => {
+            console.error('[TTS prefetch user line]', e);
+        });
     }
 
     /**
-     * 将一段长文本按与自动朗读完全一致的规则切分为若干小段，
-     * 每一小段都对应自动朗读时入队/合成使用的文本，从而 100% 命中缓存。
+     * 与 VideoCallModule.parseAndAddAiResponse 使用同一套方括号规则，提取「非画面/环境/动作」的语音块正文（顺序一致）。
      */
-    function _splitCallTextForReplay(text) {
+    function extractVoiceBlockContentsFromRawAi(text) {
         if (!text) return [];
-        const raw = String(text);
-        const { sentences, remaining } = _extractSentences(raw);
-        const result = [];
-
-        if (Array.isArray(sentences)) {
-            for (const s of sentences) {
-                const cleaned = cleanCallText(s);
-                if (cleaned.length > 0) result.push(cleaned);
-            }
+        const regex = /\[(.*?)[：:]([\s\S]+?)\]/g;
+        const out = [];
+        let m;
+        while ((m = regex.exec(text)) !== null) {
+            const tag = m[1] || '';
+            if (tag.includes('画面') || tag.includes('环境') || tag.includes('动作')) continue;
+            out.push((m[2] || '').trim());
         }
-
-        // flush 时自动朗读会把剩余 buffer 也 clean 后入队，这里保持一致
-        const tail = cleanCallText(remaining);
-        if (tail.length > 0) result.push(tail);
-
-        return result;
-    }
-
-    /**
-     * 重听长文本：
-     *  - 严格复用 _extractSentences + cleanCallText 的切分规则
-     *  - 将切分出的每一小段依次调用 playTextForCall 播放
-     *  - 保证完全命中自动朗读时写入的缓存，不再产生额外扣费请求
-     */
-    function playTextForCallSequence(text, chat, options = {}) {
-        const segments = _splitCallTextForReplay(text);
-        if (!segments.length) return;
-
-        let index = 0;
-        const volume = options.volume;
-        const onEndedAll = typeof options.onEndedAll === 'function' ? options.onEndedAll : null;
-
-        const playNext = () => {
-            if (index >= segments.length) {
-                _setCallCinemaSubtitle('');
-                if (onEndedAll) onEndedAll();
-                return;
-            }
-            const current = segments[index];
-            index += 1;
-            playTextForCall(current, chat, {
-                volume,
-                onEnded: () => {
-                    playNext();
-                }
-            });
-        };
-
-        playNext();
+        return out;
     }
 
     /* ──────────────────────────────────────────────────────────────
@@ -433,8 +433,7 @@ const TTSModule = (() => {
         state.callAudioQueue     = [];
         state.callStreamBuffer   = '';
         state.isCallStreamPlaying = false;
-        state.callBracketState.isInside = false;
-        state.callBracketState.buffer   = '';
+        beginCallAiReplyTurn();
         _showCallIndicator(false);
         _setCallCinemaSubtitle('');
     }
@@ -445,8 +444,7 @@ const TTSModule = (() => {
         state.callStreamBuffer    = '';
         state.isCallStreamPlaying = false;
         state.callAudioUnlocked   = false;
-        state.callBracketState.isInside = false;
-        state.callBracketState.buffer   = '';
+        beginCallAiReplyTurn();
         stopCurrent();
         _showCallIndicator(false);
         _setCallCinemaSubtitle('');
@@ -464,159 +462,43 @@ const TTSModule = (() => {
     }
 
     /**
-     * 通话流式文本拦截状态机：
-     *   - 逐字符扫描新到的 chunk
-     *   - 一旦遇到 '[' 进入方括号模式，后续所有字符累积到 buffer（跨 chunk）
-     *   - 直到遇到匹配的 ']' 才统一结算：
-     *       · 若 buffer 内含「环境音」→ 整段丢弃
-     *       · 若 buffer 内含「声音」→ 仅提取第一个冒号之后的正文，拼入输出
-     *       · 其他任意方括号内容一律丢弃（只有括号外的对白才能流式进入朗读）
-     *   - 函数返回值是「本次 chunk 中，在方括号外部可以直接进入朗读流水线的纯文本」
-     */
-    function _filterCallTextChunk(chunk) {
-        if (!chunk) return '';
-
-        const stateBracket = state.callBracketState;
-        let out = '';
-        const str = String(chunk);
-
-        for (let i = 0; i < str.length; i++) {
-            const ch = str[i];
-
-            if (!stateBracket.isInside) {
-                if (ch === '[') {
-                    // 进入方括号模式，开始拦截后续所有字符
-                    stateBracket.isInside = true;
-                    stateBracket.buffer = '[';
-                } else {
-                    // 方括号外的普通文本，直接进入输出
-                    out += ch;
-                }
-            } else {
-                // 已在方括号内部，持续累积到 buffer
-                stateBracket.buffer += ch;
-
-                if (ch === ']') {
-                    // 方括号闭合，统一结算
-                    const full = stateBracket.buffer;
-                    const inner = full.slice(1, -1); // 去掉首尾方括号
-
-                    if (inner.includes('环境音')) {
-                        // 规则 1：环境音 → 整段丢弃，不输出任何内容
-                    } else if (inner.includes('声音')) {
-                        // 规则 2：声音 → 只输出第一个冒号之后的正文
-                        const idx1 = inner.indexOf('：');
-                        const idx2 = inner.indexOf(':');
-                        let idx = -1;
-                        if (idx1 >= 0 && idx2 >= 0) {
-                            idx = Math.min(idx1, idx2);
-                        } else {
-                            idx = idx1 >= 0 ? idx1 : idx2;
-                        }
-                        if (idx >= 0 && idx < inner.length - 1) {
-                            out += inner.slice(idx + 1).trim();
-                        }
-                        // 若没有找到冒号，则不输出（视为标签残缺，防止误读）
-                    } else {
-                        // 规则 3：其他任意方括号内容一律丢弃
-                    }
-
-                    // 重置状态机，准备下一段
-                    stateBracket.isInside = false;
-                    stateBracket.buffer = '';
-                }
-            }
-        }
-
-        return out;
-    }
-
-    /**
-     * 从 buffer 中切分出完整句子（以句末标点为界）
-     * 返回 { sentences: string[], remaining: string }
-     *
-     * 优化点：
-     *   - 使用累加器将多个短片段拼接成较长的句子：
-     *       · 每次按句末标点切分出片段 raw
-     *       · 去掉首尾空白得到 trimmed
-     *       · 将 trimmed 依次累加到 acc 中
-     *       · 当 acc 总长度 >= 8 时，将 acc 作为一句 push 到 sentences，并清空 acc
-     *   - 循环结束后，未达长度阈值的 acc 会和 cut 后剩余的尾巴一起返回到 remaining，
-     *     避免短句永远卡在 buffer 内。
-     */
-    function _extractSentences(buffer) {
-        const sentences = [];
-        const regex = /[^。！？!?…\n]+[。！？!?…\n]+/g;
-        let lastIndex = 0;
-        let match;
-        let acc = '';
-
-        while ((match = regex.exec(buffer)) !== null) {
-            const raw = match[0];
-            const trimmed = raw.trim();
-            if (!trimmed) {
-                lastIndex = match.index + raw.length;
-                continue;
-            }
-
-            // 累加短片段，直到达到阈值
-            acc += trimmed;
-            lastIndex = match.index + raw.length;
-
-            if (acc.length >= 8) {
-                sentences.push(acc);
-                acc = '';
-            }
-        }
-
-        // 剩余内容 = 累加未成句的 acc + 尚未匹配到句末标点的尾巴
-        const tail = buffer.slice(lastIndex);
-        const remaining = acc + tail;
-
-        return { sentences, remaining };
-    }
-
-    /**
      * 接收流式文本块（chunk），从通话 AI 回复流中调用。
-     * 每收到足够成句的文本就推入队列进行合成。
+     * 与档案室 parse 一致：仅当完整 `[标签：内容]` 闭合且为语音块时入队，并为该段分配 ttsAudioId 写入 pending 供气泡绑定。
      */
     async function feedCallChunk(chunk) {
         if (!state.callAudioUnlocked) return;
         const chat = _getCallChat();
         if (!isCharEnabled(chat)) return;
 
-        // 先经过方括号状态机拦截，只让括号外/结算后的对白进入 buffer
-        const filtered = _filterCallTextChunk(chunk);
-        state.callStreamBuffer += filtered;
-        const { sentences, remaining } = _extractSentences(state.callStreamBuffer);
-        state.callStreamBuffer = remaining;
+        state.callReplyRawBuffer += chunk;
+        const voiceContents = extractVoiceBlockContentsFromRawAi(state.callReplyRawBuffer);
 
-        for (const sentence of sentences) {
-            const clean = cleanCallText(sentence);
+        while (state.callReplyEmittedVoiceCount < voiceContents.length) {
+            const rawLine = voiceContents[state.callReplyEmittedVoiceCount];
+            state.callReplyEmittedVoiceCount += 1;
+
+            const id = newTtsAudioId();
+            state.pendingVoiceTtsIds.push(id);
+
+            const clean = cleanCallText(rawLine);
             if (clean.length > 0) {
-                state.callAudioQueue.push(_buildCallItem(clean, chat));
+                state.callAudioQueue.push(_buildCallItem(clean, chat, id));
             }
         }
 
         if (state.isCallStreamPlaying) {
-            // 正在播上一句时新句才入队：若不在这里预加载，要等 onended 后才开始合成，手机上句间会空很久
             _preloadCallQueueHead(4);
         } else {
             _processCallQueue();
         }
     }
 
-    /** 流式回复结束时调用，将剩余 buffer 中不完整的句子也推入队列 */
+    /** 流式回复结束时调用：唤醒队列消费（语音块仅在括号闭合时入队，无旧版 sentence flush） */
     async function flushCallBuffer() {
         if (!state.callAudioUnlocked) return;
         const chat = _getCallChat();
         if (!isCharEnabled(chat)) return;
 
-        // flush 时只处理当前 buffer 中已经通过状态机过滤的文本
-        const remaining = cleanCallText(state.callStreamBuffer);
-        if (remaining.length > 0) {
-            state.callAudioQueue.push(_buildCallItem(remaining, chat));
-        }
         state.callStreamBuffer = '';
 
         if (state.isCallStreamPlaying) {
@@ -626,11 +508,7 @@ const TTSModule = (() => {
         }
     }
 
-    /**
-     * 与 playTextForCall 保持 100% 一致的参数解析，确保自动朗读写入的 cacheKey 与手动重听完全匹配。
-     * 使用 getConfig() 的 model / defaultVoiceId / defaultSpeed，避免缓存键不对齐导致重复请求。
-     */
-    function _buildCallItem(text, chat) {
+    function _buildCallItem(text, chat, ttsAudioId) {
         const cfg = getConfig();
         const model = cfg.model || 'speech-2.8-turbo';
         const voiceId = chat.ttsVoiceId || cfg.defaultVoiceId || 'male-qn-qingse';
@@ -643,6 +521,7 @@ const TTSModule = (() => {
             volume: 1.0,
             blob: null,
             blobPromise: null,
+            ttsAudioId: ttsAudioId || null,
         };
     }
 
@@ -671,7 +550,9 @@ const TTSModule = (() => {
     async function _ensureItemBlob(item) {
         if (item.blob) return item.blob;
         if (!item.blobPromise) {
-            item.blobPromise = synthesize(item.text, item.voiceId, item.speed)
+            item.blobPromise = synthesize(item.text, item.voiceId, item.speed, {
+                cacheId: item.ttsAudioId || undefined,
+            })
                 .then((b) => {
                     item.blob = b;
                     return b;
@@ -1057,8 +938,10 @@ const TTSModule = (() => {
         feedCallChunk,
         flushCallBuffer,
         cleanCallText,
-        playTextForCallSequence,
-        playTextForCall,
+        playCallAudioById,
+        beginCallAiReplyTurn,
+        takePendingVoiceTtsId,
+        prefetchCallUserLineAudio,
 
         // TTS 内存缓存相关（供通话模块显式复用缓存逻辑）
         getFromTtsCache,
