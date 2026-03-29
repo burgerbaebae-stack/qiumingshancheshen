@@ -2351,6 +2351,8 @@ const VideoCallModule = {
     },
 
     addMessage: function(who, type, content) {
+        // 守卫：通话已结束时，丢弃所有延迟触发的消息追加，避免 DOM 节点与事件监听泄漏
+        if (!this.state.isCallActive) return;
         const container = document.getElementById('vc-chat-container');
         const msgDiv = document.createElement('div');
         msgDiv.className = `vc-msg-row ${who}`;
@@ -2594,7 +2596,11 @@ const VideoCallModule = {
     },
 
     showContextMenu: function(x, y, messageIndex) {
-        // 移除已存在的菜单
+        // 移除已存在的菜单及其遗留的 document 监听（补漏：重复打开时清理旧监听）
+        if (this._vcMenuCloseHandler) {
+            document.removeEventListener('click', this._vcMenuCloseHandler);
+            this._vcMenuCloseHandler = null;
+        }
         const existingMenu = document.getElementById('vc-context-menu');
         if (existingMenu) existingMenu.remove();
 
@@ -2608,6 +2614,9 @@ const VideoCallModule = {
         regenerateBtn.onclick = () => {
             this.handleRegenerate();
             menu.remove();
+            // 补漏：「重回」按钮关闭菜单时同步解绑 document 监听
+            document.removeEventListener('click', closeMenu);
+            this._vcMenuCloseHandler = null;
         };
         
         menu.appendChild(regenerateBtn);
@@ -2631,8 +2640,11 @@ const VideoCallModule = {
             if (!menu.contains(e.target)) {
                 menu.remove();
                 document.removeEventListener('click', closeMenu);
+                this._vcMenuCloseHandler = null;
             }
         };
+        // 记录引用，供重复打开或提前关闭时清理
+        this._vcMenuCloseHandler = closeMenu;
         // 延迟绑定以避免立即触发关闭
         setTimeout(() => document.addEventListener('click', closeMenu), 0);
     },

@@ -245,6 +245,8 @@ ${recentHistory}
         // 点击气泡关闭
         container.addEventListener('click', (e) => {
             e.stopPropagation(); // 防止触发 document 的点击
+            // 补漏：点气泡本身关闭时，同步解绑 document 监听，防止残留
+            document.removeEventListener('click', docClickHandler);
             closeBubble();
         });
 
