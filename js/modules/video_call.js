@@ -2598,22 +2598,35 @@ const VideoCallModule = {
     },
 
     showContextMenu: function(x, y, messageIndex) {
-        // 移除已存在的菜单
         const existingMenu = document.getElementById('vc-context-menu');
-        if (existingMenu) existingMenu.remove();
+        if (existingMenu) {
+            const oldClose = existingMenu._vcDocClose;
+            if (typeof oldClose === 'function') {
+                document.removeEventListener('click', oldClose);
+            }
+            existingMenu.remove();
+        }
 
         const menu = document.createElement('div');
         menu.id = 'vc-context-menu';
         menu.className = 'vc-context-menu';
-        
+
+        let closeMenu;
+        const teardownMenu = () => {
+            if (typeof closeMenu === 'function') {
+                document.removeEventListener('click', closeMenu);
+            }
+            if (menu.parentNode) menu.parentNode.removeChild(menu);
+        };
+
         const regenerateBtn = document.createElement('div');
         regenerateBtn.className = 'vc-context-item';
         regenerateBtn.textContent = '重回';
         regenerateBtn.onclick = () => {
             this.handleRegenerate();
-            menu.remove();
+            teardownMenu();
         };
-        
+
         menu.appendChild(regenerateBtn);
         document.body.appendChild(menu);
 
@@ -2621,23 +2634,25 @@ const VideoCallModule = {
         const rect = menu.getBoundingClientRect();
         let top = y - rect.height - 10;
         let left = x - rect.width / 2;
-        
+
         if (top < 10) top = y + 10;
         if (left < 10) left = 10;
         if (left + rect.width > window.innerWidth - 10) left = window.innerWidth - rect.width - 10;
-        
+
         menu.style.top = top + 'px';
         menu.style.left = left + 'px';
         menu.classList.add('visible');
 
-        // 点击外部关闭
-        const closeMenu = (e) => {
-            if (!menu.contains(e.target)) {
-                menu.remove();
+        closeMenu = (e) => {
+            if (!menu.isConnected) {
                 document.removeEventListener('click', closeMenu);
+                return;
+            }
+            if (!menu.contains(e.target)) {
+                teardownMenu();
             }
         };
-        // 延迟绑定以避免立即触发关闭
+        menu._vcDocClose = closeMenu;
         setTimeout(() => document.addEventListener('click', closeMenu), 0);
     },
 

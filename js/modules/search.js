@@ -5,8 +5,11 @@ const SearchSystem = {
     currentResults: [],
     searchTimer: null,
     
-    // 初始化
+    // 初始化（防 main / 热路径重复调用导致监听叠加）
     init() {
+        if (this._initialized) return;
+        this._initialized = true;
+
         // 绑定筛选器点击事件
         const scopeSelect = document.getElementById('search-scope-select');
         if (scopeSelect) {

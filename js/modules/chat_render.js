@@ -1,6 +1,68 @@
 // --- 消息渲染模块 ---
 // 原则：仅在「进入会话 / 加载更早 / 批量删除 / 调试模式切换 / 设置导致全局气泡样式变化」等场景全量重建；
 // 单条新消息、单条状态变更一律走 append 或 replaceMessageBubbleInPlace，禁止为单条变化 innerHTML 清空列表。
+//
+// 虚拟列表（DOM 裁剪）：message-area 内带 data-id 的消息气泡最多保留 MAX_CHAT_DOM_BUBBLES 条（含私聊/群聊），
+// 多出的从最旧端（「加载更早」按钮之下）整段移除，避免无限堆积。注意：与「加载更早」同时存在时，
+// 若裁剪后仅保留最近一页，刚 prepend 的更早记录可能被裁掉，需用户再次点「加载更早」。
+
+const MAX_CHAT_DOM_BUBBLES = 50;
+
+/**
+ * 将 #message-area 内消息气泡裁剪为最近 maxCount 条（按 DOM 顺序，最底部为最新）。
+ * 时间分隔条（.time-divider）无 data-id，紧贴首条保留消息上方的分隔条会保留。
+ * @param {number} [maxCount=MAX_CHAT_DOM_BUBBLES]
+ */
+function trimMessageAreaDomToRecentBubbles(maxCount = MAX_CHAT_DOM_BUBBLES) {
+    if (typeof messageArea === 'undefined' || !messageArea) return;
+    const children = Array.from(messageArea.children);
+    if (children.length === 0) return;
+
+    let contentStart = 0;
+    if (children[0].id === 'load-more-btn') contentStart = 1;
+
+    const messageIndices = [];
+    for (let i = contentStart; i < children.length; i++) {
+        const el = children[i];
+        if (!el.classList || !el.classList.contains('message-wrapper')) continue;
+        if (!el.dataset || !el.dataset.id) continue;
+        messageIndices.push(i);
+    }
+    if (messageIndices.length <= maxCount) return;
+
+    const firstKeepIdx = messageIndices[messageIndices.length - maxCount];
+    const removeStart = contentStart;
+    let removeEnd = firstKeepIdx - 1;
+    if (removeEnd < removeStart) return;
+
+    if (firstKeepIdx > contentStart) {
+        const prev = children[firstKeepIdx - 1];
+        if (prev && prev.classList && prev.classList.contains('time-divider')) {
+            removeEnd = firstKeepIdx - 2;
+        }
+    }
+    if (removeEnd < removeStart) return;
+
+    let removedHeight = 0;
+    for (let j = removeStart; j <= removeEnd; j++) {
+        removedHeight += children[j].offsetHeight;
+    }
+
+    const st = messageArea.scrollTop;
+    const sh = messageArea.scrollHeight;
+    const ch = messageArea.clientHeight;
+    const nearBottom = sh - st - ch < 6;
+
+    for (let j = removeEnd; j >= removeStart; j--) {
+        children[j].remove();
+    }
+
+    if (nearBottom) {
+        messageArea.scrollTop = messageArea.scrollHeight;
+    } else if (removedHeight > 0) {
+        messageArea.scrollTop = st >= removedHeight ? st - removedHeight : 0;
+    }
+}
 
 function getInvisibleRegexForChatPaging(chat) {
     if (chat.showStatusUpdateMsg) {
@@ -46,7 +108,11 @@ function replaceMessageBubbleInPlace(messageId) {
         return;
     }
     if (old) old.replaceWith(el);
-    else messageArea.appendChild(el);
+    else {
+        messageArea.appendChild(el);
+        trimMessageAreaDomToRecentBubbles();
+        messageArea.scrollTop = messageArea.scrollHeight;
+    }
 }
 
 /**
@@ -142,6 +208,9 @@ function renderMessages(isLoadMore = false, forceScrollToBottom = false) {
         loadMoreButton.textContent = '加载更早的消息';
         messageArea.prepend(loadMoreButton);
     }
+
+    trimMessageAreaDomToRecentBubbles();
+
     if (forceScrollToBottom) {
         setTimeout(() => {
             messageArea.scrollTop = messageArea.scrollHeight;
@@ -1098,6 +1167,7 @@ function appendOneBubbleAtEndForOpenChat(message) {
             messageArea.appendChild(timeDivider);
         }
         messageArea.appendChild(bubbleElement);
+        trimMessageAreaDomToRecentBubbles();
         messageArea.scrollTop = messageArea.scrollHeight;
         return;
     }
@@ -1142,6 +1212,7 @@ function appendOneBubbleAtEndForOpenChat(message) {
         messageArea.appendChild(timeDivider);
     }
     messageArea.appendChild(bubbleElement);
+    trimMessageAreaDomToRecentBubbles();
     messageArea.scrollTop = messageArea.scrollHeight;
 }
 
@@ -1389,6 +1460,7 @@ function addMessageBubble(message, targetChatId, targetChatType) {
                 }
 
                 messageArea.appendChild(bubbleElement);
+                trimMessageAreaDomToRecentBubbles();
                 messageArea.scrollTop = messageArea.scrollHeight;
             }
         }
@@ -1452,6 +1524,7 @@ function addMessageBubble(message, targetChatId, targetChatType) {
             }
 
             messageArea.appendChild(bubbleElement);
+            trimMessageAreaDomToRecentBubbles();
             messageArea.scrollTop = messageArea.scrollHeight;
         }
     }

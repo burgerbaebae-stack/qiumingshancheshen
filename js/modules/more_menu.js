@@ -5,10 +5,10 @@ function initMoreMenu() {
     // 初始化搜索模块
     if (window.SearchSystem) {
         window.SearchSystem.init();
-        
-        // 绑定搜索入口点击
+
         const searchEntry = document.querySelector('.search-bar-decoration');
-        if (searchEntry) {
+        if (searchEntry && !searchEntry.dataset.searchEntryBound) {
+            searchEntry.dataset.searchEntryBound = '1';
             searchEntry.addEventListener('click', () => {
                 window.SearchSystem.open();
             });
