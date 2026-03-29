@@ -285,6 +285,7 @@ async function handlePickupConfirm() {
 
     let found = false;
     let foundItemName = '';
+    let pickupUpdatedMsg = null;
 
     // 遍历历史记录查找未提取的自提订单
     // 格式: [A为B下单了：自提口令: xxx|金额|商品清单]
@@ -300,6 +301,7 @@ async function handlePickupConfirm() {
                 if (msgCode.toLowerCase() === code.toLowerCase()) {
                     // 匹配成功
                     msg.isPickedUp = true;
+                    pickupUpdatedMsg = msg;
                     found = true;
                     foundItemName = items;
                     break; // 只提取最近的一单，或者全部提取？这里假设一次提取一单
@@ -309,12 +311,16 @@ async function handlePickupConfirm() {
     }
 
     if (found) {
-        await saveData();
+        if (typeof saveActiveChat === 'function') await saveActiveChat();
+        else await saveData();
         document.getElementById('shop-pickup-modal').classList.remove('visible');
         input.value = '';
         
-        // 刷新聊天界面以显示商品名
-        renderMessages(false, false); // 重新渲染，不强制滚动
+        if (pickupUpdatedMsg && typeof replaceMessageBubbleInPlace === 'function') {
+            replaceMessageBubbleInPlace(pickupUpdatedMsg.id);
+        } else if (typeof renderMessages === 'function') {
+            renderMessages(false, false);
+        }
         
         // 弹窗提示成功
         alert(`提取成功！\n你获得了：${foundItemName}`);

@@ -38,7 +38,8 @@ function sendMyVoiceMessage(text) {
         }
         chat.history.push(message);
         addMessageBubble(message, currentChatId, currentChatType);
-        saveData();
+        if (typeof saveActiveChat === 'function') void saveActiveChat();
+        else void saveData();
         renderChatList();
     }, 100);
 }
@@ -78,7 +79,8 @@ function sendMyPhotoVideo(text) {
         }
         chat.history.push(message);
         addMessageBubble(message, currentChatId, currentChatType);
-        saveData();
+        if (typeof saveActiveChat === 'function') void saveActiveChat();
+        else void saveData();
         renderChatList();
     }, 100);
 }
@@ -127,7 +129,8 @@ async function sendImageForRecognition(base64Data) {
     }
     chat.history.push(message);
     addMessageBubble(message, currentChatId, currentChatType);
-    await saveData();
+    if (typeof saveActiveChat === 'function') await saveActiveChat();
+    else await saveData();
     renderChatList();
 }
 
@@ -203,7 +206,8 @@ function sendMyTransfer(amount, remark) {
                 });
             }
         }
-        saveData();
+        if (typeof saveActiveChat === 'function') void saveActiveChat();
+        else void saveData();
         renderChatList();
     }, 100);
 }
@@ -235,7 +239,9 @@ async function respondToTransfer(action) {
             timestamp: Date.now()
         };
         character.history.push(contextMessage);
-        await saveData();
+        addMessageBubble(contextMessage, currentChatId, 'private');
+        if (typeof saveActiveChat === 'function') await saveActiveChat();
+        else await saveData();
         renderChatList();
     }
     document.getElementById('receive-transfer-actionsheet').classList.remove('visible');
@@ -304,7 +310,8 @@ function sendMyGift(description) {
                 });
             }
         }
-        saveData();
+        if (typeof saveActiveChat === 'function') void saveActiveChat();
+        else void saveData();
         renderChatList();
     }, 100);
 }
@@ -356,7 +363,9 @@ async function sendTimeSkipMessage(text) {
 
     chat.history.push(visualMessage, contextMessage);
     addMessageBubble(visualMessage, currentChatId, currentChatType);
-    await saveData();
+    addMessageBubble(contextMessage, currentChatId, currentChatType);
+    if (typeof saveActiveChat === 'function') await saveActiveChat();
+    else await saveData();
     renderChatList();
 }
 

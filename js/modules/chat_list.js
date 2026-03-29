@@ -140,7 +140,8 @@ function setupFolderManagement() {
             showToast('文件夹已创建');
         }
         
-        await saveData();
+        if (typeof saveGlobalSettingsOnly === 'function') await saveGlobalSettingsOnly();
+        else await saveData();
         renderChatFolders();
         folderModal.classList.remove('visible');
     });
@@ -223,7 +224,8 @@ function setupFolderManagement() {
                 delete chat.folderId; 
                 showToast('已移出文件夹');
             }
-            await saveData();
+            if (typeof saveChatByTarget === 'function') await saveChatByTarget(type, id);
+            else await saveData();
             renderChatList();
         }
     }
@@ -295,7 +297,8 @@ function handleChatListLongPress(chatId, chatType, x, y) {
             label: chatItem.isPinned ? '取消置顶' : '置顶聊天',
             action: async () => {
                 chatItem.isPinned = !chatItem.isPinned;
-                await saveData();
+                if (typeof saveChatByTarget === 'function') await saveChatByTarget(chatType, chatId);
+                else await saveData();
                 renderChatList();
             }
         },

@@ -401,9 +401,6 @@ function renderTutorialContent() {
                 const jsonString = await new Response(decompressedStream).text();
 
                 let data = JSON.parse(jsonString);
-                if (typeof sanitizeImportedBackupPayload === 'function') {
-                    data = sanitizeImportedBackupPayload(data);
-                }
 
                 const importResult = await importBackupData(data);
 
@@ -978,10 +975,7 @@ const GitHubMgr = {
             const decompressedStream = blob.stream().pipeThrough(decompressionStream);
             const jsonString = await new Response(decompressedStream).text();
             
-            let data = JSON.parse(jsonString);
-            if (typeof sanitizeImportedBackupPayload === 'function') {
-                data = sanitizeImportedBackupPayload(data);
-            }
+            const data = JSON.parse(jsonString);
             
             showToast('解压完成，开始导入...');
             const importResult = await importBackupData(data);

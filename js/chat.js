@@ -593,7 +593,8 @@ async function sendMessage() {
         promptForBackupIfNeeded('history_milestone');
     }
 
-    await saveData();
+    if (typeof saveActiveChat === 'function') await saveActiveChat();
+    else await saveData();
     renderChatList();
 
     if (currentQuoteInfo) {

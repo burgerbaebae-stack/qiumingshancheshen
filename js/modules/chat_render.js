@@ -1,5 +1,58 @@
 // --- 消息渲染模块 ---
+// 原则：仅在「进入会话 / 加载更早 / 批量删除 / 调试模式切换 / 设置导致全局气泡样式变化」等场景全量重建；
+// 单条新消息、单条状态变更一律走 append 或 replaceMessageBubbleInPlace，禁止为单条变化 innerHTML 清空列表。
 
+function getInvisibleRegexForChatPaging(chat) {
+    if (chat.showStatusUpdateMsg) {
+        return /\[.*?(?:接收|退回).*?的转账\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
+    }
+    return /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
+}
+
+function computeIsContinuousAtHistoryIndex(chat, historyIndex) {
+    const msg = chat.history[historyIndex];
+    if (!msg) return false;
+    const invisibleRegex = getInvisibleRegexForChatPaging(chat);
+    const isSystemMsg = /\[system:.*?\]|\[system-display:.*?\]/.test(msg.content);
+    if (isSystemMsg) return false;
+    let prevMsg = null;
+    for (let i = historyIndex - 1; i >= 0; i--) {
+        const candidate = chat.history[i];
+        if (!invisibleRegex.test(candidate.content)) {
+            prevMsg = candidate;
+            break;
+        }
+    }
+    if (!prevMsg) return false;
+    const currentSender = msg.role === 'user' ? 'user' : (msg.senderId || 'assistant');
+    const prevSender = prevMsg.role === 'user' ? 'user' : (prevMsg.senderId || 'assistant');
+    const timeGap = msg.timestamp - prevMsg.timestamp;
+    return currentSender === prevSender && timeGap < 10 * 60 * 1000;
+}
+
+/** 用当前 history 数据重绘单条气泡 DOM，避免整表 renderMessages */
+function replaceMessageBubbleInPlace(messageId) {
+    if (!messageId || typeof messageArea === 'undefined') return;
+    const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
+    if (!chat || !chat.history) return;
+    const idx = chat.history.findIndex(m => m.id === messageId);
+    if (idx === -1) return;
+    const msg = chat.history[idx];
+    const isContinuous = computeIsContinuousAtHistoryIndex(chat, idx);
+    const el = createMessageBubbleElement(msg, isContinuous);
+    const old = messageArea.querySelector(`.message-wrapper[data-id="${messageId}"]`);
+    if (!el) {
+        if (old) old.remove();
+        return;
+    }
+    if (old) old.replaceWith(el);
+    else messageArea.appendChild(el);
+}
+
+/**
+ * 全量重建当前会话消息区（会清空 messageArea）。
+ * @param {boolean} isLoadMore 为 true 时在顶部追加更早一页，不清空
+ */
 function renderMessages(isLoadMore = false, forceScrollToBottom = false) {
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
     if (!chat || !chat.history) return;
@@ -994,6 +1047,104 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
     return wrapper;
 }
 
+/**
+ * 将已在 history 末尾的消息绘制到当前打开的聊天室（不经过 addMessageBubble 的特殊短路）。
+ * 用于代付确认等已 push 但 addMessageBubble 会提前 return 的路径。
+ */
+function appendOneBubbleAtEndForOpenChat(message) {
+    if (!message || typeof messageArea === 'undefined') return;
+    if (currentChatType === 'private') {
+        const character = db.characters.find(c => c.id === currentChatId);
+        if (!character) return;
+        let isContinuous = false;
+        let invisibleRegex;
+        if (character.showStatusUpdateMsg) {
+            invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?已接收礼物\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
+        } else {
+            invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
+        }
+        const isSystemMsg = /\[system:.*?\]|\[system-display:.*?\]/.test(message.content);
+        if (!isSystemMsg && character.history.length > 1) {
+            let prevMsg = null;
+            for (let i = character.history.length - 2; i >= 0; i--) {
+                const candidate = character.history[i];
+                if (!invisibleRegex.test(candidate.content)) {
+                    prevMsg = candidate;
+                    break;
+                }
+            }
+            if (prevMsg) {
+                const currentSender = message.role === 'user' ? 'user' : (message.senderId || 'assistant');
+                const prevSender = prevMsg.role === 'user' ? 'user' : (prevMsg.senderId || 'assistant');
+                const timeGap = message.timestamp - prevMsg.timestamp;
+                if (currentSender === prevSender && timeGap < 10 * 60 * 1000) isContinuous = true;
+            }
+        }
+        const bubbleElement = createMessageBubbleElement(message, isContinuous);
+        if (!bubbleElement) return;
+        const history = character.history;
+        let shouldShowTimestamp = false;
+        if (history.length >= 2) {
+            const prevMsg = history[history.length - 2];
+            const timeDiff = message.timestamp - prevMsg.timestamp;
+            const isSameDay = new Date(message.timestamp).toDateString() === new Date(prevMsg.timestamp).toDateString();
+            if (timeDiff > 10 * 60 * 1000 || !isSameDay) shouldShowTimestamp = true;
+        } else if (history.length === 1) shouldShowTimestamp = true;
+        if (shouldShowTimestamp) {
+            const timeDivider = document.createElement('div');
+            timeDivider.className = 'message-wrapper system-notification time-divider';
+            const timeText = formatTimeDivider(message.timestamp);
+            timeDivider.innerHTML = `<div class="system-notification-bubble" style="background-color: transparent; color: #999; font-size: 12px; padding: 2px 8px;">${timeText}</div>`;
+            messageArea.appendChild(timeDivider);
+        }
+        messageArea.appendChild(bubbleElement);
+        messageArea.scrollTop = messageArea.scrollHeight;
+        return;
+    }
+    const group = db.groups.find(g => g.id === currentChatId);
+    if (!group) return;
+    let isContinuous = false;
+    const invisibleRegex = group.showStatusUpdateMsg
+        ? /\[.*?(?:接收|退回).*?的转账\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/
+        : /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
+    const isSystemMsgG = /\[system:.*?\]|\[system-display:.*?\]/.test(message.content);
+    if (!isSystemMsgG && group.history.length > 1) {
+        let prevMsg = null;
+        for (let i = group.history.length - 2; i >= 0; i--) {
+            const candidate = group.history[i];
+            if (!invisibleRegex.test(candidate.content)) {
+                prevMsg = candidate;
+                break;
+            }
+        }
+        if (prevMsg) {
+            const currentSender = message.role === 'user' ? 'user' : (message.senderId || 'assistant');
+            const prevSender = prevMsg.role === 'user' ? 'user' : (prevMsg.senderId || 'assistant');
+            const timeGap = message.timestamp - prevMsg.timestamp;
+            if (currentSender === prevSender && timeGap < 10 * 60 * 1000) isContinuous = true;
+        }
+    }
+    const bubbleElement = createMessageBubbleElement(message, isContinuous);
+    if (!bubbleElement) return;
+    const history = group.history;
+    let shouldShowTimestamp = false;
+    if (history.length >= 2) {
+        const prevMsg = history[history.length - 2];
+        const timeDiff = message.timestamp - prevMsg.timestamp;
+        const isSameDay = new Date(message.timestamp).toDateString() === new Date(prevMsg.timestamp).toDateString();
+        if (timeDiff > 10 * 60 * 1000 || !isSameDay) shouldShowTimestamp = true;
+    } else if (history.length === 1) shouldShowTimestamp = true;
+    if (shouldShowTimestamp) {
+        const timeDivider = document.createElement('div');
+        timeDivider.className = 'message-wrapper system-notification time-divider';
+        const timeText = formatTimeDivider(message.timestamp);
+        timeDivider.innerHTML = `<div class="system-notification-bubble" style="background-color: transparent; color: #999; font-size: 12px; padding: 2px 8px;">${timeText}</div>`;
+        messageArea.appendChild(timeDivider);
+    }
+    messageArea.appendChild(bubbleElement);
+    messageArea.scrollTop = messageArea.scrollHeight;
+}
+
 // 全局函数：处理代付响应
 window.sendPayResponse = async function(msgId, action) {
     const chat = db.characters.find(c => c.id === currentChatId);
@@ -1005,11 +1156,8 @@ window.sendPayResponse = async function(msgId, action) {
     // 1. 更新原消息状态
     msg.payStatus = action === 'pay' ? 'paid' : 'rejected';
     
-    // 2. 刷新界面（为了让原消息的小票立刻变成"已支付/已拒绝"状态）
-    const wrapper = document.querySelector(`.message-wrapper[data-id="${msgId}"]`);
-    if (wrapper) {
-         renderMessages(false, false);
-    }
+    // 2. 局部重绘代付小票，禁止整表清空
+    replaceMessageBubbleInPlace(msgId);
 
     // 3. 构建指令消息文本
     const myName = chat.myName;
@@ -1034,9 +1182,10 @@ window.sendPayResponse = async function(msgId, action) {
 
     chat.history.push(newMsg);
     
-    // 5. 保存并刷新到底部
-    if (typeof saveData === 'function') await saveData(); 
-    renderMessages(false, true); 
+    // 5. 增量保存 + 仅追加新气泡
+    if (typeof saveActiveChat === 'function') await saveActiveChat();
+    else if (typeof saveData === 'function') await saveData();
+    appendOneBubbleAtEndForOpenChat(newMsg);
 };
 
 
@@ -1057,7 +1206,11 @@ function addMessageBubble(message, targetChatId, targetChatType) {
             }
             if (!invisibleRegex.test(message.content)) {
                 senderChat.unreadCount = (senderChat.unreadCount || 0) + 1;
-                saveData(); 
+                if (typeof saveChatByTarget === 'function') {
+                    void saveChatByTarget(targetChatType, targetChatId);
+                } else if (typeof saveData === 'function') {
+                    void saveData();
+                }
                 renderChatList(); 
             }
         }
@@ -1154,8 +1307,7 @@ function addMessageBubble(message, targetChatId, targetChatType) {
                     // 只有当状态未设置时才更新，避免覆盖
                     if (!payMsg.payStatus) {
                         payMsg.payStatus = isAgreed ? 'paid' : 'rejected';
-                        // 刷新界面
-                        renderMessages(false, false);
+                        replaceMessageBubbleInPlace(payMsg.id);
                     }
                  }
             }
