@@ -724,12 +724,10 @@ function showPanel(type) {
 }
 
 function initKeyboardDetection() {
-    if (!window.visualViewport || initKeyboardDetection._wired) return;
-    initKeyboardDetection._wired = true;
+    if (!window.visualViewport) return;
 
     let maxViewportHeight = window.visualViewport.height;
-    let persistKeyboardTimer = null;
-
+    
     // 初始化应用保存的高度
     if (db.savedKeyboardHeight) {
         document.documentElement.style.setProperty('--panel-height', `${db.savedKeyboardHeight}px`);
@@ -748,16 +746,12 @@ function initKeyboardDetection() {
                 const keyboardHeight = diff;
                 document.documentElement.style.setProperty('--panel-height', `${keyboardHeight}px`);
                 
-                // 仅更新内存中的高度；持久化必须防抖——saveData 会全量写入 Dexie，
-                // 键盘动画期间 visualViewport 会连续触发 resize，同步 save 会导致严重掉帧。
+                // 保存到 DB (防抖)
                 if (db.savedKeyboardHeight !== keyboardHeight) {
                     db.savedKeyboardHeight = keyboardHeight;
-                    if (persistKeyboardTimer) clearTimeout(persistKeyboardTimer);
-                    persistKeyboardTimer = setTimeout(() => {
-                        persistKeyboardTimer = null;
-                        if (typeof saveGlobalSettingsOnly === 'function') saveGlobalSettingsOnly();
-                        else if (typeof saveData === 'function') saveData();
-                    }, 450);
+                    if (typeof saveData === 'function') {
+                        saveData();
+                    }
                 }
             }
         } else if (currentHeight > maxViewportHeight) {
@@ -767,12 +761,6 @@ function initKeyboardDetection() {
             // 键盘收起，高度恢复，不做处理，保持 --panel-height 为最后一次键盘高度
         }
     });
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => initKeyboardDetection());
-} else {
-    initKeyboardDetection();
 }
 
 // 底部导航栏逻辑

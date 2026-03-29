@@ -2048,12 +2048,10 @@ const VideoCallModule = {
                 timestamp: Date.now()
             };
             chat.history.push(msg);
-            if (typeof saveChatRecordByObject === 'function') await saveChatRecordByObject(chat);
-            else await saveData();
+            await saveData();
             
-            if (typeof addMessageBubble === 'function' && typeof currentChatId !== 'undefined' && currentChatId === chat.id) {
-                const st = (typeof getChatEntityStorageTypeById === 'function' && getChatEntityStorageTypeById(chat.id) === 'group') ? 'group' : 'private';
-                addMessageBubble(msg, chat.id, st);
+            if (typeof renderMessages === 'function' && typeof currentChatId !== 'undefined' && currentChatId === chat.id) {
+                renderMessages(false, true);
             }
         }
         
@@ -2119,11 +2117,9 @@ const VideoCallModule = {
                 timestamp: Date.now()
             };
             chat.history.push(inviteMsg);
-            if (typeof saveChatRecordByObject === 'function') await saveChatRecordByObject(chat);
-            else await saveData();
-            if (typeof addMessageBubble === 'function' && typeof currentChatId !== 'undefined' && currentChatId === chat.id) {
-                const st = (typeof getChatEntityStorageTypeById === 'function' && getChatEntityStorageTypeById(chat.id) === 'group') ? 'group' : 'private';
-                addMessageBubble(inviteMsg, chat.id, st);
+            await saveData();
+            if (typeof renderMessages === 'function') {
+                renderMessages(false, true);
             }
         }
 
@@ -2598,35 +2594,22 @@ const VideoCallModule = {
     },
 
     showContextMenu: function(x, y, messageIndex) {
+        // 移除已存在的菜单
         const existingMenu = document.getElementById('vc-context-menu');
-        if (existingMenu) {
-            const oldClose = existingMenu._vcDocClose;
-            if (typeof oldClose === 'function') {
-                document.removeEventListener('click', oldClose);
-            }
-            existingMenu.remove();
-        }
+        if (existingMenu) existingMenu.remove();
 
         const menu = document.createElement('div');
         menu.id = 'vc-context-menu';
         menu.className = 'vc-context-menu';
-
-        let closeMenu;
-        const teardownMenu = () => {
-            if (typeof closeMenu === 'function') {
-                document.removeEventListener('click', closeMenu);
-            }
-            if (menu.parentNode) menu.parentNode.removeChild(menu);
-        };
-
+        
         const regenerateBtn = document.createElement('div');
         regenerateBtn.className = 'vc-context-item';
         regenerateBtn.textContent = '重回';
         regenerateBtn.onclick = () => {
             this.handleRegenerate();
-            teardownMenu();
+            menu.remove();
         };
-
+        
         menu.appendChild(regenerateBtn);
         document.body.appendChild(menu);
 
@@ -2634,25 +2617,23 @@ const VideoCallModule = {
         const rect = menu.getBoundingClientRect();
         let top = y - rect.height - 10;
         let left = x - rect.width / 2;
-
+        
         if (top < 10) top = y + 10;
         if (left < 10) left = 10;
         if (left + rect.width > window.innerWidth - 10) left = window.innerWidth - rect.width - 10;
-
+        
         menu.style.top = top + 'px';
         menu.style.left = left + 'px';
         menu.classList.add('visible');
 
-        closeMenu = (e) => {
-            if (!menu.isConnected) {
-                document.removeEventListener('click', closeMenu);
-                return;
-            }
+        // 点击外部关闭
+        const closeMenu = (e) => {
             if (!menu.contains(e.target)) {
-                teardownMenu();
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
             }
         };
-        menu._vcDocClose = closeMenu;
+        // 延迟绑定以避免立即触发关闭
         setTimeout(() => document.addEventListener('click', closeMenu), 0);
     },
 
@@ -2765,8 +2746,7 @@ const VideoCallModule = {
         if (!db.hasSeenVideoCallAvatarHint) {
             showToast("点击对话内容可重听语音，长按消息可重回");
             db.hasSeenVideoCallAvatarHint = true;
-            if (typeof saveGlobalSettingsOnly === 'function') void saveGlobalSettingsOnly();
-            else void saveData();
+            saveData();
         }
     },
 
@@ -2856,14 +2836,11 @@ const VideoCallModule = {
             };
             this.state.currentChat.history.push(summaryMsg);
 
-            if (typeof saveChatRecordByObject === 'function') await saveChatRecordByObject(this.state.currentChat);
-            else await saveData();
+            await saveData();
             showToast('通话结束，正在生成总结...');
             
-            if (typeof addMessageBubble === 'function' && currentChatId === this.state.currentChat.id) {
-                const ch = this.state.currentChat;
-                const st = (typeof getChatEntityStorageTypeById === 'function' && getChatEntityStorageTypeById(ch.id) === 'group') ? 'group' : 'private';
-                addMessageBubble(summaryMsg, ch.id, st);
+            if (typeof renderMessages === 'function' && currentChatId === this.state.currentChat.id) {
+                renderMessages(false, true);
             }
 
             if (typeof generateCallSummary === 'function') {
@@ -2873,11 +2850,10 @@ const VideoCallModule = {
                         const callTypeLabelInner = callRecord.type === 'voice' ? '语音' : '视频';
                         summaryMsg.content = `[${callTypeLabelInner}通话记录：${dateStr}；${durationStr}；${summary}]`;
                         
-                        if (typeof saveChatRecordByObject === 'function') await saveChatRecordByObject(this.state.currentChat);
-                        else await saveData();
+                        await saveData();
                         
-                        if (typeof replaceMessageBubbleInPlace === 'function' && currentChatId === this.state.currentChat.id) {
-                            replaceMessageBubbleInPlace(summaryMsg.id);
+                        if (typeof renderMessages === 'function' && currentChatId === this.state.currentChat.id) {
+                            renderMessages(false, false);
                         }
                         showToast('通话总结已生成');
                     } else {
@@ -3000,17 +2976,16 @@ const VideoCallModule = {
                                         
                                         // 2. 更新聊天记录中的消息
                                         const chat = this.state.currentChat;
-                                        let summaryMsgRef = chat.history.find(m => m.callRecordId === record.id);
-                                        if (summaryMsgRef) {
+                                        const summaryMsg = chat.history.find(m => m.callRecordId === record.id);
+                                        if (summaryMsg) {
                                             const date = new Date(record.startTime);
                                             const dateStr = `${date.getFullYear()}/${date.getMonth()+1}/${date.getDate()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
                                             const durationStr = this.formatDuration(record.duration);
                                             const callTypeLabelInner = record.type === 'voice' ? '语音' : '视频';
-                                            summaryMsgRef.content = `[${callTypeLabelInner}通话记录：${dateStr}；${durationStr}；${summary}]`;
+                                            summaryMsg.content = `[${callTypeLabelInner}通话记录：${dateStr}；${durationStr}；${summary}]`;
                                         }
                                         
-                                        if (typeof saveChatRecordByObject === 'function') await saveChatRecordByObject(chat);
-                                        else await saveData();
+                                        await saveData();
                                         
                                         // 3. 更新界面
                                         const container = document.getElementById(`vc-summary-container-${record.id}`);
@@ -3033,8 +3008,9 @@ const VideoCallModule = {
                                         
                                         showToast('通话总结已生成');
                                         
-                                        if (typeof replaceMessageBubbleInPlace === 'function' && summaryMsgRef && currentChatId === chat.id) {
-                                            replaceMessageBubbleInPlace(summaryMsgRef.id);
+                                        // 4. 刷新聊天界面
+                                        if (typeof renderMessages === 'function' && currentChatId === chat.id) {
+                                            renderMessages(false, false);
                                         }
                                     } else {
                                         showToast('生成失败，请重试');
@@ -3192,18 +3168,11 @@ const VideoCallModule = {
             
             // 2. 尝试删除对应的聊天消息
             const msgIndex = this.state.currentChat.history.findIndex(m => m.callRecordId === recordId);
-            let removedChatBubbleId = null;
             if (msgIndex !== -1) {
-                removedChatBubbleId = this.state.currentChat.history[msgIndex].id;
                 this.state.currentChat.history.splice(msgIndex, 1);
             }
 
-            if (typeof saveChatRecordByObject === 'function') await saveChatRecordByObject(this.state.currentChat);
-            else await saveData();
-
-            if (removedChatBubbleId && typeof currentChatId !== 'undefined' && currentChatId === this.state.currentChat.id && typeof messageArea !== 'undefined') {
-                messageArea.querySelector(`.message-wrapper[data-id="${removedChatBubbleId}"]`)?.remove();
-            }
+            await saveData();
             
             // 3. 移除 DOM
             domElement.style.height = domElement.offsetHeight + 'px';
@@ -3220,6 +3189,11 @@ const VideoCallModule = {
                     listContainer.innerHTML = '<div class="vc-history-empty">暂无通话记录</div>';
                 }
             }, 300);
+
+            // 刷新聊天界面
+            if (typeof renderMessages === 'function' && currentChatId === this.state.currentChat.id) {
+                renderMessages(false, false);
+            }
         }
     },
 

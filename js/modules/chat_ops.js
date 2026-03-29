@@ -117,9 +117,8 @@ function startDebugEdit(messageId) {
                     recalculateChatStatus(chat);
                 }
 
-                if (typeof saveActiveChat === 'function') await saveActiveChat();
-                else await saveData();
-                document.querySelector(`.message-wrapper[data-id="${messageId}"]`)?.remove();
+                await saveData(); 
+                renderMessages(false, true); 
                 cancelMessageEdit(); 
                 showToast('消息已删除');
             }
@@ -354,8 +353,7 @@ async function saveMessageEdit() {
         }
     }
 
-    if (typeof saveActiveChat === 'function') await saveActiveChat();
-    else await saveData();
+    await saveData();
     currentPage = 1;
     renderMessages(false, true);
     renderChatList();
@@ -558,8 +556,7 @@ async function deleteSelectedMessages() {
         recalculateChatStatus(chat);
     }
 
-    if (typeof saveActiveChat === 'function') await saveActiveChat();
-    else await saveData();
+    await saveData();
     currentPage = 1;
     renderMessages(false, true);
     renderChatList();
@@ -597,15 +594,10 @@ async function withdrawMessage(messageId) {
         recalculateChatStatus(chat);
     }
 
-    if (typeof saveActiveChat === 'function') await saveActiveChat();
-    else await saveData();
+    await saveData();
 
     currentPage = 1;
-    if (typeof replaceMessageBubbleInPlace === 'function') {
-        replaceMessageBubbleInPlace(messageId);
-    } else {
-        renderMessages(false, true);
-    }
+    renderMessages(false, true);
     renderChatList();
     showToast('消息已撤回');
     triggerHapticFeedback('medium');
@@ -765,8 +757,7 @@ function setupDeleteHistoryChunk() {
             }
             
             if (changedCount > 0) {
-                if (typeof saveActiveChat === 'function') await saveActiveChat();
-                else await saveData();
+                await saveData();
                 showToast(`已屏蔽 ${changedCount} 条消息`);
                 // Update DOM in-place
                 modifiedIds.forEach(id => {
@@ -801,8 +792,7 @@ function setupDeleteHistoryChunk() {
             }
             
             if (changedCount > 0) {
-                if (typeof saveActiveChat === 'function') await saveActiveChat();
-                else await saveData();
+                await saveData();
                 showToast(`已恢复 ${changedCount} 条消息`);
                 // Update DOM in-place
                 modifiedIds.forEach(id => {
@@ -845,8 +835,7 @@ function setupDeleteHistoryChunk() {
                 recalculateChatStatus(chat);
             }
 
-            if (typeof saveActiveChat === 'function') await saveActiveChat();
-            else await saveData();
+            await saveData();
             confirmDeleteModal.classList.remove('visible');
             deleteChunkModal.classList.remove('visible');
             showToast(`已永久删除 ${count} 条消息`);

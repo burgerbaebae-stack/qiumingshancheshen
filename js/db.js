@@ -505,9 +505,7 @@ function initDatabase() {
 }
 
 // 数据保存与加载
-/** 全量持久化：导入/导出、批量迁移、需保证全盘一致时使用 */
 const saveData = async () => {
-    if (!dexieDB) return;
     await dexieDB.transaction('rw', dexieDB.tables, async () => {
         await dexieDB.characters.bulkPut(db.characters);
         await dexieDB.groups.bulkPut(db.groups);
@@ -522,69 +520,6 @@ const saveData = async () => {
         }).filter(p => p);
         await Promise.all(settingsPromises);
     });
-};
-
-function getChatEntityStorageTypeById(id) {
-    if (!id || !db) return null;
-    if (db.groups && db.groups.some(g => g.id === id)) return 'group';
-    if (db.characters && db.characters.some(c => c.id === id)) return 'private';
-    return null;
-}
-
-const saveCharacterById = async (id) => {
-    if (!dexieDB || !id) return;
-    const c = db.characters.find(x => x.id === id);
-    if (!c) return;
-    await dexieDB.characters.put(c);
-};
-
-const saveGroupById = async (id) => {
-    if (!dexieDB || !id) return;
-    const g = db.groups.find(x => x.id === id);
-    if (!g) return;
-    await dexieDB.groups.put(g);
-};
-
-/** 按会话 id 写入对应表（私聊/群聊二选一） */
-const saveChatByTarget = async (chatType, chatId) => {
-    if (!chatId) return;
-    if (chatType === 'private') await saveCharacterById(chatId);
-    else if (chatType === 'group') await saveGroupById(chatId);
-};
-
-/** 根据内存中的 chat 对象判断写入 characters 还是 groups */
-const saveChatRecordByObject = async (chat) => {
-    if (!chat || !chat.id) return;
-    const t = getChatEntityStorageTypeById(chat.id);
-    if (t === 'group') await saveGroupById(chat.id);
-    else if (t === 'private') await saveCharacterById(chat.id);
-};
-
-/** 当前正在查看的聊天室（发送/收消息等同屏路径应优先用此函数，避免全量 bulkPut） */
-const saveActiveChat = async () => {
-    await saveChatByTarget(currentChatType, currentChatId);
-};
-
-/** 仅写 globalSettings 表（壁纸、键盘高度、API 配置等），不触碰会话大对象 */
-const saveGlobalSettingsOnly = async () => {
-    if (!dexieDB) return;
-    const settingsPromises = globalSettingKeys.map(key => {
-        if (db[key] !== undefined) {
-            return dexieDB.globalSettings.put({ key: key, value: db[key] });
-        }
-        return null;
-    }).filter(p => p);
-    await Promise.all(settingsPromises);
-};
-
-const saveWorldBooksToDb = async () => {
-    if (!dexieDB) return;
-    await dexieDB.worldBooks.bulkPut(db.worldBooks);
-};
-
-const saveStickersToDb = async () => {
-    if (!dexieDB) return;
-    await dexieDB.myStickers.bulkPut(db.myStickers);
 };
 
 const loadData = async () => {

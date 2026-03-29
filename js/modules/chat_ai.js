@@ -420,6 +420,15 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
             fullResponse = fullResponse.replace(thinkingContent, "");
         }
 
+        if (db.globalReceiveSound && shouldPlayInternalReceiveSound(targetChatId)) {
+            playSound(db.globalReceiveSound);
+        }
+        if (typeof PushNotificationModule !== 'undefined') {
+            const _pnName = targetChatType === 'private'
+                ? (chat.remarkName || chat.realName || chat.name || '')
+                : (chat.name || '');
+            PushNotificationModule.notify(targetChatId, targetChatType, _pnName, fullResponse);
+        }
         // ... 后续代码保持不变 ...
         console.log('【AI原始返回内容】:', rawResponse);
         let cleanedResponse = fullResponse.replace(/^\[system:.*?\]\s*/, '').replace(/^\(时间:.*?\)\s*/, '');
@@ -431,21 +440,6 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
         } else {
             messages = getMixedContent(fullResponse).filter(item => item.content.trim() !== '');
         }
-
-        let emittedReceiveCue = false;
-        const emitReceiveCueOnce = () => {
-            if (emittedReceiveCue) return;
-            emittedReceiveCue = true;
-            if (db.globalReceiveSound && shouldPlayInternalReceiveSound(targetChatId)) {
-                playSound(db.globalReceiveSound);
-            }
-            if (typeof PushNotificationModule !== 'undefined') {
-                const _pnName = targetChatType === 'private'
-                    ? (chat.remarkName || chat.realName || chat.name || '')
-                    : (chat.name || '');
-                PushNotificationModule.notify(targetChatId, targetChatType, _pnName, fullResponse);
-            }
-        };
 
         let firstMessageProcessed = false;
 
@@ -493,7 +487,6 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
                     timestamp: Date.now()
                 };
                 chat.history.push(message);
-                emitReceiveCueOnce();
                 addMessageBubble(message, targetChatId, targetChatType);
                 continue; // 跳过后续处理
             }
@@ -562,15 +555,12 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
             if (!isBackground) {
                 const delay = firstMessageProcessed ? (900 + Math.random() * 1300) : (400 + Math.random() * 400);
                 await new Promise(resolve => setTimeout(resolve, delay));
-                // 与首条可见气泡对齐：避免提示音/系统通知早于分段动画，造成「声画错位」
-                emitReceiveCueOnce();
+                
                 // 多条气泡延迟音：仅前台当前会话；后台/跨会话已由系统通知发声，禁止网页内再播
                 if (firstMessageProcessed && db.multiMsgSoundEnabled && db.globalReceiveSound &&
                     shouldPlayInternalReceiveSound(targetChatId)) {
                     playSound(db.globalReceiveSound);
                 }
-            } else {
-                emitReceiveCueOnce();
             }
             firstMessageProcessed = true;
 
@@ -609,19 +599,11 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
                     message.isWithdrawn = true;
                     message.content = `[${characterName}撤回了一条消息：${originalContent}]`;
                     
-                    if (typeof saveChatByTarget === 'function') {
-                        await saveChatByTarget(targetChatType, targetChatId);
-                    } else {
-                        await saveData();
-                    }
+                    await saveData();
                     
                     if ((targetChatType === 'private' && currentChatId === chat.id) || 
                         (targetChatType === 'group' && currentChatId === chat.id)) {
-                        if (typeof replaceMessageBubbleInPlace === 'function') {
-                            replaceMessageBubbleInPlace(message.id);
-                        } else {
-                            renderMessages(false, true);
-                        }
+                         renderMessages(false, true);
                     }
                 }, 2000);
 
@@ -784,19 +766,7 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
             }
         }
 
-        // 后台：若本条回复没有任何分段触发过 emit（例如正文被过滤为空），仍补一次系统通知
-        if (isBackground && !emittedReceiveCue && typeof PushNotificationModule !== 'undefined') {
-            const _pnBg = targetChatType === 'private'
-                ? (chat.remarkName || chat.realName || chat.name || '')
-                : (chat.name || '');
-            PushNotificationModule.notify(targetChatId, targetChatType, _pnBg, fullResponse);
-        }
-
-        if (typeof saveChatByTarget === 'function') {
-            await saveChatByTarget(targetChatType, targetChatId);
-        } else {
-            await saveData();
-        }
+        await saveData();
         renderChatList();
 
         // 触发独立的电量检查（不阻塞主流程）
@@ -837,8 +807,7 @@ async function handleRegenerate() {
         recalculateChatStatus(chat);
     }
 
-    if (typeof saveActiveChat === 'function') await saveActiveChat();
-    else await saveData();
+    await saveData();
     
     currentPage = 1; 
     renderMessages(false, true); 

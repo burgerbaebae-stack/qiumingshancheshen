@@ -82,8 +82,7 @@ function setupGroupChatSystem() {
                 privateSessions: {}
             };
             db.groups.push(newGroup);
-            if (typeof saveGroupById === 'function') await saveGroupById(newGroup.id);
-            else await saveData();
+            await saveData();
             renderChatList();
             createGroupModal.classList.remove('visible');
             showToast(`群聊“${groupName}”创建成功！`);
@@ -198,8 +197,7 @@ function setupGroupChatSystem() {
                     if (group) {
                         group.chatBg = compressedUrl;
                         chatRoomScreen.style.backgroundImage = `url(${compressedUrl})`;
-                        if (typeof saveGroupById === 'function') await saveGroupById(group.id);
-                        else await saveData();
+                        await saveData();
                         showToast('聊天背景已更换');
                     }
                 } catch (error) {
@@ -216,8 +214,7 @@ function setupGroupChatSystem() {
             if (!group) return;
             if (confirm(`你确定要清空群聊“${group.name}”的所有聊天记录吗？这个操作是不可恢复的！`)) {
                 group.history = [];
-                if (typeof saveGroupById === 'function') await saveGroupById(group.id);
-                else await saveData();
+                await saveData();
                 renderMessages(false, true);
                 renderChatList();
                 showToast('聊天记录已清空');
@@ -270,8 +267,7 @@ function setupGroupChatSystem() {
                 member.groupNickname = document.getElementById('edit-member-group-nickname').value;
                 member.realName = document.getElementById('edit-member-real-name').value;
                 member.persona = document.getElementById('edit-member-persona').value;
-                if (typeof saveGroupById === 'function') await saveGroupById(group.id);
-                else await saveData();
+                await saveData();
                 renderGroupMembersInSettings(group);
                 document.querySelectorAll(`.message-wrapper[data-sender-id="${member.id}"] .group-nickname`).forEach(el => {
                     el.textContent = member.groupNickname;
@@ -341,8 +337,7 @@ function setupGroupChatSystem() {
                 }
             });
             if (selectedCharIds.length > 0) {
-                if (typeof saveGroupById === 'function') await saveGroupById(group.id);
-                else await saveData();
+                await saveData();
                 renderGroupMembersInSettings(group);
                 renderMessages(false, true);
                 showToast('已邀请新成员');
@@ -366,8 +361,7 @@ function setupGroupChatSystem() {
             };
             group.members.push(newMember);
             sendInviteNotification(group, newMember.realName);
-            if (typeof saveGroupById === 'function') await saveGroupById(group.id);
-            else await saveData();
+            await saveData();
             renderGroupMembersInSettings(group);
             renderMessages(false, true);
             showToast(`新成员 ${newMember.groupNickname} 已加入`);
@@ -685,8 +679,7 @@ function closePrivateSession(sessionId) {
     };
     
     group.history.push(endMsg);
-    if (typeof saveGroupById === 'function') void saveGroupById(group.id);
-    else void saveData();
+    saveData();
     renderPrivateChatMonitor();
 }
 
@@ -727,8 +720,7 @@ function sendGossipMessage(content) {
     };
 
     group.history.push(message);
-    if (typeof saveGroupById === 'function') void saveGroupById(group.id);
-    else void saveData();
+    saveData();
     renderPrivateChatMonitor();
     
     // 注意：此处不自动触发 getAiReply，等待用户在主界面操作
@@ -812,8 +804,7 @@ window.savePrivateMsgEdit = function() {
                 msg.content = `[Private: ${sender} -> ${receiver}: ${newContent}]`;
                 msg.parts = [{type: 'text', text: msg.content}];
                 
-                if (typeof saveGroupById === 'function') void saveGroupById(group.id);
-                else void saveData();
+                saveData();
                 renderPrivateChatMonitor();
                 document.getElementById('private-msg-edit-modal').classList.remove('visible');
                 showToast('私聊消息已更新');
@@ -831,8 +822,7 @@ window.deletePrivateMsg = function() {
     
     if (group) {
         group.history = group.history.filter(m => m.id !== editingPrivateMsgId);
-        if (typeof saveGroupById === 'function') void saveGroupById(group.id);
-        else void saveData();
+        saveData();
         renderPrivateChatMonitor();
         document.getElementById('private-msg-edit-modal').classList.remove('visible');
         showToast('私聊消息已删除');
@@ -1136,8 +1126,7 @@ async function saveGroupSettingsFromSidebar(showToastFlag = true) {
     chatScreen.classList.add(`timestamp-style-${group.timestampStyle || 'bubble'}`);
 
     // updateCustomBubbleStyle(currentChatId, group.customBubbleCss, group.useCustomBubbleCss); // 移除实时应用以防污染设置页
-    if (typeof saveGroupById === 'function') await saveGroupById(group.id);
-    else await saveData();
+    await saveData();
     if (showToastFlag) showToast('群聊设置已保存！');
     chatRoomTitle.textContent = group.name;
     renderChatList();
