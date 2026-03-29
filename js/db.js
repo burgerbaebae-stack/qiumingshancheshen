@@ -157,6 +157,663 @@ const globalSettingKeys = [
     'cotSettings', 'cotPresets', 'hasSeenVideoCallDisclaimer', 'hasSeenVideoCallAvatarHint'
 ];
 
+// --- 备份导入白名单清洗：剔除异版本冗余字段，仅保留与本项目 db 结构一致的键 ---
+(function () {
+    const PEEK_APP_KEYS = Object.keys(typeof peekScreenApps !== 'undefined' ? peekScreenApps : {});
+
+    const IMPORT_META_KEYS = ['_exportVersion', '_exportTimestamp', '__chunks__'];
+
+    const IMPORT_ROOT_KEY_SET = new Set([
+        'characters', 'groups', 'worldBooks', 'myStickers',
+        ...globalSettingKeys,
+        'ttsSettings', 'ttsPresets',
+        ...IMPORT_META_KEYS
+    ]);
+
+    const CHAR_KEYS = new Set([
+        'id', 'realName', 'remarkName', 'persona', 'avatar', 'myName', 'myPersona', 'myAvatar',
+        'theme', 'maxMemory', 'chatBg', 'callBg', 'history', 'isPinned', 'status', 'worldBookIds',
+        'useCustomBubbleCss', 'customBubbleCss', 'bilingualBubbleStyle', 'bilingualModeEnabled',
+        'unreadCount', 'memoryJournals', 'journalWorldBookIds', 'peekScreenSettings', 'peekData',
+        'lastUserMessageTimestamp', 'statusPanel', 'autoReply', 'gallery', 'useRealGallery',
+        'callHistory', 'showTimestamp', 'timestampPosition', 'stickerGroups', 'replyCountEnabled',
+        'replyCountMin', 'replyCountMax', 'avatarMode', 'avatarRadius', 'bubbleBlurEnabled',
+        'titleLayout', 'timestampStyle', 'showStatus', 'showStatusUpdateMsg', 'shopInteractionEnabled',
+        'videoCallEnabled', 'ttsEnabled', 'ttsVoiceId', 'ttsSpeed', 'folderId'
+    ]);
+
+    const GROUP_KEYS = new Set([
+        'id', 'name', 'avatar', 'me', 'members', 'theme', 'maxMemory', 'chatBg', 'history',
+        'isPinned', 'unreadCount', 'useCustomBubbleCss', 'customBubbleCss', 'worldBookIds',
+        'allowGossip', 'privateSessions', 'showTimestamp', 'timestampStyle', 'titleLayout',
+        'avatarRadius', 'stickerGroups', 'bilingualModeEnabled', 'bilingualBubbleStyle',
+        'showNotice', 'notice', 'callHistory', 'folderId'
+    ]);
+
+    const GROUP_ME_KEYS = new Set(['nickname', 'persona', 'avatar']);
+    const GROUP_MEMBER_KEYS = new Set(['id', 'originalCharId', 'realName', 'groupNickname', 'persona', 'avatar']);
+
+    const WB_KEYS = new Set(['id', 'name', 'content', 'position', 'category']);
+    const STICKER_KEYS = new Set(['id', 'name', 'data', 'group', 'lastUsedTime']);
+
+    const API_SETTINGS_KEYS = new Set(['provider', 'url', 'key', 'model', 'temperature', 'timePerceptionEnabled', 'streamEnabled']);
+    const FORUM_BINDINGS_KEYS = new Set(['worldBookIds', 'charIds', 'userPersonaIds']);
+    const POMODORO_SETTINGS_KEYS = new Set(['boundCharId', 'userPersona', 'focusBackground', 'taskCardBackground', 'encouragementMinutes', 'pokeLimit', 'globalWorldBookIds']);
+    const INS_WIDGET_KEYS = new Set(['avatar1', 'bubble1', 'avatar2', 'bubble2']);
+    const HOME_WIDGET_CORNER_KEYS = new Set(['emoji', 'text']);
+    const HOME_WIDGET_KEYS = new Set(['centralCircleImage', 'topLeft', 'topRight', 'bottomLeft', 'bottomRight']);
+    const COT_SETTINGS_KEYS = new Set(['enabled', 'activePresetId', 'callEnabled', 'humanRunEnabled', 'activeCallPresetId']);
+    const TTS_SETTINGS_KEYS = new Set(['globalEnabled', 'apiUrl', 'apiKey', 'groupId', 'model', 'defaultVoiceId', 'defaultSpeed']);
+    const PEEK_SCREEN_SETTINGS_KEYS = new Set(['wallpaper', 'customIcons', 'unlockAvatar']);
+    const STATUS_PANEL_KEYS = new Set(['enabled', 'promptSuffix', 'regexPattern', 'replacePattern', 'historyLimit', 'currentStatusRaw', 'currentStatusHtml', 'history']);
+    const AUTO_REPLY_KEYS = new Set(['enabled', 'interval', 'lastTriggerTime']);
+    const JOURNAL_KEYS = new Set(['id', 'range', 'title', 'content', 'createdAt', 'chatId', 'chatType', 'isFavorited']);
+    const CALL_RECORD_KEYS = new Set(['id', 'startTime', 'duration', 'type', 'context', 'summary']);
+
+    const THEME_GLOBAL_KEYS = new Set(['iconColor', 'textColor', 'titleColor', 'backgroundColor']);
+    const THEME_WALLPAPERS_KEYS = new Set(['contacts', 'chats', 'more']);
+    const THEME_BOTTOM_NAV_KEYS = new Set(['iconColor', 'activeIconColor', 'items']);
+    const THEME_NAV_ITEM_KEYS = new Set(['defaultIcon', 'activeIcon']);
+    const THEME_CHAT_SCREEN_KEYS = new Set(['bottomBarColor', 'iconColor', 'folderPillColor']);
+
+    const MSG_KEYS = new Set([
+        'id', 'role', 'content', 'parts', 'timestamp', 'senderId', 'transferStatus', 'payStatus',
+        'giftStatus', 'isContextDisabled', 'callRecordId', 'isPickedUp', 'quote', 'isWithdrawn',
+        'type', 'name', 'cotMessage', 'thinking', 'hidden', 'isEndCommand', 'sender'
+    ]);
+
+    const PART_KEYS = new Set(['type', 'text', 'data', 'image_url']);
+    const IMAGE_URL_KEYS = new Set(['url']);
+
+    const FORUM_POST_KEYS = new Set(['id', 'title', 'summary', 'content', 'comments', 'username', 'likeCount', 'shareCount']);
+    const FORUM_COMMENT_KEYS = new Set(['username', 'content', 'timestamp']);
+
+    const COT_PRESET_KEYS = new Set(['id', 'name', 'items']);
+    const COT_ITEM_KEYS = new Set(['id', 'name', 'content', 'enabled']);
+
+    const POMODORO_TASK_KEYS = new Set(['id', 'name', 'mode', 'duration', 'status', 'settings']);
+
+    const CHAT_FOLDER_KEYS = new Set(['id', 'name']);
+
+    const GALLERY_ITEM_KEYS = new Set(['id', 'name', 'url']);
+
+    function shallowPick(obj, allowed) {
+        const out = {};
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return out;
+        for (const k of allowed) {
+            if (Object.prototype.hasOwnProperty.call(obj, k)) out[k] = obj[k];
+        }
+        return out;
+    }
+
+    function jsonClone(v) {
+        try {
+            return JSON.parse(JSON.stringify(v));
+        } catch (_) {
+            return undefined;
+        }
+    }
+
+    function sanitizeStringIdArray(arr) {
+        if (!Array.isArray(arr)) return [];
+        return arr.filter(x => typeof x === 'string');
+    }
+
+    function sanitizeCustomIcons(raw) {
+        const out = {};
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+        for (const k of Object.keys(raw)) {
+            const v = raw[k];
+            if (v && typeof v === 'object' && !Array.isArray(v)) {
+                const icon = shallowPick(v, new Set(['name', 'url']));
+                if (icon.name != null || icon.url != null) out[k] = icon;
+            }
+        }
+        return out;
+    }
+
+    function sanitizePeekScreenSettings(raw) {
+        const o = shallowPick(raw, PEEK_SCREEN_SETTINGS_KEYS);
+        if (o.customIcons && typeof o.customIcons === 'object') {
+            o.customIcons = sanitizeCustomIcons(o.customIcons);
+        }
+        return o;
+    }
+
+    function sanitizePeekData(raw) {
+        const out = {};
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+        for (const app of PEEK_APP_KEYS) {
+            if (!Object.prototype.hasOwnProperty.call(raw, app)) continue;
+            const cloned = jsonClone(raw[app]);
+            if (cloned !== undefined) out[app] = cloned;
+        }
+        return out;
+    }
+
+    function sanitizeStatusPanel(raw) {
+        const o = shallowPick(raw, STATUS_PANEL_KEYS);
+        if (Array.isArray(o.history)) {
+            o.history = o.history.filter(x => typeof x === 'string').slice(0, 500);
+        } else if (o.history) {
+            delete o.history;
+        }
+        return o;
+    }
+
+    function sanitizeAutoReply(raw) {
+        return shallowPick(raw, AUTO_REPLY_KEYS);
+    }
+
+    function sanitizePart(p) {
+        if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+        const o = shallowPick(p, PART_KEYS);
+        if (o.image_url && typeof o.image_url === 'object') {
+            o.image_url = shallowPick(o.image_url, IMAGE_URL_KEYS);
+        }
+        if (Object.keys(o).length === 0) return null;
+        return o;
+    }
+
+    function sanitizeQuote(q) {
+        if (!q || typeof q !== 'object') return undefined;
+        const o = shallowPick(q, new Set(['content', 'id', 'role']));
+        return Object.keys(o).length ? o : undefined;
+    }
+
+    function sanitizeHistoryMessage(raw) {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+        const m = shallowPick(raw, MSG_KEYS);
+        if (m.quote !== undefined) {
+            const q = sanitizeQuote(m.quote);
+            if (q) m.quote = q;
+            else delete m.quote;
+        }
+        if (Array.isArray(m.parts)) {
+            m.parts = m.parts.map(sanitizePart).filter(Boolean);
+        }
+        if (m.role === undefined && typeof raw.role === 'string') m.role = raw.role;
+        return m;
+    }
+
+    function sanitizeHistory(arr) {
+        if (!Array.isArray(arr)) return [];
+        return arr.map(sanitizeHistoryMessage).filter(m => m && m.role != null);
+    }
+
+    function sanitizeMemoryJournals(arr) {
+        if (!Array.isArray(arr)) return [];
+        return arr.map(j => {
+            if (!j || typeof j !== 'object') return null;
+            const o = shallowPick(j, JOURNAL_KEYS);
+            if (o.range && typeof o.range === 'object') {
+                o.range = shallowPick(o.range, new Set(['start', 'end']));
+            }
+            return o.id ? o : null;
+        }).filter(Boolean);
+    }
+
+    function sanitizeGallery(arr) {
+        if (!Array.isArray(arr)) return [];
+        return arr.map(g => {
+            if (!g || typeof g !== 'object') return null;
+            const o = shallowPick(g, GALLERY_ITEM_KEYS);
+            return o.id && o.name != null ? o : null;
+        }).filter(Boolean);
+    }
+
+    function sanitizeCallRecord(r) {
+        if (!r || typeof r !== 'object') return null;
+        const o = shallowPick(r, CALL_RECORD_KEYS);
+        if (!o.id) return null;
+        if (Array.isArray(o.context)) o.context = sanitizeHistory(o.context);
+        else o.context = [];
+        if (o.type !== 'voice' && o.type !== 'video') o.type = 'voice';
+        if (typeof o.summary !== 'string') o.summary = '';
+        return o;
+    }
+
+    function sanitizeCallHistory(arr) {
+        if (!Array.isArray(arr)) return [];
+        return arr.map(sanitizeCallRecord).filter(Boolean);
+    }
+
+    function sanitizePrivateSessions(raw) {
+        const out = {};
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+        for (const key of Object.keys(raw)) {
+            const sess = raw[key];
+            if (!sess || typeof sess !== 'object' || Array.isArray(sess)) continue;
+            const clean = {
+                history: sanitizeHistory(sess.history),
+                memberNames: Array.isArray(sess.memberNames) ? sess.memberNames.filter(n => typeof n === 'string') : []
+            };
+            out[key] = clean;
+        }
+        return out;
+    }
+
+    function sanitizeCharacter(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const id = typeof raw.id === 'string' ? raw.id : null;
+        if (!id) return null;
+        const o = {};
+        for (const k of CHAR_KEYS) {
+            if (!Object.prototype.hasOwnProperty.call(raw, k)) continue;
+            const v = raw[k];
+            switch (k) {
+                case 'history':
+                    o.history = sanitizeHistory(v);
+                    break;
+                case 'peekData':
+                    o.peekData = sanitizePeekData(v);
+                    break;
+                case 'peekScreenSettings':
+                    o.peekScreenSettings = sanitizePeekScreenSettings(v);
+                    break;
+                case 'statusPanel':
+                    o.statusPanel = sanitizeStatusPanel(v);
+                    break;
+                case 'autoReply':
+                    o.autoReply = sanitizeAutoReply(v);
+                    break;
+                case 'memoryJournals':
+                    o.memoryJournals = sanitizeMemoryJournals(v);
+                    break;
+                case 'gallery':
+                    o.gallery = sanitizeGallery(v);
+                    break;
+                case 'callHistory':
+                    o.callHistory = sanitizeCallHistory(v);
+                    break;
+                case 'worldBookIds':
+                case 'journalWorldBookIds':
+                    o[k] = sanitizeStringIdArray(v);
+                    break;
+                default:
+                    o[k] = v;
+            }
+        }
+        o.id = id;
+        return o;
+    }
+
+    function sanitizeGroupMember(m) {
+        if (!m || typeof m !== 'object') return null;
+        const o = shallowPick(m, GROUP_MEMBER_KEYS);
+        return o.id ? o : null;
+    }
+
+    function sanitizeGroup(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const id = typeof raw.id === 'string' ? raw.id : null;
+        if (!id) return null;
+        const o = {};
+        for (const k of GROUP_KEYS) {
+            if (!Object.prototype.hasOwnProperty.call(raw, k)) continue;
+            const v = raw[k];
+            switch (k) {
+                case 'me':
+                    o.me = shallowPick(v && typeof v === 'object' ? v : {}, GROUP_ME_KEYS);
+                    break;
+                case 'members':
+                    o.members = Array.isArray(v) ? v.map(sanitizeGroupMember).filter(Boolean) : [];
+                    break;
+                case 'history':
+                    o.history = sanitizeHistory(v);
+                    break;
+                case 'privateSessions':
+                    o.privateSessions = sanitizePrivateSessions(v);
+                    break;
+                case 'worldBookIds':
+                    o.worldBookIds = sanitizeStringIdArray(v);
+                    break;
+                default:
+                    o[k] = v;
+            }
+        }
+        o.id = id;
+        return o;
+    }
+
+    function sanitizeWorldBook(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const o = shallowPick(raw, WB_KEYS);
+        return typeof o.id === 'string' && o.name != null ? o : null;
+    }
+
+    function sanitizeSticker(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const o = shallowPick(raw, STICKER_KEYS);
+        return typeof o.id === 'string' ? o : null;
+    }
+
+    function sanitizeApiSettings(raw) {
+        return shallowPick(raw && typeof raw === 'object' ? raw : {}, API_SETTINGS_KEYS);
+    }
+
+    function sanitizeForumBindings(raw) {
+        const o = shallowPick(raw && typeof raw === 'object' ? raw : {}, FORUM_BINDINGS_KEYS);
+        o.worldBookIds = sanitizeStringIdArray(o.worldBookIds);
+        o.charIds = sanitizeStringIdArray(o.charIds);
+        o.userPersonaIds = sanitizeStringIdArray(o.userPersonaIds);
+        return o;
+    }
+
+    function sanitizePomodoroSettings(raw) {
+        const o = shallowPick(raw && typeof raw === 'object' ? raw : {}, POMODORO_SETTINGS_KEYS);
+        o.globalWorldBookIds = sanitizeStringIdArray(o.globalWorldBookIds);
+        return o;
+    }
+
+    function sanitizeInsWidget(raw) {
+        return shallowPick(raw && typeof raw === 'object' ? raw : {}, INS_WIDGET_KEYS);
+    }
+
+    function sanitizeHomeWidgetCorner(raw) {
+        return shallowPick(raw && typeof raw === 'object' ? raw : {}, HOME_WIDGET_CORNER_KEYS);
+    }
+
+    function sanitizeHomeWidgetSettings(raw) {
+        const src = raw && typeof raw === 'object' ? raw : {};
+        const o = shallowPick(src, HOME_WIDGET_KEYS);
+        ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'].forEach(c => {
+            if (o[c]) o[c] = sanitizeHomeWidgetCorner(o[c]);
+        });
+        return o;
+    }
+
+    function sanitizeThemeSettings(raw) {
+        if (!raw || typeof raw !== 'object') return {};
+        const ts = {};
+        if (raw.global && typeof raw.global === 'object') {
+            ts.global = shallowPick(raw.global, THEME_GLOBAL_KEYS);
+        }
+        if (raw.wallpapers && typeof raw.wallpapers === 'object') {
+            ts.wallpapers = shallowPick(raw.wallpapers, THEME_WALLPAPERS_KEYS);
+        }
+        if (raw.bottomNav && typeof raw.bottomNav === 'object') {
+            const bn = shallowPick(raw.bottomNav, THEME_BOTTOM_NAV_KEYS);
+            if (Array.isArray(bn.items)) {
+                bn.items = bn.items.map(it => shallowPick(it && typeof it === 'object' ? it : {}, THEME_NAV_ITEM_KEYS));
+            } else {
+                bn.items = [];
+            }
+            ts.bottomNav = bn;
+        }
+        if (raw.chatScreen && typeof raw.chatScreen === 'object') {
+            ts.chatScreen = shallowPick(raw.chatScreen, THEME_CHAT_SCREEN_KEYS);
+        }
+        return ts;
+    }
+
+    function sanitizeForumComment(c) {
+        if (!c || typeof c !== 'object') return null;
+        return shallowPick(c, FORUM_COMMENT_KEYS);
+    }
+
+    function sanitizeForumPost(p) {
+        if (!p || typeof p !== 'object') return null;
+        const o = shallowPick(p, FORUM_POST_KEYS);
+        if (Array.isArray(o.comments)) {
+            o.comments = o.comments.map(sanitizeForumComment).filter(c => c && c.content != null);
+        } else {
+            o.comments = [];
+        }
+        return o.id ? o : null;
+    }
+
+    function sanitizeCotItem(it) {
+        if (!it || typeof it !== 'object') return null;
+        const o = shallowPick(it, COT_ITEM_KEYS);
+        return o.id ? o : null;
+    }
+
+    function sanitizeCotPreset(p) {
+        if (!p || typeof p !== 'object') return null;
+        const o = shallowPick(p, COT_PRESET_KEYS);
+        if (Array.isArray(o.items)) {
+            o.items = o.items.map(sanitizeCotItem).filter(Boolean);
+        } else {
+            o.items = [];
+        }
+        return o.id ? o : null;
+    }
+
+    function sanitizePomodoroTask(t) {
+        if (!t || typeof t !== 'object') return null;
+        const o = shallowPick(t, POMODORO_TASK_KEYS);
+        if (o.settings && typeof o.settings === 'object') {
+            o.settings = sanitizePomodoroSettings(o.settings);
+        }
+        return o.id ? o : null;
+    }
+
+    function sanitizeApiPreset(p) {
+        if (!p || typeof p !== 'object') return null;
+        const name = typeof p.name === 'string' ? p.name : null;
+        if (!name) return null;
+        const out = { name };
+        if (p.data && typeof p.data === 'object') {
+            out.data = shallowPick(p.data, new Set(['apiKey', 'apiUrl', 'provider', 'model']));
+        }
+        return out;
+    }
+
+    function sanitizeBubbleCssPreset(p) {
+        if (!p || typeof p !== 'object') return null;
+        const o = shallowPick(p, new Set(['name', 'css']));
+        return typeof o.name === 'string' ? o : null;
+    }
+
+    function sanitizePersonaPreset(p) {
+        if (!p || typeof p !== 'object') return null;
+        const o = shallowPick(p, new Set(['id', 'name', 'avatar', 'persona', 'bindings']));
+        if (!o.id || typeof o.id !== 'string') return null;
+        o.bindings = o.bindings && typeof o.bindings === 'object' && !Array.isArray(o.bindings)
+            ? (() => {
+                const b = {};
+                for (const k of Object.keys(o.bindings)) {
+                    if (typeof o.bindings[k] === 'string') b[k] = o.bindings[k];
+                }
+                return b;
+            })()
+            : {};
+        return o;
+    }
+
+    function sanitizeCssNamedPreset(p, valueKey) {
+        if (!p || typeof p !== 'object') return null;
+        const keys = new Set(['name', valueKey]);
+        const o = shallowPick(p, keys);
+        return typeof o.name === 'string' ? o : null;
+    }
+
+    function sanitizeSoundPreset(p) {
+        if (!p || typeof p !== 'object') return null;
+        return shallowPick(p, new Set(['name', 'sendSound', 'receiveSound']));
+    }
+
+    function sanitizeGalleryPreset(p) {
+        if (!p || typeof p !== 'object') return null;
+        const o = shallowPick(p, new Set(['id', 'name', 'items']));
+        if (!o.id || !o.name) return null;
+        o.items = Array.isArray(o.items) ? o.items.map(g => shallowPick(g && typeof g === 'object' ? g : {}, GALLERY_ITEM_KEYS)).filter(g => g.id) : [];
+        return o;
+    }
+
+    function sanitizeThemePreset(p) {
+        if (!p || typeof p !== 'object') return null;
+        const o = {};
+        if (typeof p.id === 'string') o.id = p.id;
+        if (typeof p.name === 'string') o.name = p.name;
+        if (p.themeSettings && typeof p.themeSettings === 'object') {
+            o.themeSettings = sanitizeThemeSettings(p.themeSettings);
+        }
+        return o.id && o.name ? o : null;
+    }
+
+    function sanitizeStatusBarPreset(p) {
+        if (!p || typeof p !== 'object') return null;
+        const o = shallowPick(p, new Set(['id', 'name', 'promptSuffix', 'regexPattern', 'replacePattern']));
+        return o.id && o.name ? o : null;
+    }
+
+    function sanitizeTtsPreset(p) {
+        if (!p || typeof p !== 'object') return null;
+        const name = typeof p.name === 'string' ? p.name : null;
+        if (!name) return null;
+        const cfg = shallowPick(p, TTS_SETTINGS_KEYS);
+        return { name, ...cfg };
+    }
+
+    function sanitizeTtsSettings(raw) {
+        return shallowPick(raw && typeof raw === 'object' ? raw : {}, TTS_SETTINGS_KEYS);
+    }
+
+    function sanitizeCotSettings(raw) {
+        return shallowPick(raw && typeof raw === 'object' ? raw : {}, COT_SETTINGS_KEYS);
+    }
+
+    function sanitizeChunks(raw) {
+        const out = {};
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+        for (const k of Object.keys(raw)) {
+            if (typeof raw[k] === 'string') out[k] = raw[k];
+        }
+        return out;
+    }
+
+    function sanitizeGlobalSetting(key, val) {
+        switch (key) {
+            case 'apiSettings':
+                return sanitizeApiSettings(val);
+            case 'forumBindings':
+                return sanitizeForumBindings(val);
+            case 'pomodoroSettings':
+                return sanitizePomodoroSettings(val);
+            case 'insWidgetSettings':
+                return sanitizeInsWidget(val);
+            case 'homeWidgetSettings':
+                return sanitizeHomeWidgetSettings(val);
+            case 'themeSettings':
+                return sanitizeThemeSettings(val);
+            case 'cotSettings':
+                return sanitizeCotSettings(val);
+            case 'cotPresets':
+                return Array.isArray(val) ? val.map(sanitizeCotPreset).filter(Boolean) : [];
+            case 'forumPosts':
+                return Array.isArray(val) ? val.map(sanitizeForumPost).filter(Boolean) : [];
+            case 'pomodoroTasks':
+                return Array.isArray(val) ? val.map(sanitizePomodoroTask).filter(Boolean) : [];
+            case 'chatFolders':
+                return Array.isArray(val) ? val.map(f => {
+                    const o = shallowPick(f && typeof f === 'object' ? f : {}, CHAT_FOLDER_KEYS);
+                    return o.id && o.name ? o : null;
+                }).filter(Boolean) : [];
+            case 'apiPresets':
+                return Array.isArray(val) ? val.map(sanitizeApiPreset).filter(Boolean) : [];
+            case 'bubbleCssPresets':
+                return Array.isArray(val) ? val.map(sanitizeBubbleCssPreset).filter(Boolean) : [];
+            case 'myPersonaPresets':
+                return Array.isArray(val) ? val.map(sanitizePersonaPreset).filter(Boolean) : [];
+            case 'fontPresets':
+                return Array.isArray(val) ? val.map(p => sanitizeCssNamedPreset(p, 'url')).filter(Boolean) : [];
+            case 'globalCssPresets':
+                return Array.isArray(val) ? val.map(p => sanitizeCssNamedPreset(p, 'css')).filter(Boolean) : [];
+            case 'soundPresets':
+                return Array.isArray(val) ? val.map(sanitizeSoundPreset).filter(Boolean) : [];
+            case 'galleryPresets':
+                return Array.isArray(val) ? val.map(sanitizeGalleryPreset).filter(Boolean) : [];
+            case 'themePresets':
+                return Array.isArray(val) ? val.map(sanitizeThemePreset).filter(Boolean) : [];
+            case 'statusBarPresets':
+                return Array.isArray(val) ? val.map(sanitizeStatusBarPreset).filter(Boolean) : [];
+            case 'customIcons':
+                return sanitizeCustomIcons(val);
+            case 'wallpaper':
+            case 'fontUrl':
+            case 'globalCss':
+            case 'homeSignature':
+            case 'globalSendSound':
+            case 'globalReceiveSound':
+                return typeof val === 'string' ? val : '';
+            case 'homeScreenMode':
+                return val === 'day' || val === 'night' ? val : 'night';
+            case 'fontSizeScale': {
+                const n = typeof val === 'number' ? val : parseFloat(val);
+                return isFinite(n) ? n : 1;
+            }
+            case 'savedKeyboardHeight':
+                return val === null || val === undefined ? null : (typeof val === 'number' && isFinite(val) ? val : null);
+            case 'activePersonaId':
+                return val === null || val === undefined ? null : (typeof val === 'string' ? val : null);
+            case 'moreProfileCardBg':
+                return typeof val === 'string' ? val : '';
+            case 'multiMsgSoundEnabled':
+            case 'hasSeenVideoCallDisclaimer':
+            case 'hasSeenVideoCallAvatarHint':
+                return !!val;
+            default:
+                return jsonClone(val);
+        }
+    }
+
+    /**
+     * 在 gzip 解压且 JSON.parse 之后调用：仅保留与本项目兼容的字段。
+     * @param {*} raw - 解析后的备份根对象
+     * @returns {object}
+     */
+    window.sanitizeImportedBackupPayload = function sanitizeImportedBackupPayload(raw) {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+            return {};
+        }
+        const out = {};
+        for (const key of IMPORT_ROOT_KEY_SET) {
+            if (!Object.prototype.hasOwnProperty.call(raw, key)) continue;
+            const v = raw[key];
+            switch (key) {
+                case '_exportVersion':
+                    out[key] = typeof v === 'string' ? v : String(v);
+                    break;
+                case '_exportTimestamp':
+                    out[key] = typeof v === 'number' && isFinite(v) ? v : Date.now();
+                    break;
+                case '__chunks__': {
+                    const ch = sanitizeChunks(v);
+                    if (Object.keys(ch).length) out[key] = ch;
+                    break;
+                }
+                case 'characters':
+                    out[key] = Array.isArray(v) ? v.map(sanitizeCharacter).filter(Boolean) : [];
+                    break;
+                case 'groups':
+                    out[key] = Array.isArray(v) ? v.map(sanitizeGroup).filter(Boolean) : [];
+                    break;
+                case 'worldBooks':
+                    out[key] = Array.isArray(v) ? v.map(sanitizeWorldBook).filter(Boolean) : [];
+                    break;
+                case 'myStickers':
+                    out[key] = Array.isArray(v) ? v.map(sanitizeSticker).filter(Boolean) : [];
+                    break;
+                case 'ttsSettings':
+                    out[key] = sanitizeTtsSettings(v);
+                    break;
+                case 'ttsPresets':
+                    out[key] = Array.isArray(v) ? v.map(sanitizeTtsPreset).filter(Boolean) : [];
+                    break;
+                default:
+                    if (globalSettingKeys.includes(key)) {
+                        const s = sanitizeGlobalSetting(key, v);
+                        if (s !== undefined) out[key] = s;
+                    }
+                    break;
+            }
+        }
+        return out;
+    };
+})();
+
 const appVersion = "1.8.5";
 const updateLog = [
     {
