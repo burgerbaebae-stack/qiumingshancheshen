@@ -1,21 +1,42 @@
 // js/modules/background_keep_alive.js
 // 后台保活模块
 //
-// · Chrome / Firefox / 等：Web Audio — 单样本静音 BufferSource loop + 增益 0，无 HTML5 Audio 解码循环。
-// · Safari / iOS WebKit：系统会强力挂起 AudioContext，单独使用 Web Audio 往往无效；改用 <audio> 静音循环
-//   以走媒体播放通道。静音 WAV 的 data URL 仅在模块加载时构建一次并缓存，避免每次开关重复分配与 btoa。
+// · Chrome / Firefox 等：Web Audio — 单样本静音 BufferSource loop + 增益 0。
+// · Safari / iOS WebKit：<audio> 静音 loop；静音 WAV 仅在「需要回退且首次启动保活」时惰性构建，
+//   且用 apply + btoa 一次性编码，避免模块加载阶段逐字节字符串拼接导致低端机卡顿。
 //
-// 关闭时两类路径分别彻底释放；无定时器、无轮询。
+// 关闭时两类路径分别释放；无定时器、无轮询。
 
 const BackgroundKeepAliveModule = (() => {
 
     const STORAGE_KEY = 'bg_keep_alive_enabled';
 
-    /** 模块初始化时只算一次，供 WebKit 媒体回退使用（非每次 _start 动态生成）。 */
-    const SILENT_WAV_DATA_URL = (() => {
+    let _ctx = null;
+    let _src = null;
+    let _gain = null;
+    let _audioEl = null;
+    let _enabled = false;
+    let _onVisibility = null;
+    /** null = 未构建，'' = 构建失败 */
+    let _silentWavDataUrlCache = null;
+
+    function _needsWebKitMediaFallback() {
+        const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+        if (/iPhone|iPod|iPad/i.test(ua)) return true;
+        if (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) {
+            return true;
+        }
+        if (/Safari/i.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|Edg|OPR|Opera|Android/i.test(ua)) {
+            return true;
+        }
+        return false;
+    }
+
+    function _getSilentWavDataUrl() {
+        if (_silentWavDataUrlCache !== null) return _silentWavDataUrlCache;
         try {
             const sampleRate = 8000;
-            const numSamples = 800;
+            const numSamples = 256;
             const buf = new ArrayBuffer(44 + numSamples);
             const v = new DataView(buf);
             const writeStr = (off, str) => {
@@ -36,31 +57,12 @@ const BackgroundKeepAliveModule = (() => {
             v.setUint32(40, numSamples, true);
             for (let i = 0; i < numSamples; i++) v.setUint8(44 + i, 128);
             const bytes = new Uint8Array(buf);
-            let bin = '';
-            for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
-            return 'data:audio/wav;base64,' + btoa(bin);
+            const bin = String.fromCharCode.apply(null, bytes);
+            _silentWavDataUrlCache = 'data:audio/wav;base64,' + btoa(bin);
         } catch (e) {
-            return '';
+            _silentWavDataUrlCache = '';
         }
-    })();
-
-    let _ctx = null;
-    let _src = null;
-    let _gain = null;
-    let _audioEl = null;
-    let _enabled = false;
-    let _onVisibility = null;
-
-    function _needsWebKitMediaFallback() {
-        const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
-        if (/iPhone|iPod|iPad/i.test(ua)) return true;
-        if (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) {
-            return true;
-        }
-        if (/Safari/i.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|Edg|OPR|Opera|Android/i.test(ua)) {
-            return true;
-        }
-        return false;
+        return _silentWavDataUrlCache;
     }
 
     function _getAudioContextCtor() {
@@ -137,9 +139,10 @@ const BackgroundKeepAliveModule = (() => {
     }
 
     function _startHtmlAudio() {
-        if (!SILENT_WAV_DATA_URL) return;
+        const url = _getSilentWavDataUrl();
+        if (!url) return;
         const audio = new Audio();
-        audio.src = SILENT_WAV_DATA_URL;
+        audio.src = url;
         audio.loop = true;
         audio.volume = 0;
         audio.muted = false;
@@ -197,6 +200,7 @@ const BackgroundKeepAliveModule = (() => {
     }
 
     function _start() {
+        if (!_enabled) return;
         if (_ctx || _audioEl) return;
         if (_needsWebKitMediaFallback()) {
             _startHtmlAudio();
@@ -208,6 +212,18 @@ const BackgroundKeepAliveModule = (() => {
     function _stop() {
         _stopWebAudio();
         _stopHtmlAudio();
+    }
+
+    function _scheduleDeferredStart() {
+        const run = () => {
+            if (!_enabled) return;
+            _start();
+        };
+        if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(run, { timeout: 2500 });
+        } else {
+            setTimeout(run, 0);
+        }
     }
 
     // ── 公开方法 ──────────────────────────────────────────────────
@@ -237,7 +253,9 @@ const BackgroundKeepAliveModule = (() => {
             sw.addEventListener('change', e => setEnabled(e.target.checked));
         }
 
-        if (_enabled) _start();
+        if (_enabled) {
+            _scheduleDeferredStart();
+        }
     }
 
     if (document.readyState === 'loading') {
