@@ -436,34 +436,38 @@
     margin-bottom: 14px !important;
 }
 
-/* 气泡 + 微信式引用条（引用在气泡下方） */
+/* 气泡 + 引用条：勿 stretch，否则窄气泡会被拉成与引用条同宽 */
 .bubble-quote-stack {
     display: flex;
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
     max-width: 75%;
     min-width: 0;
 }
 
 .message-wrapper.sent .bubble-quote-stack {
     align-self: flex-end;
+    align-items: flex-end;
 }
 
 .bubble-quote-stack .message-bubble {
     max-width: 100%;
+    width: fit-content;
+    min-width: 0;
+    flex-shrink: 0;
 }
 
 .group-msg-content .bubble-quote-stack {
     max-width: 100%;
 }
 
-/* 引用条：左缘与气泡对齐（同 8px 边距），宽度随文字收缩，不拉满气泡宽度 */
+/* 引用条：同 8px 边距与气泡竖线对齐；宽度随文字，由父级 align-items 控制左/右贴齐 */
 .bubble-quote-stack .quoted-message {
-    align-self: flex-start;
     width: fit-content;
     max-width: 100%;
     margin: 6px 8px 0 8px;
     box-sizing: border-box;
+    flex-shrink: 0;
 }
 
 .message-wrapper.group-message {
