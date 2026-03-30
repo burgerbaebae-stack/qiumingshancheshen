@@ -91,21 +91,26 @@ function setupImageRecognition() {
         imageUploadInput.click();
     });
     imageUploadInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            try {
+        const files = e.target.files;
+        if (!files || files.length === 0) {
+            e.target.value = '';
+            return;
+        }
+        const list = Array.from(files);
+        try {
+            for (const file of list) {
                 const compressedUrl = await compressImage(file, {
                     quality: 0.8,
                     maxWidth: 1024,
                     maxHeight: 1024
                 });
-                sendImageForRecognition(compressedUrl);
-            } catch (error) {
-                console.error('Image compression failed:', error);
-                showToast('图片处理失败，请重试');
-            } finally {
-                e.target.value = null;
+                await sendImageForRecognition(compressedUrl);
             }
+        } catch (error) {
+            console.error('Image compression failed:', error);
+            showToast('图片处理失败，请重试');
+        } finally {
+            e.target.value = '';
         }
     });
 }

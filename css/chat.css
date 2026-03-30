@@ -1212,8 +1212,8 @@
 .message-input-area {
     display: flex;
     align-items: center;
-    padding: 8px 12px;
-    padding-bottom: 8px;
+    padding: 12px 14px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
     border-top: none;
     background: var(--chat-bottom-bar-bg);
     flex-shrink: 0;
@@ -1233,13 +1233,14 @@
 .message-input-area input {
     width: 100%;
     border: none;
-    padding: 8px 12px;
-    padding-right: 36px;
-    border-radius: 20px;
+    padding: 10px 14px;
+    padding-right: 40px;
+    border-radius: 22px;
     background-color: #f2f2f2;
     min-width: 0;
     font-size: calc(16px * var(--app-font-scale));
-    height: 36px;
+    height: 44px;
+    box-sizing: border-box;
 }
 
 .message-input-area input:focus {
@@ -1261,8 +1262,8 @@
 .message-input-area .icon-btn.circle-bg {
     background-color: #f2f2f2;
     color: var(--func-icon-color);
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
 }
 
@@ -1272,11 +1273,11 @@
 
 .message-input-area .icon-btn.input-inner-btn {
     position: absolute;
-    right: 4px;
+    right: 6px;
     background: transparent;
     color: #666;
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
 }
 
 .message-input-area .icon-btn svg {
@@ -1384,7 +1385,8 @@
 }
 
 #chat-expansion-panel.visible {
-    height: 35%; /* 固定高度 */
+    /* 底栏增高后略减面板高度，整体更「低」，少挡消息区 */
+    height: 29%;
     border-top: 1px solid #eee;
 }
 
@@ -1990,7 +1992,7 @@
 /* --- 浮动思考气泡 (Battery Thought Bubble) --- */
 .battery-thought-bubble-container {
     position: fixed;
-    bottom: 120px; /* 位于输入框上方 */
+    bottom: 136px; /* 位于输入框上方（随底栏增高微调） */
     left: 50%;
     transform: translateX(-50%) translateY(20px);
     z-index: 999;
