@@ -288,16 +288,17 @@
 
 #peek-conversation-screen .message-bubble {
     box-shadow: none;
-    border-radius: 12px;
     padding: 10px 14px;
 }
 
 #peek-conversation-screen .message-bubble.received {
+    border-radius: 4px 12px 12px 12px;
     background-color: #FFFFFF;
     color: #111111;
 }
 
 #peek-conversation-screen .message-bubble.sent {
+    border-radius: 12px 4px 12px 12px;
     background-color: #95EC69;
     color: #000000;
 }

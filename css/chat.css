@@ -629,7 +629,7 @@
 
 
 /*
- * 聊天气泡：仿微信（浅色模式）— 接收白底、发送经典绿 #95EC69，无描边圆点。
+ * 聊天气泡：仿微信（浅色模式）— 接收白底、发送经典绿 #95EC69；侧边小尖角 + 靠头像侧略小的圆角。
  */
 .message-bubble {
     max-width: 75%;
@@ -660,15 +660,49 @@
 }
 
 .message-bubble.received {
-    border-radius: 12px;
+    /* 左侧尖角：左上圆角略小 */
+    border-radius: 4px 12px 12px 12px;
     background-color: #FFFFFF;
     color: #111111;
 }
 
 .message-bubble.sent {
-    border-radius: 12px;
+    /* 右侧尖角：右上圆角略小 */
+    border-radius: 12px 4px 12px 12px;
     background-color: #95EC69;
     color: #000000;
+}
+
+/* 微信式侧边小尖角（朝头像方向，靠上约 11px；与底色同色） */
+.message-bubble.received:not(.html-bubble):not(.debug-visible)::after,
+.message-wrapper.received .voice-bubble::after {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 11px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 6px 7px 6px 0;
+    border-color: transparent #FFFFFF transparent transparent;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.message-bubble.sent:not(.html-bubble):not(.debug-visible)::after,
+.message-wrapper.sent .voice-bubble::after {
+    content: '';
+    position: absolute;
+    right: -6px;
+    top: 11px;
+    left: auto;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 6px 0 6px 7px;
+    border-color: transparent transparent transparent #95EC69;
+    pointer-events: none;
+    z-index: 0;
 }
 
 /* HTML 气泡样式 */
@@ -842,7 +876,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 14px;
-    border-radius: 12px;
+    border-radius: 12px; /* 发送/接收不对称圆角由下方 .message-wrapper 规则覆盖 */
     margin: 0 8px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -866,10 +900,11 @@
     flex-direction: row-reverse;
     background-color: #95EC69;
     color: #000000;
+    border-radius: 12px 4px 12px 12px;
 }
 
 .message-wrapper.received .voice-bubble {
-    border-radius: 12px;
+    border-radius: 4px 12px 12px 12px;
     background-color: #FFFFFF;
     color: #111111;
 }
@@ -2032,7 +2067,9 @@
     position: relative;
 }
 
-.message-wrapper.context-disabled .message-bubble::after {
+/* 角标用 ::before，避免与微信尖角 ::after 冲突 */
+.message-wrapper.context-disabled .message-bubble:not(.debug-visible)::before {
+    display: block;
     content: '';
     position: absolute;
     width: 16px;
@@ -2042,16 +2079,21 @@
     background-repeat: no-repeat;
     top: -6px;
     z-index: 10;
+    border: none;
+    inset: auto;
+    pointer-events: none;
 }
 
 /* 接收方：右上角 */
-.message-wrapper.received.context-disabled .message-bubble::after {
+.message-wrapper.received.context-disabled .message-bubble:not(.debug-visible)::before {
     right: -6px;
+    left: auto;
 }
 
 /* 发送方：左上角 */
-.message-wrapper.sent.context-disabled .message-bubble::after {
+.message-wrapper.sent.context-disabled .message-bubble:not(.debug-visible)::before {
     left: -6px;
+    right: auto;
 }
 
 /* --- 浮动思考气泡 (Battery Thought Bubble) --- */
