@@ -287,17 +287,19 @@
 }
 
 #peek-conversation-screen .message-bubble {
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    box-shadow: none;
+    border-radius: 20px;
+    padding: 11px 15px;
 }
 
 #peek-conversation-screen .message-bubble.received {
-    background-color: #e9ecef;
-    color: #343a40;
+    background-color: #FFF0F5;
+    color: #574650;
 }
 
 #peek-conversation-screen .message-bubble.sent {
-    background-color: #007bff;
-    color: white;
+    background-color: #F0FFF4;
+    color: #3D5240;
 }
 
 /* Peek Memos Screen */

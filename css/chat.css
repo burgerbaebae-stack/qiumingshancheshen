@@ -432,9 +432,38 @@
     flex-direction: column;
 }
 
-/* 防遮挡补丁：引用消息 */
 .message-wrapper:has(.quoted-message) {
-    margin-bottom: 35px !important;
+    margin-bottom: 14px !important;
+}
+
+/* 气泡 + 微信式引用条（引用在气泡下方） */
+.bubble-quote-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    max-width: 75%;
+    min-width: 0;
+}
+
+.message-wrapper.sent .bubble-quote-stack {
+    align-self: flex-end;
+}
+
+.bubble-quote-stack .message-bubble {
+    max-width: 100%;
+}
+
+.group-msg-content .bubble-quote-stack {
+    max-width: 100%;
+}
+
+/* 引用条：左缘与气泡对齐（同 8px 边距），宽度随文字收缩，不拉满气泡宽度 */
+.bubble-quote-stack .quoted-message {
+    align-self: flex-start;
+    width: fit-content;
+    max-width: 100%;
+    margin: 6px 8px 0 8px;
+    box-sizing: border-box;
 }
 
 .message-wrapper.group-message {
@@ -595,30 +624,63 @@
 }
 
 
-/* 消息气泡基础 */
+/*
+ * 聊天气泡配色：底色、字色、虚线一律在本文件用 HEX / rgba 书写，便于编辑器拾色器（勿改到 JS 内联）。
+ */
 .message-bubble {
     max-width: 75%;
-    padding: 8px 12px;
-    border-radius: var(--border-radius);
+    padding: 11px 15px;
+    border-radius: 20px;
     word-wrap: break-word;
     white-space: pre-wrap;
     line-height: 1.4;
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
     margin: 0 8px;
     cursor: pointer;
-    font-size: calc(15px * var(--app-font-scale));
+    /* 与微信对话正文接近：约 17px，仍随设置里全局字体缩放 */
+    font-size: calc(17px * var(--app-font-scale));
     display: block;
     position: relative;
+    isolation: isolate;
     overflow: visible !important;
 }
 
-.message-bubble.sent {
-    border-bottom-right-radius: 5px;
+.message-bubble:not(.html-bubble):not(.debug-visible)::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 17px;
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 0;
+    border-width: 3px;
+    border-style: dashed;
+    border-color: rgba(80, 80, 80, 0.38);
+}
+
+.message-bubble.received:not(.html-bubble):not(.debug-visible)::before {
+    border-color: #dfbbf6;
+}
+
+.message-bubble.sent:not(.html-bubble):not(.debug-visible)::before {
+    border-color: #F48FB1;
+}
+
+/* 勿作用于 .quoted-message：否则会覆盖其定位并导致与正文重叠 */
+.message-bubble:not(.html-bubble):not(.debug-visible) > *:not(.quoted-message) {
+    position: relative;
+    z-index: 1;
 }
 
 .message-bubble.received {
-    border-bottom-left-radius: 5px;
+    border-radius: 20px;
+    background-color: #e0eef6;
+    color: #191f1a;
+}
+
+.message-bubble.sent {
+    border-radius: 20px;
+    background-color: #FFF0F5;
+    color: #191f1a;
 }
 
 /* HTML 气泡样式 */
@@ -642,6 +704,7 @@
 .message-bubble.debug-visible {
     background-color: rgba(238, 238, 238, 0.8) !important;
     border: 1px dashed #999 !important;
+    outline: none !important;
     color: #555 !important;
     font-family: monospace;
     font-size: 13px;
@@ -668,50 +731,62 @@
     text-align: center;
 }
 
-/* 引用消息 (仿微信) */
+/* 引用消息：偏白底、单行「昵称: 内容」并排，过长省略 */
 .quoted-message {
-    position: absolute;
-    bottom: -32px;
-    z-index: 0;
-    min-width: 100px;
-    max-width: 180px;
-    height: 24px;
-    background-color: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(5px);
+    position: relative;
+    z-index: 1;
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 6px 0 0 0;
+    padding: 7px 10px;
+    background-color: #FAFAFA;
     border-radius: 6px;
-    padding: 0 8px;
     border: none;
-    margin: 0;
-    font-size: 11px;
-    color: #555;
-    line-height: 24px;
+    font-size: calc(14px * var(--app-font-scale));
+    line-height: 1.45;
+    color: #888888;
+    cursor: pointer;
+    pointer-events: auto;
+    text-align: left;
+}
+
+.message-wrapper.sent .quoted-message,
+.message-wrapper.received .quoted-message {
+    text-align: left;
+}
+
+.quoted-inline {
+    display: block;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    cursor: pointer;
-    pointer-events: auto;
-}
-
-.message-wrapper.sent .quoted-message {
-    right: 0;
-    left: auto;
-    text-align: right;
-}
-
-.message-wrapper.received .quoted-message {
-    left: 0;
-    right: auto;
-    text-align: left;
 }
 
 .quoted-sender {
     display: inline;
-    font-weight: 600;
-    margin-right: 4px;
-    color: #333;
+    font-weight: 500;
+    margin: 0;
+    color: #888888;
+    font-size: inherit;
 }
-.quoted-sender::after { content: ":"; }
-.quoted-text { display: inline; color: #666; }
+
+.quoted-colon {
+    display: inline;
+    color: #888888;
+    font-size: inherit;
+}
+
+.quoted-text {
+    display: inline;
+    margin: 0;
+    color: #888888;
+    font-size: inherit;
+    line-height: inherit;
+}
 
 /* 撤回消息样式 */
 .withdrawn-message {
@@ -773,15 +848,13 @@
     line-height: 1 !important;
 }
 
-/* 语音消息 */
+/* 语音消息（虚线颜色与文字气泡一致，均为 HEX） */
 .voice-bubble {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
-    border-radius: var(--border-radius);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
+    padding: 11px 15px;
+    border-radius: 20px;
     margin: 0 8px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -789,15 +862,45 @@
     max-width: 200px;
     position: relative; /* 确保时间戳定位正确 */
     overflow: visible; /* 确保时间戳显示在外部 */
+    isolation: isolate;
+}
+
+.voice-bubble::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 17px;
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 0;
+    border-width: 3px;
+    border-style: dashed;
+    border-color: rgba(80, 80, 80, 0.38);
+}
+
+.message-wrapper.received .voice-bubble::before {
+    border-color: #dfbbf6;
+}
+
+.message-wrapper.sent .voice-bubble::before {
+    border-color: #F48FB1;
+}
+
+.voice-bubble > * {
+    position: relative;
+    z-index: 1;
 }
 
 .message-wrapper.sent .voice-bubble {
-    border-bottom-right-radius: 5px;
     flex-direction: row-reverse;
+    background-color: #FFF0F5;
+    color: #3D5240;
 }
 
 .message-wrapper.received .voice-bubble {
-    border-bottom-left-radius: 5px;
+    border-radius: 20px;
+    background-color: #e0eef6;
+    color: #574650;
 }
 
 .voice-bubble .play-icon {
@@ -986,6 +1089,7 @@
     line-height: 1.3;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1156,16 +1260,6 @@
     opacity: 0.7;
     line-height: 1.2;
     margin-top: 2px;
-}
-
-/* 磨砂开关 */
-#chat-room-screen.disable-blur .message-bubble,
-#chat-room-screen.disable-blur .quoted-message,
-#chat-room-screen.disable-blur .withdrawn-content,
-#chat-room-screen.disable-blur .gift-card-description,
-#chat-room-screen.disable-blur .voice-transcript {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
 }
 
 /* 无头像模式边距调整 */

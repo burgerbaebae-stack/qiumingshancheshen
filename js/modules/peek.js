@@ -588,7 +588,7 @@ function renderPeekTransferStation(entries) {
             messagesHtml += `
                 <div class="message-wrapper sent">
                     <div class="message-bubble-row">
-                        <div class="message-bubble sent" style="background-color: #98E165; color: #000;">${entry}</div>
+                        <div class="message-bubble sent">${entry}</div>
                     </div>
                 </div>
             `;

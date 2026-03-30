@@ -437,12 +437,6 @@ function openChatRoom(chatId, type) {
     const avatarRadius = chat.avatarRadius !== undefined ? chat.avatarRadius : 50;
     document.documentElement.style.setProperty('--chat-avatar-radius', `${avatarRadius}%`);
 
-    if (chat.bubbleBlurEnabled === false) {
-        chatRoomScreen.classList.add('disable-blur');
-    } else {
-        chatRoomScreen.classList.remove('disable-blur');
-    }
-
     if (chat.showTimestamp) {
         chatRoomScreen.classList.add('show-timestamp');
     } else {

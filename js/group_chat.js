@@ -69,7 +69,6 @@ function setupGroupChatSystem() {
                         avatar: char.avatar
                     };
                 }),
-                theme: 'white_pink',
                 maxMemory: 100,
                 chatBg: '',
                 history: [],
@@ -107,7 +106,7 @@ function setupGroupChatSystem() {
     });
 
     const groupAutoSaveChanges = [
-        'setting-group-theme-color', 'setting-group-use-custom-css', 'setting-group-show-timestamp',
+        'setting-group-use-custom-css', 'setting-group-show-timestamp',
         'setting-group-show-notice', 'setting-group-allow-gossip', 'setting-group-avatar-radius',
         'setting-group-bilingual-mode', 'setting-group-bilingual-style'
     ];
@@ -134,8 +133,7 @@ function setupGroupChatSystem() {
             groupCustomCssTextarea.disabled = !e.target.checked;
             const group = db.groups.find(g => g.id === currentChatId);
             if (group) {
-                const theme = colorThemes[group.theme || 'white_pink'];
-                updateBubbleCssPreview(groupPreviewBox, groupCustomCssTextarea.value, !e.target.checked, theme);
+                updateBubbleCssPreview(groupPreviewBox, groupCustomCssTextarea.value, !e.target.checked);
             }
         });
     }
@@ -143,8 +141,7 @@ function setupGroupChatSystem() {
         groupCustomCssTextarea.addEventListener('input', (e) => {
             const group = db.groups.find(g => g.id === currentChatId);
             if (group && useGroupCustomCssCheckbox.checked) {
-                const theme = colorThemes[group.theme || 'white_pink'];
-                updateBubbleCssPreview(groupPreviewBox, e.target.value, false, theme);
+                updateBubbleCssPreview(groupPreviewBox, e.target.value, false);
             }
         });
     }
@@ -155,8 +152,7 @@ function setupGroupChatSystem() {
                 groupCustomCssTextarea.value = '';
                 useGroupCustomCssCheckbox.checked = false;
                 groupCustomCssTextarea.disabled = true;
-                const theme = colorThemes[group.theme || 'white_pink'];
-                updateBubbleCssPreview(groupPreviewBox, '', true, theme);
+                updateBubbleCssPreview(groupPreviewBox, '', true);
                 showToast('样式已重置为默认');
             }
         });
@@ -897,21 +893,11 @@ function renderMemberSelectionList() {
 function loadGroupSettingsToSidebar() {
     const group = db.groups.find(g => g.id === currentChatId);
     if (!group) return;
-    const themeSelect = document.getElementById('setting-group-theme-color');
-    if (themeSelect.options.length === 0) {
-        Object.keys(colorThemes).forEach(key => {
-            const option = document.createElement('option');
-            option.value = key;
-            option.textContent = colorThemes[key].name;
-            themeSelect.appendChild(option);
-        });
-    }
     document.getElementById('setting-group-avatar-preview').src = group.avatar;
     document.getElementById('setting-group-name').value = group.name;
     document.getElementById('setting-group-my-avatar-preview').src = group.me.avatar;
     document.getElementById('setting-group-my-nickname').value = group.me.nickname;
     document.getElementById('setting-group-my-persona').value = group.me.persona;
-    themeSelect.value = group.theme || 'white_pink';
     document.getElementById('setting-group-max-memory').value = group.maxMemory;
     
     document.getElementById('setting-group-title-layout').value = group.titleLayout || 'left';
@@ -998,8 +984,7 @@ function loadGroupSettingsToSidebar() {
     useGroupCustomCssCheckbox.checked = group.useCustomBubbleCss || false;
     groupCustomCssTextarea.value = group.customBubbleCss || '';
     groupCustomCssTextarea.disabled = !useGroupCustomCssCheckbox.checked;
-    const theme = colorThemes[group.theme || 'white_pink'];
-    updateBubbleCssPreview(groupPreviewBox, group.customBubbleCss, !group.useCustomBubbleCss, theme);
+    updateBubbleCssPreview(groupPreviewBox, group.customBubbleCss, !group.useCustomBubbleCss);
     populateBubblePresetSelect('group-bubble-preset-select');
 
     // 触发群设置引导 (连续引导)
@@ -1068,7 +1053,6 @@ async function saveGroupSettingsFromSidebar(showToastFlag = true) {
         .join(',');
     group.stickerGroups = selectedGroups;
 
-    group.theme = document.getElementById('setting-group-theme-color').value;
     group.maxMemory = document.getElementById('setting-group-max-memory').value;
     group.useCustomBubbleCss = document.getElementById('setting-group-use-custom-css').checked;
     group.customBubbleCss = document.getElementById('setting-group-custom-bubble-css').value;

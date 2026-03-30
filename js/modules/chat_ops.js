@@ -468,10 +468,6 @@ async function generateCapture() {
         tempContainer.style.backgroundImage = `url(${chat.chatBg})`;
         tempContainer.style.backgroundSize = 'cover';
         tempContainer.style.backgroundPosition = 'center';
-    } else if (chat.theme) {
-        // 应用主题背景色
-        const theme = colorThemes[chat.theme] || colorThemes['white_pink'];
-        // 这里简单处理，如果需要更精确的主题背景，可能需要更多逻辑
     }
     
     tempContainer.style.padding = '20px';

@@ -1,15 +1,6 @@
 // --- 设置与管理逻辑 (js/settings.js) ---
 
 function setupChatSettings() {
-    const themeSelect = document.getElementById('setting-theme-color');
-    themeSelect.innerHTML = '';
-    Object.keys(colorThemes).forEach(key => {
-        const option = document.createElement('option');
-        option.value = key;
-        option.textContent = colorThemes[key].name;
-        themeSelect.appendChild(option);
-    });
-    
     document.getElementById('chat-settings-btn').addEventListener('click', () => {
         if (currentChatType === 'private') {
             loadSettingsToSidebar();
@@ -70,18 +61,14 @@ function setupChatSettings() {
         customCssTextarea.disabled = !e.target.checked;
         const char = db.characters.find(c => c.id === currentChatId);
         if (char) {
-            const themeKey = char.theme || 'white_pink';
-            const theme = colorThemes[themeKey];
-            updateBubbleCssPreview(privatePreviewBox, customCssTextarea.value, !e.target.checked, theme);
+            updateBubbleCssPreview(privatePreviewBox, customCssTextarea.value, !e.target.checked);
         }
     });
     
     customCssTextarea.addEventListener('input', (e) => {
         const char = db.characters.find(c => c.id === currentChatId);
         if (char && useCustomCssCheckbox.checked) {
-            const themeKey = char.theme || 'white_pink';
-            const theme = colorThemes[themeKey];
-            updateBubbleCssPreview(privatePreviewBox, e.target.value, false, theme);
+            updateBubbleCssPreview(privatePreviewBox, e.target.value, false);
         }
     });
     
@@ -91,9 +78,7 @@ function setupChatSettings() {
             customCssTextarea.value = '';
             useCustomCssCheckbox.checked = false;
             customCssTextarea.disabled = true;
-            const themeKey = char.theme || 'white_pink';
-            const theme = colorThemes[themeKey];
-            updateBubbleCssPreview(privatePreviewBox, '', true, theme);
+            updateBubbleCssPreview(privatePreviewBox, '', true);
             showToast('样式已重置为默认');
         }
     });
@@ -272,7 +257,6 @@ function loadSettingsToSidebar() {
         document.getElementById('setting-my-avatar-preview').src = e.myAvatar;
         document.getElementById('setting-my-name').value = e.myName;
         document.getElementById('setting-my-persona').value = e.myPersona;
-        document.getElementById('setting-theme-color').value = e.theme || 'white_pink';
         document.getElementById('setting-max-memory').value = e.maxMemory;
         
         document.getElementById('setting-reply-count-enabled').checked = e.replyCountEnabled || false;
@@ -296,8 +280,6 @@ function loadSettingsToSidebar() {
         radiusSlider.oninput = () => {
             radiusValue.textContent = `${radiusSlider.value}%`;
         };
-
-        document.getElementById('setting-bubble-blur').checked = e.bubbleBlurEnabled !== false; 
 
         document.getElementById('setting-title-layout').value = e.titleLayout || 'left';
         document.getElementById('setting-show-timestamp').checked = e.showTimestamp || false;
@@ -339,8 +321,7 @@ function loadSettingsToSidebar() {
         useCustomCssCheckbox.checked = e.useCustomBubbleCss || false;
         customCssTextarea.value = e.customBubbleCss || '';
         customCssTextarea.disabled = !useCustomCssCheckbox.checked;
-        const theme = colorThemes[e.theme || 'white_pink'];
-        updateBubbleCssPreview(privatePreviewBox, e.customBubbleCss, !e.useCustomBubbleCss, theme);
+        updateBubbleCssPreview(privatePreviewBox, e.customBubbleCss, !e.useCustomBubbleCss);
         populateBubblePresetSelect('bubble-preset-select');
         populateMyPersonaSelect();
         if (typeof populateStatusBarPresetSelect === 'function') {
@@ -370,7 +351,6 @@ async function saveSettingsFromSidebar() {
         e.myAvatar = document.getElementById('setting-my-avatar-preview').src;
         e.myName = document.getElementById('setting-my-name').value;
         e.myPersona = document.getElementById('setting-my-persona').value;
-        e.theme = document.getElementById('setting-theme-color').value;
         e.maxMemory = document.getElementById('setting-max-memory').value;
         e.replyCountEnabled = document.getElementById('setting-reply-count-enabled').checked;
         e.replyCountMin = parseInt(document.getElementById('setting-reply-count-min').value, 10) || 3;
@@ -383,13 +363,7 @@ async function saveSettingsFromSidebar() {
         e.avatarMode = document.getElementById('setting-avatar-mode').value;
         e.avatarRadius = parseInt(document.getElementById('setting-avatar-radius').value, 10);
 
-        e.bubbleBlurEnabled = document.getElementById('setting-bubble-blur').checked;
         const chatScreen = document.getElementById('chat-room-screen');
-        if (e.bubbleBlurEnabled) {
-            chatScreen.classList.remove('disable-blur');
-        } else {
-            chatScreen.classList.add('disable-blur');
-        }
 
         e.titleLayout = document.getElementById('setting-title-layout').value;
         const header = document.getElementById('chat-room-header-default');
@@ -799,8 +773,7 @@ async function applyPresetToCurrentChat(presetName) {
         }
 
         if (previewBox) {
-            const themeKey = (currentChatType === 'private' ? db.characters.find(c => c.id === currentChatId).theme : db.groups.find(g => g.id === currentChatId).theme) || 'white_pink';
-            updateBubbleCssPreview(previewBox, preset.css, false, colorThemes[themeKey]);
+            updateBubbleCssPreview(previewBox, preset.css, false);
         }
         showToast('预设已应用到当前聊天并保存');
         await saveData();

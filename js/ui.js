@@ -275,38 +275,28 @@ function updateCustomBubbleStyle(chatId, css, enabled) {
     document.head.appendChild(styleElement);
 }
 
-function updateBubbleCssPreview(previewContainer, css, useDefault, theme) {
+function updateBubbleCssPreview(previewContainer, css, useDefault) {
     previewContainer.innerHTML = '';
 
     const sentBubble = document.createElement('div');
     sentBubble.className = 'message-bubble sent';
     sentBubble.textContent = '这是我方气泡。';
     sentBubble.style.alignSelf = 'flex-end';
-    sentBubble.style.borderBottomRightRadius = '5px';
 
     const receivedBubble = document.createElement('div');
     receivedBubble.className = 'message-bubble received';
     receivedBubble.textContent = '这是对方气泡。';
     receivedBubble.style.alignSelf = 'flex-start';
-    receivedBubble.style.borderBottomLeftRadius = '5px';
 
     [sentBubble, receivedBubble].forEach(bubble => {
         bubble.style.maxWidth = '70%';
-        bubble.style.padding = '8px 12px';
+        bubble.style.padding = '11px 15px';
+        bubble.style.borderRadius = '20px';
         bubble.style.wordWrap = 'break-word';
         bubble.style.lineHeight = '1.4';
     });
 
-    if (useDefault || !css) {
-        sentBubble.style.backgroundColor = theme.sent.bg;
-        sentBubble.style.color = theme.sent.text;
-        sentBubble.style.borderRadius = '18px';
-        sentBubble.style.borderBottomRightRadius = '5px';
-        receivedBubble.style.backgroundColor = theme.received.bg;
-        receivedBubble.style.color = theme.received.text;
-        receivedBubble.style.borderRadius = '18px';
-        receivedBubble.style.borderBottomLeftRadius = '5px';
-    } else {
+    if (!useDefault && css) {
         const styleTag = document.createElement('style');
         styleTag.textContent = `
             #${previewContainer.id} {
