@@ -629,12 +629,12 @@
 
 
 /*
- * 聊天气泡配色：底色、字色、虚线一律在本文件用 HEX / rgba 书写，便于编辑器拾色器（勿改到 JS 内联）。
+ * 聊天气泡：仿微信（浅色模式）— 接收白底、发送经典绿 #95EC69，无描边圆点。
  */
 .message-bubble {
     max-width: 75%;
-    padding: 11px 15px;
-    border-radius: 20px;
+    padding: 10px 14px;
+    border-radius: 12px;
     word-wrap: break-word;
     white-space: pre-wrap;
     line-height: 1.4;
@@ -648,26 +648,9 @@
     overflow: visible !important;
 }
 
-/* 圆点描边（dotted）：手机上比粗虚线更接近参考图，颜色略深于同侧气泡底色 */
+/* 微信气泡为纯色块，不使用内描边 */
 .message-bubble:not(.html-bubble):not(.debug-visible)::before {
-    content: '';
-    position: absolute;
-    inset: 2px;
-    border-radius: 18px;
-    box-sizing: border-box;
-    pointer-events: none;
-    z-index: 0;
-    border-width: 2px;
-    border-style: dotted;
-    border-color: rgba(100, 100, 100, 0.42);
-}
-
-.message-bubble.received:not(.html-bubble):not(.debug-visible)::before {
-    border-color: #8EADC8;
-}
-
-.message-bubble.sent:not(.html-bubble):not(.debug-visible)::before {
-    border-color: #DC9AB0;
+    display: none;
 }
 
 /* 勿作用于 .quoted-message：否则会覆盖其定位并导致与正文重叠 */
@@ -677,15 +660,15 @@
 }
 
 .message-bubble.received {
-    border-radius: 20px;
-    background-color: #e0eef6;
-    color: #51493d;
+    border-radius: 12px;
+    background-color: #FFFFFF;
+    color: #111111;
 }
 
 .message-bubble.sent {
-    border-radius: 20px;
-    background-color: #FFF0F5;
-    color: #51493d;
+    border-radius: 12px;
+    background-color: #95EC69;
+    color: #000000;
 }
 
 /* HTML 气泡样式 */
@@ -853,13 +836,13 @@
     line-height: 1 !important;
 }
 
-/* 语音消息（虚线颜色与文字气泡一致，均为 HEX） */
+/* 语音消息：与文字气泡同色（仿微信） */
 .voice-bubble {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 11px 15px;
-    border-radius: 20px;
+    padding: 10px 14px;
+    border-radius: 12px;
     margin: 0 8px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -871,24 +854,7 @@
 }
 
 .voice-bubble::before {
-    content: '';
-    position: absolute;
-    inset: 2px;
-    border-radius: 18px;
-    box-sizing: border-box;
-    pointer-events: none;
-    z-index: 0;
-    border-width: 2px;
-    border-style: dotted;
-    border-color: rgba(100, 100, 100, 0.42);
-}
-
-.message-wrapper.received .voice-bubble::before {
-    border-color: #8EADC8;
-}
-
-.message-wrapper.sent .voice-bubble::before {
-    border-color: #DC9AB0;
+    display: none;
 }
 
 .voice-bubble > * {
@@ -898,14 +864,14 @@
 
 .message-wrapper.sent .voice-bubble {
     flex-direction: row-reverse;
-    background-color: #FFF0F5;
-    color: #3D5240;
+    background-color: #95EC69;
+    color: #000000;
 }
 
 .message-wrapper.received .voice-bubble {
-    border-radius: 20px;
-    background-color: #e0eef6;
-    color: #574650;
+    border-radius: 12px;
+    background-color: #FFFFFF;
+    color: #111111;
 }
 
 .voice-bubble .play-icon {
@@ -1249,7 +1215,7 @@
 }
 
 .message-bubble.sent .bilingual-divider {
-    background-color: rgba(255, 255, 255, 0.3);
+    background-color: rgba(0, 0, 0, 0.12);
 }
 
 .bilingual-bubble.inner-no-line-style {

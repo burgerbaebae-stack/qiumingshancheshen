@@ -288,18 +288,18 @@
 
 #peek-conversation-screen .message-bubble {
     box-shadow: none;
-    border-radius: 20px;
-    padding: 11px 15px;
+    border-radius: 12px;
+    padding: 10px 14px;
 }
 
 #peek-conversation-screen .message-bubble.received {
-    background-color: #FFF0F5;
-    color: #574650;
+    background-color: #FFFFFF;
+    color: #111111;
 }
 
 #peek-conversation-screen .message-bubble.sent {
-    background-color: #F0FFF4;
-    color: #3D5240;
+    background-color: #95EC69;
+    color: #000000;
 }
 
 /* Peek Memos Screen */
