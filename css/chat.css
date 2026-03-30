@@ -636,33 +636,34 @@
     line-height: 1.4;
     margin: 0 8px;
     cursor: pointer;
-    /* 与微信对话正文接近：约 17px，仍随设置里全局字体缩放 */
-    font-size: calc(17px * var(--app-font-scale));
+    /* 气泡正文 16px，随全局字体缩放 */
+    font-size: calc(16px * var(--app-font-scale));
     display: block;
     position: relative;
     isolation: isolate;
     overflow: visible !important;
 }
 
+/* 圆点描边（dotted）：手机上比粗虚线更接近参考图，颜色略深于同侧气泡底色 */
 .message-bubble:not(.html-bubble):not(.debug-visible)::before {
     content: '';
     position: absolute;
-    inset: 3px;
-    border-radius: 17px;
+    inset: 2px;
+    border-radius: 18px;
     box-sizing: border-box;
     pointer-events: none;
     z-index: 0;
-    border-width: 3px;
-    border-style: dashed;
-    border-color: rgba(80, 80, 80, 0.38);
+    border-width: 2px;
+    border-style: dotted;
+    border-color: rgba(100, 100, 100, 0.42);
 }
 
 .message-bubble.received:not(.html-bubble):not(.debug-visible)::before {
-    border-color: #dfbbf6;
+    border-color: #8EADC8;
 }
 
 .message-bubble.sent:not(.html-bubble):not(.debug-visible)::before {
-    border-color: #F48FB1;
+    border-color: #DC9AB0;
 }
 
 /* 勿作用于 .quoted-message：否则会覆盖其定位并导致与正文重叠 */
@@ -674,13 +675,13 @@
 .message-bubble.received {
     border-radius: 20px;
     background-color: #e0eef6;
-    color: #191f1a;
+    color: #51493d;
 }
 
 .message-bubble.sent {
     border-radius: 20px;
     background-color: #FFF0F5;
-    color: #191f1a;
+    color: #51493d;
 }
 
 /* HTML 气泡样式 */
@@ -868,22 +869,22 @@
 .voice-bubble::before {
     content: '';
     position: absolute;
-    inset: 3px;
-    border-radius: 17px;
+    inset: 2px;
+    border-radius: 18px;
     box-sizing: border-box;
     pointer-events: none;
     z-index: 0;
-    border-width: 3px;
-    border-style: dashed;
-    border-color: rgba(80, 80, 80, 0.38);
+    border-width: 2px;
+    border-style: dotted;
+    border-color: rgba(100, 100, 100, 0.42);
 }
 
 .message-wrapper.received .voice-bubble::before {
-    border-color: #dfbbf6;
+    border-color: #8EADC8;
 }
 
 .message-wrapper.sent .voice-bubble::before {
-    border-color: #F48FB1;
+    border-color: #DC9AB0;
 }
 
 .voice-bubble > * {
