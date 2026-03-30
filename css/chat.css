@@ -640,8 +640,9 @@
     line-height: 1.4;
     margin: 0 8px;
     cursor: pointer;
-    /* 气泡正文 16px，随全局字体缩放 */
+    /* 气泡正文 16px，随全局字体缩放；略加粗便于阅读 */
     font-size: calc(16px * var(--app-font-scale));
+    font-weight: 500;
     display: block;
     position: relative;
     isolation: isolate;
@@ -730,6 +731,7 @@
     color: #555 !important;
     font-family: monospace;
     font-size: 13px;
+    font-weight: 400;
     position: relative;
     white-space: pre-wrap;
 }
@@ -877,6 +879,7 @@
     justify-content: space-between;
     padding: 10px 14px;
     border-radius: 12px; /* 发送/接收不对称圆角由下方 .message-wrapper 规则覆盖 */
+    font-weight: 500;
     margin: 0 8px;
     cursor: pointer;
     transition: all 0.2s ease;
