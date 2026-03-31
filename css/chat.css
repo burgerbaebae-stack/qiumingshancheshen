@@ -344,6 +344,8 @@
 #chat-room-screen {
     background-size: cover;
     background-position: center;
+    /* 装饰壳上移气泡时，头像列须同步下移，否则小尖角对不准头像中线 */
+    --bubble-decor-vertical-offset: 22px;
 }
 
 /* 聊天室头部 */
@@ -475,20 +477,23 @@
 /* 接收方：透明外壳 + 左上/右上装饰（不修改原气泡/小三角 DOM） */
 .received-bubble-decor-shell {
     position: relative;
-    display: flex;
+    display: inline-flex;
     flex-direction: column;
     align-items: flex-start;
+    width: fit-content;
     max-width: 75%;
     min-width: 0;
     overflow: visible;
     background: transparent;
     box-sizing: border-box;
-    /* 与上一条消息拉开间距，给左上角装饰猫留出垂直空间（96px 图略加大于 25px 基线） */
-    margin-top: 22px;
+    /* 与上一条消息拉开间距，给装饰留出垂直空间；头像列用同值 margin-top 对齐，见 :has 规则 */
+    margin-top: var(--bubble-decor-vertical-offset);
 }
 
 .group-msg-content .received-bubble-decor-shell {
     max-width: 100%;
+    /* 群聊：整块 .group-msg-content 已下移，壳上不再叠一层 margin */
+    margin-top: 0;
 }
 
 .received-bubble-decor-shell > .bubble-quote-stack {
@@ -530,15 +535,16 @@
 /* 发送方：透明外壳 + 左上/右上耳朵装饰（不修改原气泡/小三角 DOM） */
 .sent-bubble-decor-shell {
     position: relative;
-    display: flex;
+    display: inline-flex;
     flex-direction: column;
     align-items: flex-end;
+    width: fit-content;
     max-width: 75%;
     min-width: 0;
     overflow: visible;
     background: transparent;
     box-sizing: border-box;
-    margin-top: 22px;
+    margin-top: var(--bubble-decor-vertical-offset);
 }
 
 .sent-bubble-decor-shell > .bubble-quote-stack {
@@ -615,6 +621,31 @@
 
 .message-wrapper.sent .message-bubble-row {
     flex-direction: row-reverse;
+    /* 避免子项被当成「可拉伸条」撑满整行；否则装饰壳变满宽会导致左耳 left:0 贴屏幕左侧 */
+    justify-content: flex-start;
+}
+
+.message-wrapper.sent .sent-bubble-decor-shell {
+    flex: 0 1 auto;
+    width: fit-content;
+    max-width: 75%;
+    min-width: 0;
+}
+
+/* 私聊接收：装饰壳与头像同行时同样收缩宽度，避免绝对定位装饰贴到行左缘 */
+.message-wrapper.received .message-bubble-row > .received-bubble-decor-shell {
+    flex: 0 1 auto;
+}
+
+/* 有装饰壳时：头像列与气泡列同幅下移，小尖角重新对准头像 */
+.message-bubble-row:has(.received-bubble-decor-shell) .message-info,
+.message-bubble-row:has(.sent-bubble-decor-shell) .message-info {
+    margin-top: var(--bubble-decor-vertical-offset);
+}
+
+/* 群聊接收：右侧昵称+气泡整块下移，与头像列一致；壳上 margin 已清零 */
+.message-bubble-row:has(.group-msg-content .received-bubble-decor-shell) .group-msg-content {
+    margin-top: var(--bubble-decor-vertical-offset);
 }
 
 .message-info {
