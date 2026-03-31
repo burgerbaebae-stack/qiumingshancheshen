@@ -496,7 +496,8 @@
     margin-top: 0;
 }
 
-.received-bubble-decor-shell > .bubble-quote-stack {
+/* 有引用时：栈在外、壳在内，壳宽随气泡 */
+.bubble-quote-stack > .received-bubble-decor-shell {
     max-width: 100%;
 }
 
@@ -547,7 +548,7 @@
     margin-top: var(--bubble-decor-vertical-offset);
 }
 
-.sent-bubble-decor-shell > .bubble-quote-stack {
+.bubble-quote-stack > .sent-bubble-decor-shell {
     max-width: 100%;
 }
 
@@ -632,9 +633,20 @@
     min-width: 0;
 }
 
-/* 私聊接收：装饰壳与头像同行时同样收缩宽度，避免绝对定位装饰贴到行左缘 */
-.message-wrapper.received .message-bubble-row > .received-bubble-decor-shell {
+/* 私聊接收：装饰壳或「引用栈」与头像同行时收缩宽度，避免绝对定位装饰贴到行左缘 */
+.message-wrapper.received .message-bubble-row > .received-bubble-decor-shell,
+.message-wrapper.received .message-bubble-row > .bubble-quote-stack {
     flex: 0 1 auto;
+    min-width: 0;
+    width: fit-content;
+    max-width: 75%;
+}
+
+.message-wrapper.sent .message-bubble-row > .bubble-quote-stack {
+    flex: 0 1 auto;
+    min-width: 0;
+    width: fit-content;
+    max-width: 75%;
 }
 
 /* 有装饰壳时：头像列与气泡列同幅下移，小尖角重新对准头像 */

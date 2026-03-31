@@ -73,6 +73,19 @@ function wrapSentBubbleDecorShell(contentNode) {
     return shell;
 }
 
+/**
+ * 有引用回复时：装饰壳只包住主气泡（壳宽=气泡宽），引用条在壳外下方再组成 bubble-quote-stack。
+ * 若先把 [气泡+引用] 叠成宽栈再包壳，栈宽=max(气泡,引用) 且发送侧右对齐，left:0/right:0 会相对整栈错位。
+ */
+function wrapBubbleQuoteStackWithDecorShell(bubbleEl, quoteDiv, isSent) {
+    const shell = isSent ? wrapSentBubbleDecorShell(bubbleEl) : wrapReceivedBubbleDecorShell(bubbleEl);
+    const stack = document.createElement('div');
+    stack.className = 'bubble-quote-stack';
+    stack.appendChild(shell);
+    stack.appendChild(quoteDiv);
+    return stack;
+}
+
 function renderMessages(isLoadMore = false, forceScrollToBottom = false) {
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
     if (!chat || !chat.history) return;
@@ -330,11 +343,12 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
             messageInfo.appendChild(timeSpan);
         }
 
-        let bubbleMount = bubbleElement;
+        let bubbleMount;
         if (quote) {
-            bubbleMount = wrapBubbleWithQuoteBelow(bubbleElement, createQuoteReplyElement(quote, chat));
+            bubbleMount = wrapBubbleQuoteStackWithDecorShell(bubbleElement, createQuoteReplyElement(quote, chat), false);
+        } else {
+            bubbleMount = wrapReceivedBubbleDecorShell(bubbleElement);
         }
-        bubbleMount = wrapReceivedBubbleDecorShell(bubbleMount);
 
         if (currentChatType === 'group') {
             const contentContainer = document.createElement('div');
@@ -970,11 +984,9 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
         }
         
         if (bubbleElement) {
-            let mount = bubbleElement;
-            if (quote) {
-                mount = wrapBubbleWithQuoteBelow(bubbleElement, createQuoteReplyElement(quote, chat));
-            }
-            mount = wrapReceivedBubbleDecorShell(mount);
+            const mount = quote
+                ? wrapBubbleQuoteStackWithDecorShell(bubbleElement, createQuoteReplyElement(quote, chat), false)
+                : wrapReceivedBubbleDecorShell(bubbleElement);
             contentContainer.appendChild(mount);
         }
         
@@ -985,15 +997,9 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
         bubbleRow.appendChild(messageInfo);
         
         if (bubbleElement) {
-            let mount = bubbleElement;
-            if (quote) {
-                mount = wrapBubbleWithQuoteBelow(bubbleElement, createQuoteReplyElement(quote, chat));
-            }
-            if (!isSent) {
-                mount = wrapReceivedBubbleDecorShell(mount);
-            } else {
-                mount = wrapSentBubbleDecorShell(mount);
-            }
+            const mount = quote
+                ? wrapBubbleQuoteStackWithDecorShell(bubbleElement, createQuoteReplyElement(quote, chat), isSent)
+                : (!isSent ? wrapReceivedBubbleDecorShell(bubbleElement) : wrapSentBubbleDecorShell(bubbleElement));
             bubbleRow.appendChild(mount);
         }
     }
