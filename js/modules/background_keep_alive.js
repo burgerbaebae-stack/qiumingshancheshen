@@ -17,6 +17,10 @@ const BackgroundKeepAliveModule = (() => {
     let _audioEl = null;
     let _enabled = false;
     let _onVisibility = null;
+    /** Web Audio：前台时尝试 resume，避免长时间挂起后上下文僵死 */
+    let _onVisibilityWebAudio = null;
+    /** HTML Audio：play 因策略失败时，最多挂一组手势监听，禁止每次失败再叠加 */
+    let _htmlAudioGestureAttached = false;
     /** null = 未构建，'' = 构建失败 */
     let _silentWavDataUrlCache = null;
 
@@ -96,16 +100,33 @@ const BackgroundKeepAliveModule = (() => {
         document.addEventListener('click', resume, { once: true });
     }
 
+    function _detachHtmlAudioGestureResume() {
+        if (!_htmlAudioGestureAttached) return;
+        document.removeEventListener('touchstart', _htmlAudioGestureResumeHandler);
+        document.removeEventListener('click', _htmlAudioGestureResumeHandler);
+        _htmlAudioGestureAttached = false;
+    }
+
+    function _htmlAudioGestureResumeHandler() {
+        _detachHtmlAudioGestureResume();
+        if (!_enabled || !_audioEl) return;
+        const p = _audioEl.play();
+        if (p && typeof p.catch === 'function') {
+            p.catch(() => _attachHtmlAudioGestureResumeOnce());
+        }
+    }
+
+    function _attachHtmlAudioGestureResumeOnce() {
+        if (!_enabled || !_audioEl || _htmlAudioGestureAttached) return;
+        _htmlAudioGestureAttached = true;
+        document.addEventListener('touchstart', _htmlAudioGestureResumeHandler, { passive: true });
+        document.addEventListener('click', _htmlAudioGestureResumeHandler);
+    }
+
     function _tryPlayHtmlAudio(audio) {
         const promise = audio.play();
         if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => {
-                const resume = () => {
-                    audio.play().catch(() => {});
-                };
-                document.addEventListener('touchstart', resume, { once: true, passive: true });
-                document.addEventListener('click', resume, { once: true });
-            });
+            promise.catch(() => _attachHtmlAudioGestureResumeOnce());
         }
     }
 
@@ -136,6 +157,14 @@ const BackgroundKeepAliveModule = (() => {
         if (_ctx.state === 'suspended') {
             _attachGestureResumeOnce();
         }
+
+        if (!_onVisibilityWebAudio) {
+            _onVisibilityWebAudio = () => {
+                if (!_enabled || !_ctx || document.visibilityState !== 'visible') return;
+                _resumeContextIfNeeded();
+            };
+            document.addEventListener('visibilitychange', _onVisibilityWebAudio);
+        }
     }
 
     function _startHtmlAudio() {
@@ -159,6 +188,10 @@ const BackgroundKeepAliveModule = (() => {
     }
 
     function _stopWebAudio() {
+        if (_onVisibilityWebAudio) {
+            document.removeEventListener('visibilitychange', _onVisibilityWebAudio);
+            _onVisibilityWebAudio = null;
+        }
         if (_src) {
             try {
                 _src.stop(0);
@@ -187,6 +220,7 @@ const BackgroundKeepAliveModule = (() => {
     }
 
     function _stopHtmlAudio() {
+        _detachHtmlAudioGestureResume();
         if (_onVisibility) {
             document.removeEventListener('visibilitychange', _onVisibility);
             _onVisibility = null;
