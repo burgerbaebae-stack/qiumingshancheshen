@@ -299,8 +299,8 @@
 
 #peek-conversation-screen .message-bubble.sent {
     border-radius: 12px 4px 12px 12px;
-    background-color: #95EC69;
-    color: #000000;
+    background-color: #FFFFFF;
+    color: #111111;
 }
 
 /* Peek Memos Screen */

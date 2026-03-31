@@ -27,6 +27,52 @@ function wrapBubbleWithQuoteBelow(bubbleEl, quoteDiv) {
     return stack;
 }
 
+/** 接收方：透明外壳包裹整条气泡（含引用栈），不改动原气泡 DOM；左/右上角落装饰图 */
+function wrapReceivedBubbleDecorShell(contentNode) {
+    if (!contentNode) return null;
+    const shell = document.createElement('div');
+    shell.className = 'received-bubble-decor-shell';
+    const cat = document.createElement('img');
+    cat.className = 'received-bubble-decor-cat';
+    cat.src = 'https://i.postimg.cc/QxQwntcs/IMG-6268.png';
+    cat.alt = '';
+    cat.setAttribute('aria-hidden', 'true');
+    cat.draggable = false;
+    const signal = document.createElement('img');
+    signal.className = 'received-bubble-decor-signal';
+    signal.src = 'https://i.postimg.cc/nrzGxnLk/IMG-6273.png';
+    signal.alt = '';
+    signal.setAttribute('aria-hidden', 'true');
+    signal.draggable = false;
+    shell.appendChild(cat);
+    shell.appendChild(signal);
+    shell.appendChild(contentNode);
+    return shell;
+}
+
+/** 发送方：透明外壳包裹整条气泡（含引用栈），不改动原气泡 DOM；左上/右上贴耳朵装饰 */
+function wrapSentBubbleDecorShell(contentNode) {
+    if (!contentNode) return null;
+    const shell = document.createElement('div');
+    shell.className = 'sent-bubble-decor-shell';
+    const earLeft = document.createElement('img');
+    earLeft.className = 'sent-bubble-decor-ear';
+    earLeft.src = 'https://i.postimg.cc/1tHrbJps/IMG-6275.png';
+    earLeft.alt = '';
+    earLeft.setAttribute('aria-hidden', 'true');
+    earLeft.draggable = false;
+    const earRight = document.createElement('img');
+    earRight.className = 'sent-bubble-decor-ear-right';
+    earRight.src = 'https://i.postimg.cc/QtQKzCZ7/IMG-6276.png';
+    earRight.alt = '';
+    earRight.setAttribute('aria-hidden', 'true');
+    earRight.draggable = false;
+    shell.appendChild(earLeft);
+    shell.appendChild(earRight);
+    shell.appendChild(contentNode);
+    return shell;
+}
+
 function renderMessages(isLoadMore = false, forceScrollToBottom = false) {
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
     if (!chat || !chat.history) return;
@@ -288,6 +334,7 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
         if (quote) {
             bubbleMount = wrapBubbleWithQuoteBelow(bubbleElement, createQuoteReplyElement(quote, chat));
         }
+        bubbleMount = wrapReceivedBubbleDecorShell(bubbleMount);
 
         if (currentChatType === 'group') {
             const contentContainer = document.createElement('div');
@@ -927,6 +974,7 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
             if (quote) {
                 mount = wrapBubbleWithQuoteBelow(bubbleElement, createQuoteReplyElement(quote, chat));
             }
+            mount = wrapReceivedBubbleDecorShell(mount);
             contentContainer.appendChild(mount);
         }
         
@@ -940,6 +988,11 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
             let mount = bubbleElement;
             if (quote) {
                 mount = wrapBubbleWithQuoteBelow(bubbleElement, createQuoteReplyElement(quote, chat));
+            }
+            if (!isSent) {
+                mount = wrapReceivedBubbleDecorShell(mount);
+            } else {
+                mount = wrapSentBubbleDecorShell(mount);
             }
             bubbleRow.appendChild(mount);
         }

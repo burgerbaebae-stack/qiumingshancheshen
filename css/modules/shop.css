@@ -209,6 +209,7 @@
     line-height: 1.3;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -957,10 +958,7 @@
     padding-bottom: 10px;
 }
 
-/* 代付请求小票样式 */
-.receipt-bubble.pay-request .receipt-header {
-    /* border-bottom: 2px solid #333; Removed to match standard receipt style */
-}
+/* 代付请求小票样式（.receipt-header 与标准小票一致，无单独下边框） */
 
 .receipt-bubble.pay-request .receipt-brand {
     color: #333;

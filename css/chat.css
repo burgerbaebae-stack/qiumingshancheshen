@@ -2,6 +2,9 @@
 
 :root {
     --panel-height: 35vh; /* 默认面板高度 */
+    /* 聊天室顶栏 / 底栏毛玻璃 */
+    --chat-room-bar-glass-bg: rgba(255, 255, 255, 0.72);
+    --chat-room-bar-blur: blur(16px) saturate(180%);
 }
 
 /* 聊天列表屏幕 */
@@ -345,11 +348,19 @@
 
 /* 聊天室头部 */
 #chat-room-header-default {
-    background-color: transparent !important;
-    backdrop-filter: none !important;
-    border-bottom: none !important;
+    background-color: var(--chat-room-bar-glass-bg) !important;
+    backdrop-filter: var(--chat-room-bar-blur) !important;
+    -webkit-backdrop-filter: var(--chat-room-bar-blur) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
     padding: 15px 20px !important;
     padding-top: max(15px, env(safe-area-inset-top)) !important;
+}
+
+#chat-room-header-select {
+    background-color: var(--chat-room-bar-glass-bg) !important;
+    backdrop-filter: var(--chat-room-bar-blur) !important;
+    -webkit-backdrop-filter: var(--chat-room-bar-blur) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
 }
 
 #chat-room-header-default .title-container {
@@ -459,6 +470,111 @@
 
 .group-msg-content .bubble-quote-stack {
     max-width: 100%;
+}
+
+/* 接收方：透明外壳 + 左上/右上装饰（不修改原气泡/小三角 DOM） */
+.received-bubble-decor-shell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 75%;
+    min-width: 0;
+    overflow: visible;
+    background: transparent;
+    box-sizing: border-box;
+    /* 与上一条消息拉开间距，给左上角装饰猫留出垂直空间（96px 图略加大于 25px 基线） */
+    margin-top: 28px;
+}
+
+.group-msg-content .received-bubble-decor-shell {
+    max-width: 100%;
+}
+
+.received-bubble-decor-shell > .bubble-quote-stack {
+    max-width: 100%;
+}
+
+.received-bubble-decor-shell > .message-bubble {
+    max-width: 100%;
+}
+
+.received-bubble-decor-shell > .message-bubble.html-bubble {
+    max-width: 100% !important;
+}
+
+.received-bubble-decor-cat {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 96px;
+    height: auto;
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 2;
+    transform: translate(-22%, -44%);
+}
+
+.received-bubble-decor-signal {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 132px;
+    height: auto;
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 2;
+    transform: translate(40%, -44%);
+}
+
+/* 发送方：透明外壳 + 左上/右上耳朵装饰（不修改原气泡/小三角 DOM） */
+.sent-bubble-decor-shell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    max-width: 75%;
+    min-width: 0;
+    overflow: visible;
+    background: transparent;
+    box-sizing: border-box;
+    margin-top: 28px;
+}
+
+.sent-bubble-decor-shell > .bubble-quote-stack {
+    max-width: 100%;
+}
+
+.sent-bubble-decor-shell > .message-bubble {
+    max-width: 100%;
+}
+
+.sent-bubble-decor-shell > .message-bubble.html-bubble {
+    max-width: 100% !important;
+}
+
+.sent-bubble-decor-ear {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 96px;
+    height: auto;
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 2;
+    transform: translate(-32%, -44%);
+}
+
+.sent-bubble-decor-ear-right {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 96px;
+    height: auto;
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 2;
+    transform: translate(34%, -38%);
 }
 
 /* 引用条：同 8px 边距与气泡竖线对齐；宽度随文字，由父级 align-items 控制左/右贴齐 */
@@ -629,7 +745,7 @@
 
 
 /*
- * 聊天气泡：仿微信（浅色模式）— 接收白底、发送经典绿 #95EC69；侧边小尖角 + 靠头像侧略小的圆角。
+ * 聊天气泡：仿微信（浅色模式）— 收发均为白底 #FFFFFF；侧边小尖角 + 靠头像侧略小的圆角。
  */
 .message-bubble {
     max-width: 75%;
@@ -668,10 +784,10 @@
 }
 
 .message-bubble.sent {
-    /* 右侧尖角：右上圆角略小 */
+    /* 右侧尖角：右上圆角略小（与接收同色，仅朝向不同） */
     border-radius: 12px 4px 12px 12px;
-    background-color: #95EC69;
-    color: #000000;
+    background-color: #FFFFFF;
+    color: #111111;
 }
 
 /* 微信式侧边小尖角（朝头像方向，靠上约 11px；与底色同色） */
@@ -701,7 +817,7 @@
     height: 0;
     border-style: solid;
     border-width: 6px 0 6px 7px;
-    border-color: transparent transparent transparent #95EC69;
+    border-color: transparent transparent transparent #FFFFFF;
     pointer-events: none;
     z-index: 0;
 }
@@ -901,8 +1017,8 @@
 
 .message-wrapper.sent .voice-bubble {
     flex-direction: row-reverse;
-    background-color: #95EC69;
-    color: #000000;
+    background-color: #FFFFFF;
+    color: #111111;
     border-radius: 12px 4px 12px 12px;
 }
 
@@ -1253,7 +1369,7 @@
 }
 
 .message-bubble.sent .bilingual-divider {
-    background-color: rgba(0, 0, 0, 0.12);
+    background-color: rgba(0, 0, 0, 0.1);
 }
 
 .bilingual-bubble.inner-no-line-style {
@@ -1317,8 +1433,10 @@
     align-items: center;
     padding: 12px 14px;
     padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
-    border-top: none;
-    background: var(--chat-bottom-bar-bg);
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    background: var(--chat-room-bar-glass-bg);
+    backdrop-filter: var(--chat-room-bar-blur);
+    -webkit-backdrop-filter: var(--chat-room-bar-blur);
     flex-shrink: 0;
     gap: 8px;
     border-bottom-left-radius: var(--phone-corner-radius);
@@ -1807,14 +1925,15 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    background: transparent;
-    backdrop-filter: none;
+    background: var(--chat-room-bar-glass-bg);
+    backdrop-filter: var(--chat-room-bar-blur);
+    -webkit-backdrop-filter: var(--chat-room-bar-blur);
     display: none;
     justify-content: space-between;
     align-items: center;
     padding: 10px 20px;
-    padding-bottom: 10px;
-    border-top: 1px solid #eee;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
     z-index: 20;
     border-bottom-left-radius: var(--phone-corner-radius);
     border-bottom-right-radius: var(--phone-corner-radius);
@@ -1828,14 +1947,15 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    background: transparent;
-    backdrop-filter: none;
+    background: var(--chat-room-bar-glass-bg);
+    backdrop-filter: var(--chat-room-bar-blur);
+    -webkit-backdrop-filter: var(--chat-room-bar-blur);
     display: none;
     justify-content: space-between;
     align-items: center;
     padding: 10px 20px;
-    padding-bottom: 10px;
-    border-top: 1px solid #eee;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
     z-index: 20;
     border-bottom-left-radius: var(--phone-corner-radius);
     border-bottom-right-radius: var(--phone-corner-radius);
