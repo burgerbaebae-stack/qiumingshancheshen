@@ -484,7 +484,7 @@
     background: transparent;
     box-sizing: border-box;
     /* 与上一条消息拉开间距，给左上角装饰猫留出垂直空间（96px 图略加大于 25px 基线） */
-    margin-top: 28px;
+    margin-top: 22px;
 }
 
 .group-msg-content .received-bubble-decor-shell {
@@ -538,7 +538,7 @@
     overflow: visible;
     background: transparent;
     box-sizing: border-box;
-    margin-top: 28px;
+    margin-top: 22px;
 }
 
 .sent-bubble-decor-shell > .bubble-quote-stack {
