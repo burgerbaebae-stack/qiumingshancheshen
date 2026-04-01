@@ -601,15 +601,6 @@
                     <!-- 高级设置 -->
                     <div class="kkt-group" style="margin-top: 15px;">
                         <div class="kkt-item">
-                            <div class="kkt-item-label">时间感知加强</div>
-                            <div class="kkt-item-control">
-                                <label class="kkt-switch">
-                                    <input type="checkbox" id="time-perception-switch">
-                                    <span class="kkt-slider"></span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="kkt-item">
                             <div class="kkt-item-label">流式输出</div>
                             <div class="kkt-item-control">
                                 <label class="kkt-switch">
@@ -1660,6 +1651,22 @@
                             </div>
                         </div>
 
+                        <!-- 时间感知设置 -->
+                        <div class="kkt-group" style="margin-top:15px;">
+                            <div class="kkt-item">
+                                <div class="kkt-item-label">时间感知</div>
+                                <div class="kkt-item-control">
+                                    <label class="kkt-switch">
+                                        <input type="checkbox" id="setting-time-perception-enabled">
+                                        <span class="kkt-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="kkt-item" style="font-size:12px; color:#999; padding-top:0; padding-bottom:8px;">
+                                开启后，当你距上次对话超过7分钟再次发消息时，AI将感知到准确的时间间隔（仅注入本次请求，不写入历史）。
+                            </div>
+                        </div>
+
                         <!-- 角色状态栏设置 -->
                         <div class="kkt-group" style="margin-top:15px;">
                             <div class="kkt-item">
@@ -1988,6 +1995,15 @@
                             <div class="kkt-item-control">
                                 <label class="kkt-switch">
                                     <input type="checkbox" id="setting-group-allow-gossip">
+                                    <span class="kkt-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="kkt-item">
+                            <div class="kkt-item-label">时间感知</div>
+                            <div class="kkt-item-control">
+                                <label class="kkt-switch">
+                                    <input type="checkbox" id="setting-group-time-perception-enabled">
                                     <span class="kkt-slider"></span>
                                 </label>
                             </div>

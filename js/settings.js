@@ -313,6 +313,8 @@ function loadSettingsToSidebar() {
         document.getElementById('setting-auto-reply-enabled').checked = ar.enabled || false;
         document.getElementById('setting-auto-reply-interval').value = ar.interval || 60;
 
+        document.getElementById('setting-time-perception-enabled').checked = e.timePerceptionEnabled || false;
+
         document.getElementById('setting-use-real-gallery').checked = e.useRealGallery || false;
 
         const useCustomCssCheckbox = document.getElementById('setting-use-custom-css'),
@@ -411,6 +413,8 @@ async function saveSettingsFromSidebar() {
         const autoReplyIntervalInput = parseInt(document.getElementById('setting-auto-reply-interval').value, 10);
         e.autoReply.interval = isNaN(autoReplyIntervalInput) ? 60 : autoReplyIntervalInput;
 
+        e.timePerceptionEnabled = document.getElementById('setting-time-perception-enabled').checked;
+
         e.useRealGallery = document.getElementById('setting-use-real-gallery').checked;
 
         // 保存角色专属语音参数（任务二）
@@ -438,7 +442,6 @@ function setupApiSettingsApp() {
             gemini: 'https://generativelanguage.googleapis.com'
         };
     db.apiSettings && (n.value = db.apiSettings.provider || 'newapi', r.value = db.apiSettings.url || '', s.value = db.apiSettings.key || '', db.apiSettings.model && (a.innerHTML = `<option value="${db.apiSettings.model}">${db.apiSettings.model}</option>`));
-    if (db.apiSettings && typeof db.apiSettings.timePerceptionEnabled !== 'undefined') { document.getElementById('time-perception-switch').checked = db.apiSettings.timePerceptionEnabled; }
     if (db.apiSettings && typeof db.apiSettings.streamEnabled !== 'undefined') { document.getElementById('stream-switch').checked = db.apiSettings.streamEnabled; } else { document.getElementById('stream-switch').checked = true; } 
 
     const tempSlider = document.getElementById('temperature-slider');
@@ -548,7 +551,6 @@ function setupApiSettingsApp() {
             url: r.value,
             key: s.value,
             model: a.value,
-            timePerceptionEnabled: document.getElementById('time-perception-switch').checked,
             streamEnabled: document.getElementById('stream-switch').checked, 
             temperature: parseFloat(document.getElementById('temperature-slider').value) 
         };

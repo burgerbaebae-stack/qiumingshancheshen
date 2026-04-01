@@ -108,7 +108,8 @@ function setupGroupChatSystem() {
     const groupAutoSaveChanges = [
         'setting-group-use-custom-css', 'setting-group-show-timestamp',
         'setting-group-show-notice', 'setting-group-allow-gossip', 'setting-group-avatar-radius',
-        'setting-group-bilingual-mode', 'setting-group-bilingual-style'
+        'setting-group-bilingual-mode', 'setting-group-bilingual-style',
+        'setting-group-time-perception-enabled'
     ];
     groupAutoSaveChanges.forEach(id => {
         const el = document.getElementById(id);
@@ -904,6 +905,7 @@ function loadGroupSettingsToSidebar() {
     document.getElementById('setting-group-show-timestamp').checked = group.showTimestamp || false;
     document.getElementById('setting-group-timestamp-style').value = group.timestampStyle || 'bubble';
     document.getElementById('setting-group-allow-gossip').checked = group.allowGossip || false;
+    document.getElementById('setting-group-time-perception-enabled').checked = group.timePerceptionEnabled || false;
 
     const bilingualModeCheckbox = document.getElementById('setting-group-bilingual-mode');
     const bilingualStyleSelect = document.getElementById('setting-group-bilingual-style');
@@ -1093,6 +1095,7 @@ async function saveGroupSettingsFromSidebar(showToastFlag = true) {
     
     group.bilingualModeEnabled = document.getElementById('setting-group-bilingual-mode').checked;
     group.bilingualBubbleStyle = document.getElementById('setting-group-bilingual-style').value;
+    group.timePerceptionEnabled = document.getElementById('setting-group-time-perception-enabled').checked;
 
     // --- 保存群公告 ---
     group.showNotice = document.getElementById('setting-group-show-notice').checked;

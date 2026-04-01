@@ -345,7 +345,7 @@
     background-size: cover;
     background-position: center;
     /* 装饰壳上移气泡时，头像列须同步下移，否则小尖角对不准头像中线 */
-    --bubble-decor-vertical-offset: 22px;
+    --bubble-decor-vertical-offset: 18px;
 }
 
 /* 聊天室头部 */

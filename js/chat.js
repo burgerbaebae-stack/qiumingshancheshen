@@ -513,34 +513,6 @@ async function sendMessage() {
     if (!chat) return;
     if (!chat.history) chat.history = [];
 
-    if (db.apiSettings && db.apiSettings.timePerceptionEnabled) {
-        const now = new Date();
-        const lastMessageTime = chat.lastUserMessageTimestamp;
-        if (lastMessageTime) {
-            const timeGap = now.getTime() - lastMessageTime;
-            const thirtyMinutes = 30 * 60 * 1000; 
-
-            if (timeGap > thirtyMinutes) {
-                const displayContent = `[system-display:距离上次聊天已经过去 ${formatTimeGap(timeGap)}]`;
-                const visualMessage = {
-                    id: `msg_visual_timesense_${Date.now()}`,
-                    role: 'system',
-                    content: displayContent,
-                    parts: [],
-                    timestamp: now.getTime() - 2 
-                };
-
-                if (currentChatType === 'group') {
-                    visualMessage.senderId = 'user_me';
-                }
-
-                chat.history.push(visualMessage);
-                addMessageBubble(visualMessage, currentChatId, currentChatType);
-            }
-        }
-        chat.lastUserMessageTimestamp = now.getTime();
-    }
-
     let messageContent;
     const systemRegex = /\[system:.*?\]|\[system-display:.*?\]/;
     const inviteRegex = /\[.*?邀请.*?加入群聊\]/;

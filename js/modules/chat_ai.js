@@ -87,28 +87,8 @@ async function getAiReply(chatId, chatType, isBackground = false) {
         });
 
         if (provider === 'gemini') {
-            let lastMsgTimeForAI = 0;
             const contents = historySlice.map(msg => {
                 const role = msg.role === 'assistant' ? 'model' : 'user';
-                
-                let prefix = '';
-                const currentMsgTime = msg.timestamp;
-                const timeDiff = currentMsgTime - lastMsgTimeForAI;
-                const isSameDay = new Date(currentMsgTime).toDateString() === new Date(lastMsgTimeForAI).toDateString();
-               
-               if (lastMsgTimeForAI === 0 || timeDiff > 20 * 60 * 1000 || !isSameDay) {
-                   const dateObj = new Date(currentMsgTime);
-                   const timeStr = `${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
-                   
-                   prefix = `[system: ${timeStr}]`;
-                   
-                   if (db.apiSettings && db.apiSettings.timePerceptionEnabled && timeDiff > 30 * 60 * 1000 && lastMsgTimeForAI !== 0) {
-                       prefix += `\n[system: 距离上次互动已过去 ${formatTimeGap(timeDiff)}。话题可能已中断，请自然地开启新话题或对时间流逝做出反应。]`;
-                   }
-                   
-                   prefix += '\n';
-               }
-                lastMsgTimeForAI = currentMsgTime;
 
                 let parts;
                 if (msg.parts && msg.parts.length > 0) {
@@ -127,22 +107,43 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                     parts = [{text: msg.content}];
                 }
 
-                if (prefix) {
-                    if (parts.length > 0 && parts[0].text) {
-                        parts[0].text = prefix + parts[0].text;
-                    } else {
-                        parts.unshift({text: prefix});
-                    }
-                }
-
                 return {role, parts};
             });
 
+            // 后台自动回复：注入精确时间差（仅由"后台自动发送消息"开关控制）
             if (isBackground) {
+                const lastMsgTimestamp = historySlice.length > 0 ? historySlice[historySlice.length - 1].timestamp : 0;
+                const bgTimeDiff = lastMsgTimestamp
+                    ? Date.now() - lastMsgTimestamp
+                    : (chat.autoReply && chat.autoReply.interval ? chat.autoReply.interval * 60 * 1000 : 60 * 60 * 1000);
+                const bgTimeGapStr = formatTimeGap(bgTimeDiff);
                 contents.push({
                     role: 'user',
-                    parts: [{ text: `[系统通知：距离上次互动已有一段时间。请以${chat.realName}的身份主动发起新话题，或自然地延续之前的对话。]` }]
+                    parts: [{ text: `[系统通知：距离上次互动已经过去了${bgTimeGapStr}。请严格结合你的【角色设定】、【与当前用户的关系亲密度】与【当前的聊天上下文内容和氛围】，综合判断是否需要对这段时间的流逝作出反应以及是否自然地延续对话（例如：若是闲聊，可自然延续话题或者发起新话题，若是之前在争吵，请延续情绪或主动破冰），绝对不要每次都机械地抱怨或提及对方消失了多久，保持活人的真实沟通节奏。]` }]
                 });
+            }
+
+            // 用户主动发消息：阅后即焚时间感知（仅注入本次 payload，绝不写入历史）
+            if (!isBackground && chat.timePerceptionEnabled && contents.length > 0) {
+                const TIME_THRESHOLD = 7 * 60 * 1000;
+                const histLen = historySlice.length;
+                if (histLen >= 2) {
+                    const latestMsgTime = historySlice[histLen - 1].timestamp;
+                    const prevMsgTime   = historySlice[histLen - 2].timestamp;
+                    const timeDiff = latestMsgTime - prevMsgTime;
+                    if (timeDiff > TIME_THRESHOLD) {
+                        const timeGapStr  = formatTimeGap(timeDiff);
+                        const lastContent = contents[contents.length - 1];
+                        if (lastContent && lastContent.parts && lastContent.parts.length > 0) {
+                            if (lastContent.parts[0].text) {
+                                const timeNoticeGemini = `[系统通知：距离上一次对话已经过去了${timeGapStr}。请严格结合你的【角色性格】、【与当前用户的关系亲密度】、以及【当前的聊天上下文内容与氛围】（例如：你们是在日常闲聊、争吵冷战、还是暧昧拉扯等情况），综合判断是否需要对这段时间的流逝作出反应。绝不能每次都机械地询问对方去向，必须保持真人沟通的逻辑连贯性与自然边界感。]\n\n`;
+                                lastContent.parts[0].text = timeNoticeGemini + lastContent.parts[0].text;
+                            } else {
+                                lastContent.parts.unshift({ text: timeNoticeGemini });
+                            }
+                        }
+                    }
+                }
             }
 
             requestBody = {
@@ -155,48 +156,29 @@ async function getAiReply(chatId, chatType, isBackground = false) {
         } else {
             const messages = [{role: 'system', content: systemPrompt}];
             
-            let lastMsgTimeForAI = 0;
-            
             historySlice.forEach(msg => {
                let content;
-               let prefix = '';
-               
-               const currentMsgTime = msg.timestamp;
-               const timeDiff = currentMsgTime - lastMsgTimeForAI;
-               const isSameDay = new Date(currentMsgTime).toDateString() === new Date(lastMsgTimeForAI).toDateString();
-               
-               if (lastMsgTimeForAI === 0 || timeDiff > 20 * 60 * 1000 || !isSameDay) {
-                   const dateObj = new Date(currentMsgTime);
-                   const timeStr = `${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
-                   prefix = `[system: ${timeStr}]\n`;
-               }
-               lastMsgTimeForAI = currentMsgTime;
 
                if (msg.role === 'user' && msg.quote) {
                    const replyTextMatch = msg.content.match(/\[.*?的消息：([\s\S]+?)\]/);
                    const replyText = replyTextMatch ? replyTextMatch[1] : msg.content;
-                   
-                   content = `${prefix}[${chat.myName}引用“${msg.quote.content}”并回复：${replyText}]`;
+                   content = `[${chat.myName}引用"${msg.quote.content}"并回复：${replyText}]`;
                    messages.push({ role: 'user', content: content });
 
                } else {
                    if (msg.parts && msg.parts.length > 0) {
-                       let prefixAdded = false;
-                       
                        content = msg.parts.map(p => {
                            if (p.type === 'text' || p.type === 'html') {
-                               const textContent = (!prefixAdded) ? (prefix + p.text) : p.text;
-                               prefixAdded = true;
-                               return {type: 'text', text: textContent};
+                               return {type: 'text', text: p.text};
                            } else if (p.type === 'image') {
                                return {type: 'image_url', image_url: {url: p.data}};
                            }
                            return null;
                        }).filter(p => p);
                    } else {
-                       content = prefix + msg.content;
+                       content = msg.content;
                    }
-                   
+
                    if (typeof content === 'string') {
                        messages.push({role: msg.role, content: content});
                    } else {
@@ -205,17 +187,48 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                }
             });
 
-            // === 【第三步：处理后台通知与 CoT 序列】 ===
-            
-            // 1. 如果是后台消息，先插入系统通知（作为任务输入）
+            // === 后台通知与 CoT 序列 ===
+
+            // 1. 后台自动回复：注入精确时间差（仅由"后台自动发送消息"开关控制）
             if (isBackground) {
+                const lastMsgTimestamp = historySlice.length > 0 ? historySlice[historySlice.length - 1].timestamp : 0;
+                const bgTimeDiff = lastMsgTimestamp
+                    ? Date.now() - lastMsgTimestamp
+                    : (chat.autoReply && chat.autoReply.interval ? chat.autoReply.interval * 60 * 1000 : 60 * 60 * 1000);
+                const bgTimeGapStr = formatTimeGap(bgTimeDiff);
                 messages.push({
                     role: 'user',
-                    content: `[系统通知：距离上次互动已有一段时间。请以${chat.realName}的身份主动发起新话题，或自然地延续之前的对话。]`
+                    content: `[系统通知：距离上次互动已经过去了${bgTimeGapStr}。请严格结合你的【角色设定】、【与当前用户的关系亲密度】与【当前的聊天上下文内容和氛围】，综合判断是否需要对这段时间的流逝作出反应以及是否自然地延续对话（例如：若是闲聊，可自然延续话题或者发起新话题，若是之前在争吵，请延续情绪或主动破冰），绝对不要每次都机械地抱怨或提及对方消失了多久，保持活人的真实沟通节奏。]`
                 });
             }
 
-            // 2. 插入 CoT 序列（无论前台后台，只要开启就插入）
+            // 2. 用户主动发消息：阅后即焚时间感知（仅注入本次 payload，绝不写入历史）
+            if (!isBackground && chat.timePerceptionEnabled) {
+                const TIME_THRESHOLD = 7 * 60 * 1000;
+                const histLen = historySlice.length;
+                if (histLen >= 2) {
+                    const latestMsgTime = historySlice[histLen - 1].timestamp;
+                    const prevMsgTime   = historySlice[histLen - 2].timestamp;
+                    const timeDiff = latestMsgTime - prevMsgTime;
+                    if (timeDiff > TIME_THRESHOLD) {
+                        const timeGapStr = formatTimeGap(timeDiff);
+                        const timeNotice = `[系统通知：距离上一次对话已经过去了${timeGapStr}。请严格结合你的【角色性格】、【与当前用户的关系亲密度】、以及【当前的聊天上下文内容与氛围】（例如：你们是在日常闲聊、争吵冷战、还是暧昧拉扯等情况），综合判断是否需要对这段时间的流逝作出反应。绝不能每次都机械地询问对方去向，必须保持真人沟通的逻辑连贯性与自然边界感。]\n\n`;
+                        for (let i = messages.length - 1; i >= 0; i--) {
+                            if (messages[i].role === 'user') {
+                                if (typeof messages[i].content === 'string') {
+                                    messages[i].content = timeNotice + messages[i].content;
+                                } else if (Array.isArray(messages[i].content)) {
+                                    const firstText = messages[i].content.find(p => p.type === 'text');
+                                    if (firstText) firstText.text = timeNotice + firstText.text;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. 插入 CoT 序列（无论前台后台，只要开启就插入）
             const cotEnabled = db.cotSettings && db.cotSettings.enabled;
             
             if (cotEnabled) {
