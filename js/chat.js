@@ -271,7 +271,11 @@ function setupChatRoom() {
                 const toggleBtn = voiceBubble ? voiceBubble.querySelector('.voice-text-toggle') : null;
                 const encodedText = toggleBtn ? toggleBtn.dataset.voiceText : null;
                 const text = encodedText ? decodeURIComponent(encodedText) : '';
+                // 仅角色侧语音气泡可走 TTS；用户自己发送的语音条（sent）禁止请求 MiniMax
                 if (text && typeof TTSModule !== 'undefined') {
+                    if (wrapper && wrapper.classList.contains('sent')) {
+                        return;
+                    }
                     const chat = currentChatType === 'private'
                         ? db.characters.find(c => c.id === currentChatId)
                         : null;

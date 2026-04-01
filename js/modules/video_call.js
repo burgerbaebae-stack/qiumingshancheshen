@@ -2368,17 +2368,12 @@ const VideoCallModule = {
         const index = this.state.currentCallContext.length;
         msgDiv.dataset.index = index;
 
+        // 仅 AI 台词参与 TTS 缓存与 MiniMax 合成；用户发送的内容绝不分配 ttsAudioId、绝不请求上游（计费安全）
         let ttsAudioIdForRecord = null;
-        if (type === 'voice') {
-            if (who === 'user') {
-                ttsAudioIdForRecord = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
-                    ? crypto.randomUUID()
-                    : ('tts-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11));
-            } else if (who === 'ai') {
-                ttsAudioIdForRecord = (typeof TTSModule !== 'undefined' && typeof TTSModule.takePendingVoiceTtsId === 'function')
-                    ? TTSModule.takePendingVoiceTtsId()
-                    : null;
-            }
+        if (type === 'voice' && who === 'ai') {
+            ttsAudioIdForRecord = (typeof TTSModule !== 'undefined' && typeof TTSModule.takePendingVoiceTtsId === 'function')
+                ? TTSModule.takePendingVoiceTtsId()
+                : null;
         }
 
         if (type === 'visual') {
@@ -2468,11 +2463,6 @@ const VideoCallModule = {
             ctxRecord.ttsAudioId = ttsAudioIdForRecord;
         }
         this.state.currentCallContext.push(ctxRecord);
-
-        if (who === 'user' && type === 'voice' && ctxRecord.ttsAudioId &&
-            typeof TTSModule !== 'undefined' && typeof TTSModule.prefetchCallUserLineAudio === 'function') {
-            TTSModule.prefetchCallUserLineAudio(ctxRecord.ttsAudioId, content, this.state.currentChat);
-        }
     },
 
     // --- 通话内 TTS 隐形重听交互 ---

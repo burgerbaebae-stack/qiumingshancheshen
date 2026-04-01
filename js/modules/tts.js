@@ -151,6 +151,10 @@ const TTSModule = (() => {
      * @param {string} [synthOptions.cacheId] - 若提供，仅按此 ID 读写缓存（通话气泡绑定）；不提供则沿用文本去重键（语音气泡/测试等）
      */
     async function synthesize(text, voiceId, speed, synthOptions = {}) {
+        // 防御：禁止对用户台词发起上游合成（历史上 prefetchCallUserLineAudio 曾误把用户话送 MiniMax）
+        if (synthOptions && synthOptions._ttsSourceRole === 'user') {
+            throw new Error('TTS：用户文本禁止送往上游合成');
+        }
         const cfg = getConfig();
         const apiUrl = (cfg.apiUrl || '').trim();   // 用户在前端填写的 MiniMax TTS 接口地址
         const apiKey = (cfg.apiKey || '').trim();
@@ -283,18 +287,6 @@ const TTSModule = (() => {
     function takePendingVoiceTtsId() {
         const id = state.pendingVoiceTtsIds.shift();
         return id || null;
-    }
-
-    /** 用户语音气泡：首次用 id 合成并写入缓存，供重听只走 ID */
-    function prefetchCallUserLineAudio(ttsAudioId, text, chat) {
-        if (!ttsAudioId || !text || !chat) return;
-        if (!isCharEnabled(chat)) return;
-        const cfg = getConfig();
-        const voiceId = chat.ttsVoiceId || cfg.defaultVoiceId || 'male-qn-qingse';
-        const speed = chat.ttsSpeed !== undefined ? chat.ttsSpeed : (cfg.defaultSpeed || 1.0);
-        void synthesize(text, voiceId, speed, { cacheId: ttsAudioId }).catch((e) => {
-            console.error('[TTS prefetch user line]', e);
-        });
     }
 
     /**
@@ -441,7 +433,7 @@ const TTSModule = (() => {
             bubbleEl.classList.add('tts-loading');
             const voiceId = chat.ttsVoiceId || '';
             const speed   = chat.ttsSpeed !== undefined ? chat.ttsSpeed : 1.0;
-            const blob = await synthesize(text, voiceId, speed);
+            const blob = await synthesize(text, voiceId, speed, { _ttsSourceRole: 'ai' });
             bubbleEl.classList.remove('tts-loading');
             await _playBlob(blob, bubbleEl, 1.0, null);
         } catch (err) {
@@ -580,6 +572,7 @@ const TTSModule = (() => {
         if (!item.blobPromise) {
             item.blobPromise = synthesize(item.text, item.voiceId, item.speed, {
                 cacheId: item.ttsAudioId || undefined,
+                _ttsSourceRole: 'ai',
             })
                 .then((b) => {
                     item.blob = b;
@@ -667,7 +660,7 @@ const TTSModule = (() => {
             }
             if (typeof showToast === 'function') showToast('正在合成，请稍候…');
             // 这里同样走 synthesize（内部已改为调用 /api/minimax-tts 代理）
-            const blob = await synthesize('测试成功', cfg.defaultVoiceId || 'alloy', 1.0);
+            const blob = await synthesize('测试成功', cfg.defaultVoiceId || 'alloy', 1.0, { _ttsSourceRole: 'ai' });
             await _playBlob(blob, null, 1.0, null);
         } catch (err) {
             console.error('[TTS Test]', err);
@@ -972,7 +965,6 @@ const TTSModule = (() => {
         playCallAudioById,
         beginCallAiReplyTurn,
         takePendingVoiceTtsId,
-        prefetchCallUserLineAudio,
 
         // TTS 内存缓存相关（供通话模块显式复用缓存逻辑）
         getFromTtsCache,
