@@ -298,7 +298,35 @@ const TTSModule = (() => {
     }
 
     /**
-     * 与 VideoCallModule.parseAndAddAiResponse 使用同一套方括号规则，提取「非画面/环境/动作」的语音块正文（顺序一致）。
+     * 方括号消息标签：不参与 TTS 计费与朗读（与档案室气泡「视觉/旁白」类一致）。
+     * 模型若把旁白写进 [某某的声音：…] 会按字全额扣费，故与画面/环境/动作并列排除。
+     */
+    function isBracketTagNonSpeech(tag) {
+        if (!tag) return false;
+        const t = String(tag);
+        return (
+            t.includes('画面') ||
+            t.includes('环境') ||
+            t.includes('动作') ||
+            t.includes('旁白') ||
+            t.includes('叙述') ||
+            t.includes('心理') ||
+            t.includes('内心') ||
+            t.includes('画外音')
+        );
+    }
+
+    /**
+     * 双语通话格式「外语原文「中文翻译」」仅朗读前半，避免译文再扣一遍 MiniMax 字符。
+     */
+    function stripBilingualTailForTts(text) {
+        const s = String(text || '').trim();
+        const m = s.match(/^([\s\S]+?)「[^」]+」\s*$/);
+        return m ? m[1].trim() : s;
+    }
+
+    /**
+     * 与 VideoCallModule.parseAndAddAiResponse 使用同一套方括号规则，提取可朗读的语音块正文（顺序一致）。
      */
     function extractVoiceBlockContentsFromRawAi(text) {
         if (!text) return [];
@@ -307,7 +335,7 @@ const TTSModule = (() => {
         let m;
         while ((m = regex.exec(text)) !== null) {
             const tag = m[1] || '';
-            if (tag.includes('画面') || tag.includes('环境') || tag.includes('动作')) continue;
+            if (isBracketTagNonSpeech(tag)) continue;
             out.push((m[2] || '').trim());
         }
         return out;
@@ -480,7 +508,7 @@ const TTSModule = (() => {
             const id = newTtsAudioId();
             state.pendingVoiceTtsIds.push(id);
 
-            const clean = cleanCallText(rawLine);
+            const clean = cleanCallText(stripBilingualTailForTts(rawLine));
             if (clean.length > 0) {
                 state.callAudioQueue.push(_buildCallItem(clean, chat, id));
             }
@@ -931,6 +959,9 @@ const TTSModule = (() => {
         // 语音气泡播放（Task 3）
         playVoiceBubble,
         stopCurrent,
+
+        /** 通话档案与 TTS 共用：判断方括号标签是否不应朗读（供 video_call 解析 UI 类型） */
+        isBracketTagNonSpeech,
 
         // 通话流式（Task 4）
         unlockCallAudio,

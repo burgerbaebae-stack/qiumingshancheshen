@@ -46,6 +46,14 @@ async function getAiReply(chatId, chatType, isBackground = false) {
     const chat = (chatType === 'private') ? db.characters.find(c => c.id === chatId) : db.groups.find(g => g.id === chatId);
     if (!chat) return;
 
+    // 通话进行中：禁止文字区后台自动回复，避免与通话模块并发、同角色在聊天室误发消息
+    if (isBackground) {
+        if (typeof VideoCallModule !== 'undefined' && VideoCallModule.state && VideoCallModule.state.isCallActive) {
+            if (chat.autoReply) chat.autoReply.lastTriggerTime = Date.now();
+            return;
+        }
+    }
+
     if (!isBackground) {
         isGenerating = true;
         getReplyBtn.disabled = true;

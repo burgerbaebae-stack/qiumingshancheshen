@@ -2343,7 +2343,9 @@ const VideoCallModule = {
             content = content.trim();
             
             let type = 'voice';
-            if (tag.includes('画面') || tag.includes('环境') || tag.includes('动作')) {
+            if (typeof TTSModule !== 'undefined' && typeof TTSModule.isBracketTagNonSpeech === 'function') {
+                if (TTSModule.isBracketTagNonSpeech(tag)) type = 'visual';
+            } else if (tag.includes('画面') || tag.includes('环境') || tag.includes('动作')) {
                 type = 'visual';
             }
             
