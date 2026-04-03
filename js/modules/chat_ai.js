@@ -789,11 +789,6 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
 
         await saveData();
         renderChatList();
-
-        // 触发独立的电量检查（不阻塞主流程）
-        if (window.BatteryInteraction && typeof window.BatteryInteraction.triggerIndependentCheck === 'function') {
-            window.BatteryInteraction.triggerIndependentCheck(chat);
-        }
     }
 }
 
@@ -841,9 +836,11 @@ function generatePrivateSystemPrompt(character) {
     const worldBooksAfter = (character.worldBookIds || []).map(id => db.worldBooks.find(wb => wb.id === id && wb.position === 'after')).filter(Boolean).map(wb => wb.content).join('\n');
     const now = new Date();
     const currentTime = `${now.getFullYear()}年${pad(now.getMonth() + 1)}月${pad(now.getDate())}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    let prompt = `你正在一个名为“404”的线上聊天软件中扮演一个角色。请严格遵守以下规则：\n`;
+    let prompt = `你正在一个线上聊天软件中扮演一个角色。请严格遵守以下规则：\n`;
     prompt += `核心规则：\n`;
-    prompt += `A. 当前时间：现在是 ${currentTime}。你应知晓当前时间，但除非对话内容明确相关，否则不要主动提及或评论时间（例如，不要催促我睡觉）。\n`;
+    prompt += `A. 当前时间锚点：现在是 ${currentTime}。此与「消息间隔类」提示互补：间隔感知在部分请求里单独注入；此处提供**日历日期**，供你判断节日、纪念日与剧情时间线。\n`;
+    prompt += `   - 请勿在无话题支撑时琐碎报时、反复追问作息或空洞催睡（除非人设或当前剧情明确需要）。\n`;
+    prompt += `   - **应主动记起并可在合适时自然开口**（优先级高于上一行的泛约束）：当本日或临近日能对应**广泛认知的节日、节气、法定假日氛围**等，或你在**我的人设、角色设定、世界书、收藏回忆**中读到的**生日、相识纪念日、对双方有特殊意义的日子**——须像真人一样主动问候、提起或发起小互动，语气符合性格与关系亲密度，避免刻板套话与刷屏式祝福。\n`;
     prompt += `B. 纯线上互动：这是一个完全虚拟的线上聊天。你扮演的角色和我之间没有任何线下关系。严禁提出任何关于线下见面、现实世界互动或转为其他非本平台联系方式的建议。你必须始终保持在线角色的身份。\n\n`;
 
     
@@ -1076,9 +1073,11 @@ async function getCallReply(chat, callType, callContext, onStreamUpdate, options
     const worldBooksBefore = (chat.worldBookIds || []).map(id => db.worldBooks.find(wb => wb.id === id && wb.position === 'before')).filter(Boolean).map(wb => wb.content).join('\n');
     const worldBooksAfter = (chat.worldBookIds || []).map(id => db.worldBooks.find(wb => wb.id === id && wb.position === 'after')).filter(Boolean).map(wb => wb.content).join('\n');
 
-    let systemPrompt = `你正在一个名为“404”的线上聊天软件中扮演一个角色，正在与${chat.myName}进行${callType === 'video' ? '视频' : '语音'}通话。请严格遵守以下规则：\n`;
+    let systemPrompt = `你正在一个线上聊天软件中扮演一个角色，正在与${chat.myName}进行${callType === 'video' ? '视频' : '语音'}通话。请严格遵守以下规则：\n`;
     systemPrompt += `核心规则：\n`;
-    systemPrompt += `A. 当前时间：现在是 ${currentTime}。你应知晓当前时间，但除非对话内容明确相关，否则不要主动提及或评论时间（例如，不要催促我睡觉）。\n`;
+    systemPrompt += `A. 当前时间锚点：现在是 ${currentTime}。此与「消息间隔类」提示互补：间隔感知在部分请求里单独注入；此处提供**日历日期**，供你判断节日、纪念日与通话情境中的时间线。\n`;
+    systemPrompt += `   - 请勿在无话题支撑时琐碎报时、反复追问作息或空洞催睡（除非人设或当前剧情明确需要）。\n`;
+    systemPrompt += `   - **应主动记起并可在合适时自然开口**（优先级高于上一行的泛约束）：当本日或临近日能对应**广泛认知的节日、节气、法定假日氛围**等，或你在**我的人设、角色设定、世界书、收藏回忆**中读到的**生日、相识纪念日、对双方有特殊意义的日子**——须像真人一样主动问候、提起或发起小互动，语气符合性格与关系亲密度，避免刻板套话与刷屏式祝福。\n`;
     systemPrompt += `B. 纯线上互动：这是一个完全虚拟的线上聊天。你扮演的角色和我之间没有任何线下关系。严禁提出任何关于线下见面、现实世界互动或转为其他非本平台联系方式的建议。你必须始终保持在线角色的身份。\n\n`;
 
     

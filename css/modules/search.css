@@ -74,6 +74,14 @@
     cursor: pointer;
 }
 
+.search-scope-select.search-scope-locked {
+    cursor: default;
+    pointer-events: none;
+    background-color: transparent;
+    color: #888;
+    font-weight: 500;
+}
+
 .search-scope-select.active {
     background-color: #f0f0f0;
     color: #333;

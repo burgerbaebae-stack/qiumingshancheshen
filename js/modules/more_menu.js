@@ -2,19 +2,6 @@
 
 // 初始化 Menu 页面
 function initMoreMenu() {
-    // 初始化搜索模块
-    if (window.SearchSystem) {
-        window.SearchSystem.init();
-        
-        // 绑定搜索入口点击
-        const searchEntry = document.querySelector('.search-bar-decoration');
-        if (searchEntry) {
-            searchEntry.addEventListener('click', () => {
-                window.SearchSystem.open();
-            });
-        }
-    }
-
     const menuGrid = document.querySelector('.menu-grid');
     if (!menuGrid) return;
 

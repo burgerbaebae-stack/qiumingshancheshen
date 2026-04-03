@@ -1,42 +1,5 @@
 // --- 工具函数库 (js/utils.js) ---
 
-// 电池状态更新
-async function updateBatteryStatus() {
-    if ('getBattery' in navigator) {
-        try {
-            const battery = await navigator.getBattery();
-            const batteryLevelText = document.getElementById('battery-level');
-            const batteryFillRect = document.getElementById('battery-fill-rect');
-
-            const updateDisplay = () => {
-                if (!batteryLevelText || !batteryFillRect) return;
-                const level = Math.floor(battery.level * 100);
-                batteryLevelText.textContent = `${level}%`;
-                batteryFillRect.setAttribute('width', 18 * battery.level);
-                let fillColor = "#666"; 
-                if (battery.charging) {
-                    fillColor = "#4CAF50"; 
-                } else if (level <= 20) {
-                    fillColor = "#f44336"; 
-                }
-                batteryFillRect.setAttribute('fill', fillColor);
-            };
-
-            updateDisplay();
-            battery.addEventListener('levelchange', updateDisplay);
-            battery.addEventListener('chargingchange', updateDisplay);
-
-        } catch (error) {
-            console.error('无法获取电池信息:', error);
-            const batteryWidget = document.querySelector('.widget-battery');
-            if (batteryWidget) batteryWidget.style.display = 'none';
-        }
-    } else {
-        const batteryWidget = document.querySelector('.widget-battery');
-        if (batteryWidget) batteryWidget.style.display = 'none';
-    }
-}
-
 // 随机获取 API Key
 function getRandomValue(str) {
     if (str && str.includes(',')) {

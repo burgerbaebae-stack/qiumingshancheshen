@@ -142,21 +142,6 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* 搜索条装饰 */
-.search-bar-decoration {
-    width: 90%;
-    height: 28px;
-    background-color: #fff; /* 纯白背景 */
-    border-radius: 17px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #bbb;
-    font-size: 14px;
-    gap: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05); /* 轻微阴影 */
-}
-
 .more-content-placeholder {
     flex-grow: 1;
     /* Future content will go here */

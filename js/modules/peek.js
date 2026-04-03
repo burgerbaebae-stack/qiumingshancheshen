@@ -1,7 +1,7 @@
 // --- 偷看手机功能 (js/modules/peek.js) ---
 
 function setupPeekFeature() {
-    const peekBtn = document.getElementById('peek-btn');
+    const peekPrivateExpansionBtn = document.getElementById('peek-private-expansion-btn');
     const peekConfirmModal = document.getElementById('peek-confirm-modal');
     const peekConfirmYes = document.getElementById('peek-confirm-yes');
     const peekConfirmNo = document.getElementById('peek-confirm-no');
@@ -20,8 +20,9 @@ function setupPeekFeature() {
         }
     });
 
-    peekBtn?.addEventListener('click', () => {
+    peekPrivateExpansionBtn?.addEventListener('click', () => {
         if (currentChatType !== 'private') return;
+        if (typeof showPanel === 'function') showPanel('none');
         peekConfirmModal.classList.add('visible');
     });
 

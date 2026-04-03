@@ -271,22 +271,6 @@
 .oval-bottom-left { bottom: 20px; left: -62px; }
 .oval-bottom-right { bottom: 20px; right: -62px; }
 
-.widget-battery {
-    color: #666;
-    font-family: var(--font-family);
-    text-shadow: 0 5px 3px rgba(0,0,0,0.1);
-    font-size: 17px;
-    position: absolute;
-    display: flex;
-    align-items: center;
-    bottom: -15px;
-    right: -45px;
-}
-
-.widget-battery svg {
-    margin-right: 5px;
-}
-
 .widget-time {
     color: var(--text-color);
     font-family: var(--font-family);
@@ -358,7 +342,6 @@
 #home-screen.day-mode .satellite-oval,
 #home-screen.day-mode .widget-time,
 #home-screen.day-mode .widget-date,
-#home-screen.day-mode .widget-battery,
 #home-screen.day-mode .widget-signature,
 #home-screen.day-mode .app-icon .app-name {
     color: var(--white-color);

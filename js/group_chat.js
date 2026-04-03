@@ -33,10 +33,8 @@ function setupGroupChatSystem() {
             const overlay = document.getElementById('private-chat-overlay');
             overlay.classList.add('visible');
             renderPrivateChatMonitor();
-            // 打开时清除全局未读状态
             peekBtn.classList.remove('has-unread');
             document.getElementById('gossip-badge').style.display = 'none';
-            // 清空未读计数数据
             gossipUnreadMap = {};
         });
     }
@@ -849,7 +847,6 @@ function handleGossipMessage(group, content) {
         if (!isOverlayVisible || activePrivateSessionId !== sessionId) {
             gossipUnreadMap[sessionId] = (gossipUnreadMap[sessionId] || 0) + 1;
             
-            // 更新全局入口按钮状态
             const btn = document.getElementById('peek-btn');
             const badge = document.getElementById('gossip-badge');
             if (btn && badge) {
@@ -1186,7 +1183,15 @@ function generateGroupSystemPrompt(group) {
     const worldBooksBefore = (group.worldBookIds || []).map(id => db.worldBooks.find(wb => wb.id === id && wb.position === 'before')).filter(Boolean).map(wb => wb.content).join('\n');
     const worldBooksAfter = (group.worldBookIds || []).map(id => db.worldBooks.find(wb => wb.id === id && wb.position === 'after')).filter(Boolean).map(wb => wb.content).join('\n');
 
-    let prompt = `你正在一个名为“404”的线上聊天软件中，在一个名为“${group.name}”的群聊里进行角色扮演。请严格遵守以下所有规则：\n\n`;
+    const now = new Date();
+    const currentTime = `${now.getFullYear()}年${pad(now.getMonth() + 1)}月${pad(now.getDate())}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    let prompt = `你正在一个线上聊天软件中，在一个名为“${group.name}”的群聊里进行角色扮演。请严格遵守以下所有规则：\n\n`;
+
+    prompt += `【时间与节日记忆（全员适用）】\n`;
+    prompt += `当前现实世界锚点时间：${currentTime}。请用此判断日期、节日与纪念日。\n`;
+    prompt += `- 勿在无话题支撑时琐碎报时或空洞催作息（除非某成员人设需要）。\n`;
+    prompt += `- 当本日或临近日对应广泛认知的节日、节气、法定假日氛围，或在成员人设、世界书、群回忆中写明的生日、纪念日时，**相关成员应自然主动提及或问候**，符合各自人设，避免套话刷屏。\n\n`;
 
     if (worldBooksBefore) {
         prompt += `${worldBooksBefore}\n\n`;

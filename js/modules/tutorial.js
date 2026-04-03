@@ -130,8 +130,8 @@ const GuideSystem = {
         switch (guideId) {
             case 'guide_search_entry':
                 config = {
-                    target: '.search-bar-decoration',
-                    text: '新增搜索功能！支持按角色、群聊筛选，快速查找历史记录。',
+                    target: '#chat-room-search-btn',
+                    text: '在聊天室顶部可搜索本会话记录，结果仅来自当前私聊或当前群，不会影响其他会话。',
                     position: 'bottom'
                 };
                 break;

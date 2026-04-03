@@ -265,8 +265,11 @@
                 </div>
             </div>
             <div class="action-btn-group">
-                <button class="action-btn" id="peek-btn" title="偷看" style="position: relative;">
+                <button class="action-btn" id="chat-room-search-btn" title="搜索本会话记录">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </button>
+                <button class="action-btn" id="peek-btn" title="群内私聊" style="display: none; position: relative;">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M17 1H7C5.9 1 5 1.9 5 3v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zm0 18H7V5h10v14z"/></svg>
                     <span class="nav-badge" id="gossip-badge" style="display: none; top: -2px; right: -2px; width: 8px; height: 8px; padding: 0;"></span>
                 </button>
                 <button class="action-btn" id="chat-settings-btn" title="设置">
@@ -405,6 +408,12 @@
                             </svg>
                         </div>
                         <span class="expansion-item-name">通话</span>
+                    </div>
+                    <div class="expansion-item" id="peek-private-expansion-btn" style="display: none;">
+                        <div class="expansion-item-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 1H7C5.9 1 5 1.9 5 3v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zm0 18H7V5h10v14z"/></svg>
+                        </div>
+                        <span class="expansion-item-name">查手机</span>
                     </div>
                 </div>
             </div>
@@ -799,7 +808,7 @@
         <header class="search-header">
             <div class="search-input-wrapper">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <input type="text" id="search-history-input" autocomplete="off" placeholder="搜索聊天记录...">
+                <input type="text" id="search-history-input" autocomplete="off" placeholder="Search">
             </div>
             <button class="search-cancel-btn" id="search-cancel-btn">取消</button>
         </header>
@@ -857,11 +866,6 @@
                     </div>
                     
                     <div class="current-date-display" id="more-date-display">2025#0101</div>
-                    
-                    <div class="search-bar-decoration">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <span>搜索聊天记录</span>
-                    </div>
                 </div>
             </div>
             
@@ -3627,7 +3631,6 @@
 <script src="js/modules/tutorial.js"></script>  <!-- 教程、更新日志、GitHub备份 -->
 <script src="js/modules/more_menu.js"></script> <!-- 更多菜单与状态栏管理 -->
 <script src="js/modules/search.js"></script> <!-- 聊天记录搜索模块 -->
-<script src="js/modules/battery_interaction.js"></script> <!-- 电量交互模块 -->
 <script src="js/modules/gallery.js"></script> <!-- 角色相册管理模块 -->
 <script src="js/modules/live.js"></script>    <!-- 直播间模块 -->
 <script src="js/modules/shop.js"></script>    <!-- 商城模块 -->

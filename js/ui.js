@@ -119,10 +119,6 @@ function renderMoreScreen() {
         bgLayer.style.backgroundImage = `url('${db.moreProfileCardBg}')`;
     }
 
-    // 触发搜索引导
-    if (window.GuideSystem) {
-        window.GuideSystem.check('guide_search_entry');
-    }
 }
 
 function setupMoreCardBgModal() {
@@ -350,14 +346,6 @@ function setupHomeScreen() {
                 <div class="widget-time" id="time-display"></div>
                 <div contenteditable="true" class="widget-signature" id="widget-signature" placeholder="编辑个性签名..."></div>
                 <div class="widget-date" id="date-display"></div>
-                <div class="widget-battery">
-                    <svg width="32" height="23" viewBox="0 0 24 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 2.5C1 1.94772 1.44772 1.5 2 1.5H20C20.5523 1.5 21 1.94772 21 2.5V9.5C21 10.0523 20.5523 10.5 20 10.5H2C1.44772 10.5 1 10.0523 1 9.5V2.5Z" stroke="#666" stroke-opacity="0.8" stroke-width="1"/>
-                        <path d="M22.5 4V8" stroke="#666" stroke-opacity="0.8" stroke-width="1.5" stroke-linecap="round"/>
-                        <rect id="battery-fill-rect" x="2" y="2.5" width="18" height="7" rx="0.5" fill="#666" fill-opacity="0.8"/>
-                    </svg>
-                    <span id="battery-level">--%</span>
-                </div>
             </div>
             <div class="app-grid">
                 <div class="app-grid-widget-container">
@@ -431,7 +419,6 @@ function setupHomeScreen() {
     document.querySelector('[data-target="world-book-screen"]').addEventListener('click', renderWorldBookList);
     document.querySelector('[data-target="customize-screen"]').addEventListener('click', renderCustomizeForm);
     document.querySelector('[data-target="tutorial-screen"]').addEventListener('click', renderTutorialContent);
-    updateBatteryStatus();
 
     const homeWidgetContainer = homeScreen.querySelector('.home-widget-container');
 

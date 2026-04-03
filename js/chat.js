@@ -472,36 +472,44 @@ function openChatRoom(chatId, type) {
         }
     }
 
+    const roomSearchBtn = document.getElementById('chat-room-search-btn');
+    if (roomSearchBtn) {
+        roomSearchBtn.style.display = 'flex';
+    }
+
     const peekBtn = document.getElementById('peek-btn');
     if (peekBtn) {
-        if (type === 'private') {
+        if (type === 'group' && chat.allowGossip) {
             peekBtn.style.display = 'flex';
-            peekBtn.classList.remove('has-unread');
+            const hasUnread = Object.values(gossipUnreadMap || {}).some(count => count > 0);
             const badge = document.getElementById('gossip-badge');
-            if (badge) badge.style.display = 'none';
-        } else {
-            // 群聊
-            if (chat.allowGossip) {
-                peekBtn.style.display = 'flex';
-                // 检查未读
-                const hasUnread = Object.values(gossipUnreadMap || {}).some(count => count > 0);
-                const badge = document.getElementById('gossip-badge');
-                if (hasUnread) {
-                    peekBtn.classList.add('has-unread');
-                    if (badge) badge.style.display = 'block';
-                } else {
-                    peekBtn.classList.remove('has-unread');
-                    if (badge) badge.style.display = 'none';
-                }
+            if (hasUnread) {
+                peekBtn.classList.add('has-unread');
+                if (badge) badge.style.display = 'block';
             } else {
-                peekBtn.style.display = 'none';
+                peekBtn.classList.remove('has-unread');
+                if (badge) badge.style.display = 'none';
             }
+        } else {
+            peekBtn.style.display = 'none';
+            peekBtn.classList.remove('has-unread');
+            const badgeHidden = document.getElementById('gossip-badge');
+            if (badgeHidden) badgeHidden.style.display = 'none';
         }
+    }
+
+    const peekPrivateExpansion = document.getElementById('peek-private-expansion-btn');
+    if (peekPrivateExpansion) {
+        peekPrivateExpansion.style.display = type === 'private' ? '' : 'none';
     }
 
     updateCustomBubbleStyle(chatId, chat.customBubbleCss, chat.useCustomBubbleCss);
     renderMessages(false, true);
     switchScreen('chat-room-screen');
+
+    if (window.GuideSystem) {
+        window.GuideSystem.check('guide_search_entry');
+    }
     
     requestAnimationFrame(() => {
         void document.body.offsetHeight; 

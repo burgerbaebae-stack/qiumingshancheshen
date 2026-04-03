@@ -4,6 +4,10 @@ const SearchSystem = {
     currentScope: 'all', // 'all' or chatId
     currentResults: [],
     searchTimer: null,
+    /** 关闭搜索页时返回的 screen id */
+    returnScreen: 'chat-room-screen',
+    /** 为 true 时仅搜 currentScope 所指会话，且不可切换范围 */
+    scopeLocked: false,
     
     // 初始化（防 main / 热路径重复调用导致监听叠加）
     init() {
@@ -13,7 +17,10 @@ const SearchSystem = {
         // 绑定筛选器点击事件
         const scopeSelect = document.getElementById('search-scope-select');
         if (scopeSelect) {
-            scopeSelect.addEventListener('click', () => this.openScopeModal());
+            scopeSelect.addEventListener('click', () => {
+                if (this.scopeLocked) return;
+                this.openScopeModal();
+            });
         }
 
         // 绑定忽略状态栏开关事件
@@ -61,25 +68,37 @@ const SearchSystem = {
                 }
             });
         }
+
+        const roomSearchBtn = document.getElementById('chat-room-search-btn');
+        if (roomSearchBtn && !roomSearchBtn.dataset.searchBound) {
+            roomSearchBtn.dataset.searchBound = '1';
+            roomSearchBtn.addEventListener('click', () => {
+                if (typeof currentChatId === 'undefined' || !currentChatId) return;
+                if (typeof currentChatType === 'undefined' || !currentChatType) return;
+                if (typeof showPanel === 'function') showPanel('none');
+                this.open({
+                    returnScreen: 'chat-room-screen',
+                    scope: currentChatId,
+                    scopeLocked: true
+                });
+            });
+        }
     },
 
-    // 打开搜索界面
-    open() {
-        // 重置状态
-        this.currentScope = 'all';
+    /**
+     * @param {object} [opts]
+     * @param {string} [opts.returnScreen] 取消搜索时返回的 screen
+     * @param {string} [opts.scope] 搜索范围：'all' 或会话 id
+     * @param {boolean} [opts.scopeLocked] 锁定为仅搜 scope 所指会话，不可改范围
+     */
+    open(opts = {}) {
+        this.returnScreen = opts.returnScreen !== undefined ? opts.returnScreen : 'chat-room-screen';
+        this.scopeLocked = opts.scopeLocked === true;
+        this.currentScope = opts.scope !== undefined ? opts.scope : 'all';
         this.updateScopeUI();
         document.getElementById('search-history-input').value = '';
-        document.getElementById('search-results-container').innerHTML = `
-            <div class="search-placeholder">
-                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <p>输入关键词搜索聊天记录</p>
-                <p style="font-size:12px; margin-top:5px;">支持搜索消息内容</p>
-            </div>
-        `;
-        
+        document.getElementById('search-results-container').innerHTML = '';
+
         switchScreen('search-history-screen');
         setTimeout(() => {
             document.getElementById('search-history-input').focus();
@@ -87,7 +106,14 @@ const SearchSystem = {
     },
 
     closeSearchScreen() {
-        switchScreen('more-screen'); // 返回上一个屏幕
+        this.scopeLocked = false;
+        const scopeSelect = document.getElementById('search-scope-select');
+        if (scopeSelect) {
+            scopeSelect.classList.remove('search-scope-locked');
+            const arrow = scopeSelect.querySelector('svg');
+            if (arrow) arrow.style.display = '';
+        }
+        switchScreen(this.returnScreen || 'chat-room-screen');
     },
 
     // 执行搜索
@@ -366,6 +392,7 @@ const SearchSystem = {
 
     // 打开筛选范围模态框
     openScopeModal() {
+        if (this.scopeLocked) return;
         const modal = document.getElementById('search-scope-modal');
         const list = document.getElementById('search-scope-list');
         list.innerHTML = '';
@@ -420,6 +447,29 @@ const SearchSystem = {
 
     updateScopeUI() {
         const selectText = document.querySelector('#search-scope-select span');
+        const scopeSelect = document.getElementById('search-scope-select');
+        if (!selectText || !scopeSelect) return;
+
+        const arrow = scopeSelect.querySelector('svg');
+
+        if (this.scopeLocked) {
+            scopeSelect.classList.add('search-scope-locked');
+            scopeSelect.classList.remove('active');
+            if (arrow) arrow.style.display = 'none';
+            const target = db.characters.find(c => c.id === this.currentScope) || db.groups.find(g => g.id === this.currentScope);
+            if (target) {
+                const name = target.remarkName || target.name;
+                selectText.textContent = `仅搜索：${name}`;
+            } else {
+                selectText.textContent = '仅搜索：本会话';
+            }
+            return;
+        }
+
+        scopeSelect.classList.remove('search-scope-locked');
+        scopeSelect.classList.add('active');
+        if (arrow) arrow.style.display = '';
+
         if (this.currentScope === 'all') {
             selectText.textContent = '搜索范围：全部';
         } else {
@@ -489,3 +539,4 @@ const SearchSystem = {
 
 // 暴露给全局
 window.SearchSystem = SearchSystem;
+SearchSystem.init();
