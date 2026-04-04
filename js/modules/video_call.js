@@ -1734,23 +1734,28 @@ const VideoCallModule = {
         const panel = document.getElementById('vc-master-text-panel');
         const glassLineTexts = this.getVcMasterGlassLineTexts(panel);
         const hasGlassText = glassLineTexts.length > 0;
+        const ctx = this.state.currentCallContext;
+        const archiveEndsWithUser =
+            ctx.length > 0 && ctx[ctx.length - 1].role === 'user';
 
-        if (!hasGlassText) {
+        /* 语音：玻璃板已清空但档案室末尾仍是用户（例如请求失败无 AI 气泡）时，允许猫爪直接重试，与长按「重回」一致 */
+        if (!hasGlassText && !archiveEndsWithUser) {
             showToast('右侧玻璃板还没有文字');
+            return;
+        }
+
+        if (typeof getCallReply !== 'function') {
+            showToast('通话回复模块未加载');
             return;
         }
 
         this.state.scratchAwaitingAi = true;
         try {
-            for (let i = 0; i < glassLineTexts.length; i++) {
-                await this.sendUserAction(glassLineTexts[i]);
-            }
-
-            if (panel) panel.innerHTML = '';
-
-            if (typeof getCallReply !== 'function') {
-                showToast('通话回复模块未加载');
-                return;
+            if (hasGlassText) {
+                for (let i = 0; i < glassLineTexts.length; i++) {
+                    await this.sendUserAction(glassLineTexts[i]);
+                }
+                if (panel) panel.innerHTML = '';
             }
 
             this.startScratchBreathingRipples(btnEl);

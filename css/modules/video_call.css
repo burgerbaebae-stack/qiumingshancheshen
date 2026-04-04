@@ -596,9 +596,9 @@
 }
 
 /* Camera 按钮专属等待涟漪
-   按钮尺寸 60px（radius 30px），gap 48px
-   center-to-center = 60 + 48 = 108px → 安全扩散上限 ≈ 46px（scale 1.53x）
-   此处保守取 scale(1.48)，确保波纹绝对不触及旁侧麦克风/挂断按钮 */
+   按钮尺寸 60px，ripple 宿主 inset -2 → 约 64px，半轴 ≈ 32px；gap 48px
+   相机中心 → 话筒中心 = 108px；话筒半径 30 → 波纹外缘半径安全上限约 76px（留边）
+   scale 1.82 → 32×1.82 ≈ 58px，与话筒内缘间隙约 20px，不致与话筒重叠 */
 .vc-camera-ripple-host {
     position: absolute;
     inset: -2px;          /* 与按钮外边框齐平 */
@@ -626,7 +626,7 @@
 
 @keyframes vc-camera-ripple {
     0%   { transform: scale(1);    opacity: 0.72; }
-    100% { transform: scale(1.65); opacity: 0; }
+    100% { transform: scale(1.82); opacity: 0; }
 }
 
 /* 新主卧：纯图标悬浮发送钮（无圆形容器，仅 scratch.png；点击涟漪仍由 JS 注入） */

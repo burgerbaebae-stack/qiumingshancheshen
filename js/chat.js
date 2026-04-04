@@ -1,6 +1,34 @@
 // --- 核心聊天逻辑 (js/chat.js) ---
 // 此文件保留核心入口和胶水代码，具体功能已拆分至 js/modules/chat_*.js
 
+/** 主输入框最多可视行数（超出部分在框内滚动） */
+const MESSAGE_INPUT_MAX_LINES = 7;
+
+/**
+ * 按内容自动增高 #message-input（textarea），上限 MESSAGE_INPUT_MAX_LINES；侧栏按钮用 flex-end 贴底对齐。
+ */
+function syncMessageInputHeight() {
+    const ta = typeof messageInput !== 'undefined' ? messageInput : document.getElementById('message-input');
+    if (!ta || ta.tagName !== 'TEXTAREA') return;
+
+    const minPx = 44;
+    ta.style.height = 'auto';
+
+    const cs = getComputedStyle(ta);
+    let lineHeight = parseFloat(cs.lineHeight);
+    if (!lineHeight || Number.isNaN(lineHeight)) {
+        const fs = parseFloat(cs.fontSize) || 16;
+        lineHeight = fs * 1.35;
+    }
+    const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const maxContentH = lineHeight * MESSAGE_INPUT_MAX_LINES + padY;
+
+    const contentH = ta.scrollHeight;
+    const nextH = Math.min(Math.max(contentH, minPx), maxContentH);
+    ta.style.height = `${nextH}px`;
+    ta.style.overflowY = contentH > maxContentH ? 'auto' : 'hidden';
+}
+
 function setupChatRoom() {
     const memoryJournalBtn = document.getElementById('memory-journal-btn');
     const deleteHistoryBtn = document.getElementById('delete-history-btn');
@@ -221,9 +249,14 @@ function setupChatRoom() {
             messageInput.focus();
         }, 50);
     });
-    messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !isGenerating) sendMessage();
+    messageInput.addEventListener('input', syncMessageInputHeight);
+    messageInput.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || e.isComposing) return;
+        if (e.shiftKey) return;
+        e.preventDefault();
+        if (!isGenerating) sendMessage();
     });
+    syncMessageInputHeight();
 
     // 监听输入框聚焦事件：自动收起底部面板，避免与键盘冲突
     messageInput.addEventListener('focus', () => {
@@ -404,9 +437,58 @@ function setupChatRoom() {
     document.getElementById('cancel-reply-btn').addEventListener('click', cancelQuoteReply);
 }
 
-function openChatRoom(chatId, type) {
+/** 与 renderMessages 分页一致：返回包含 history[targetIndex] 的最小页码 */
+function computePageForMessageIndex(totalMessages, pageSize, targetIndex) {
+    if (totalMessages <= 0 || targetIndex < 0 || targetIndex >= totalMessages) return 1;
+    const maxPage = Math.ceil(totalMessages / pageSize) || 1;
+    for (let p = 1; p <= maxPage; p++) {
+        const end = totalMessages - (p - 1) * pageSize;
+        const start = Math.max(0, end - pageSize);
+        if (targetIndex >= start && targetIndex < end) return p;
+    }
+    return maxPage;
+}
+
+/** 在消息区滚动到指定 data-id 的气泡并短暂高亮 */
+function tryScrollToMessageById(messageId) {
+    if (!messageId || typeof messageArea === 'undefined' || !messageArea) return false;
+    let target = null;
+    messageArea.querySelectorAll('.message-wrapper[data-id]').forEach((el) => {
+        if (el.dataset.id === messageId) target = el;
+    });
+    if (!target) return false;
+    target.classList.add('search-jump-highlight');
+    window.setTimeout(() => target.classList.remove('search-jump-highlight'), 2600);
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return true;
+}
+
+/**
+ * @param {string} chatId
+ * @param {'private'|'group'} type
+ * @param {object} [options]
+ * @param {string} [options.scrollToMessageId] 打开后定位到该条消息（自动翻分页）
+ */
+function openChatRoom(chatId, type, options = {}) {
     const chat = (type === 'private') ? db.characters.find(c => c.id === chatId) : db.groups.find(g => g.id === chatId);
     if (!chat) return;
+
+    currentChatId = chatId;
+    currentChatType = type;
+
+    let scrollToMessageId = options.scrollToMessageId || null;
+    const pageSize = (typeof MESSAGES_PER_PAGE !== 'undefined') ? MESSAGES_PER_PAGE : 50;
+    currentPage = 1;
+    if (scrollToMessageId && chat.history && chat.history.length > 0) {
+        const idx = chat.history.findIndex(m => m.id === scrollToMessageId);
+        if (idx !== -1) {
+            currentPage = computePageForMessageIndex(chat.history.length, pageSize, idx);
+        } else {
+            scrollToMessageId = null;
+        }
+    } else if (scrollToMessageId) {
+        scrollToMessageId = null;
+    }
 
     // 迁移旧的私聊数据 (仅群聊)
     if (type === 'group' && chat.privateSessions && typeof migratePrivateSessionsToHistory === 'function') {
@@ -434,7 +516,6 @@ function openChatRoom(chatId, type) {
     typingIndicator.style.display = 'none';
     isGenerating = false;
     getReplyBtn.disabled = false;
-    currentPage = 1;
     chatRoomScreen.className = chatRoomScreen.className.replace(/\bchat-active-[^ ]+\b/g, '');
     chatRoomScreen.classList.add(`chat-active-${chatId}`);
     
@@ -504,11 +585,22 @@ function openChatRoom(chatId, type) {
     }
 
     updateCustomBubbleStyle(chatId, chat.customBubbleCss, chat.useCustomBubbleCss);
-    renderMessages(false, true);
+    const forceScrollToBottom = !scrollToMessageId;
+    renderMessages(false, forceScrollToBottom);
     switchScreen('chat-room-screen');
 
     if (window.GuideSystem) {
         window.GuideSystem.check('guide_search_entry');
+    }
+
+    if (scrollToMessageId) {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (!tryScrollToMessageById(scrollToMessageId) && typeof showToast === 'function') {
+                    showToast('未找到该条消息，可能已被删除或不在当前显示范围');
+                }
+            });
+        });
     }
     
     requestAnimationFrame(() => {
@@ -519,7 +611,8 @@ function openChatRoom(chatId, type) {
 async function sendMessage() {
     const text = messageInput.value.trim();
     if (!text || isGenerating) return;
-    messageInput.value = ''; 
+    messageInput.value = '';
+    syncMessageInputHeight();
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
 
     if (!chat) return;

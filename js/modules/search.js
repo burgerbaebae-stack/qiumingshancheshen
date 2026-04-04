@@ -116,6 +116,16 @@ const SearchSystem = {
         switchScreen(this.returnScreen || 'chat-room-screen');
     },
 
+    /** 进入聊天室并滚动到指定消息 */
+    jumpToChatMessage(chatId, chatType, messageId) {
+        if (typeof openChatRoom !== 'function') return;
+        if (!messageId) {
+            if (typeof showToast === 'function') showToast('无法定位该消息');
+            return;
+        }
+        openChatRoom(chatId, chatType, { scrollToMessageId: messageId });
+    },
+
     // 执行搜索
     performSearch(keyword) {
         const container = document.getElementById('search-results-container');
@@ -298,13 +308,18 @@ const SearchSystem = {
                         <span>${this.escapeHtml(group.name)}</span>
                         <span class="search-group-count">${group.count}条</span>
                     </div>
-                    <div class="search-group-preview">${this.escapeHtml(previewMsg)}</div>
+                    <div class="search-group-preview">${this.highlightKeyword(previewMsg, keyword)}</div>
                 </div>
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
             `;
 
             item.addEventListener('click', () => {
-                this.renderDetail(group, keyword);
+                const hit = group.messages && group.messages[0];
+                if (hit && hit.id) {
+                    this.jumpToChatMessage(group.chatId, group.chatType, hit.id);
+                } else if (typeof showToast === 'function') {
+                    showToast('无法跳转到该会话中的消息');
+                }
             });
 
             list.appendChild(item);
@@ -370,10 +385,18 @@ const SearchSystem = {
             item.innerHTML = `
                 <div class="search-result-header">
                     <span class="search-result-name">${this.escapeHtml(displayName)}</span>
-                    <span class="search-result-time">${timeStr}</span>
+                    <span class="search-result-time-pill">${this.escapeHtml(timeStr)}</span>
                 </div>
                 <div class="search-result-content">${highlightedContent}</div>
             `;
+
+            item.addEventListener('click', () => {
+                if (msg.id) {
+                    this.jumpToChatMessage(group.chatId, group.chatType, msg.id);
+                } else if (typeof showToast === 'function') {
+                    showToast('无法定位该消息');
+                }
+            });
             
             list.appendChild(item);
         });
@@ -387,7 +410,10 @@ const SearchSystem = {
         const safeContent = this.escapeHtml(content);
         const safeKeyword = this.escapeHtml(keyword);
         const regex = new RegExp(`(${safeKeyword})`, 'gi');
-        return safeContent.replace(regex, '<span class="keyword-highlight">$1</span>');
+        return safeContent.replace(
+            regex,
+            '<span class="keyword-highlight-mark"><span class="keyword-highlight-text">$1</span></span>'
+        );
     },
 
     // 打开筛选范围模态框

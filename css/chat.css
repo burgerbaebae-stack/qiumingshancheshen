@@ -437,6 +437,25 @@
     scroll-behavior: smooth;
 }
 
+/* 从搜索结果跳入聊天室后，目标气泡短暂高亮 */
+.message-wrapper.search-jump-highlight {
+    animation: searchJumpRing 2.5s ease-out;
+    position: relative;
+    z-index: 2;
+}
+
+@keyframes searchJumpRing {
+    0% {
+        box-shadow: 0 0 0 0 rgba(199, 44, 65, 0.45), 0 6px 24px rgba(199, 44, 65, 0.12);
+    }
+    25% {
+        box-shadow: 0 0 0 5px rgba(199, 44, 65, 0.2), 0 6px 20px rgba(199, 44, 65, 0.1);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(199, 44, 65, 0), 0 0 0 rgba(0, 0, 0, 0);
+    }
+}
+
 .message-wrapper {
     display: flex;
     margin-bottom: 12px;
@@ -1473,7 +1492,7 @@
 
 .message-input-area {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     padding: 12px 14px;
     padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
     border-top: 1px solid rgba(0, 0, 0, 0.06);
@@ -1491,10 +1510,11 @@
     flex-grow: 1;
     position: relative;
     display: flex;
-    align-items: center;
+    align-items: stretch;
+    min-width: 0;
 }
 
-.message-input-area input {
+.message-input-area #message-input {
     width: 100%;
     border: none;
     padding: 10px 14px;
@@ -1502,12 +1522,20 @@
     border-radius: 22px;
     background-color: #f2f2f2;
     min-width: 0;
+    min-height: 44px;
+    display: block;
     font-size: calc(16px * var(--app-font-scale));
-    height: 44px;
+    font-family: inherit;
+    line-height: 1.35;
     box-sizing: border-box;
+    resize: none;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    word-break: break-word;
+    -webkit-overflow-scrolling: touch;
 }
 
-.message-input-area input:focus {
+.message-input-area #message-input:focus {
     outline: none;
     background-color: #ebebeb;
 }
@@ -1538,6 +1566,8 @@
 .message-input-area .icon-btn.input-inner-btn {
     position: absolute;
     right: 6px;
+    bottom: 6px;
+    top: auto;
     background: transparent;
     color: #666;
     width: 32px;
