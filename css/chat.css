@@ -3,7 +3,7 @@
 :root {
     --panel-height: 35vh; /* 默认面板高度 */
     /* 聊天室顶栏 / 底栏毛玻璃 */
-    --chat-room-bar-glass-bg: rgba(255, 255, 255, 0.72);
+    --chat-room-bar-glass-bg: rgba(255, 255, 255, 0.52);
     --chat-room-bar-blur: blur(16px) saturate(180%);
 }
 
@@ -1568,7 +1568,7 @@
     padding: 10px 14px;
     padding-right: 40px;
     border-radius: 22px;
-    background-color: #f2f2f2;
+    background: linear-gradient(90deg, #ffe8f2 0%, #e3f0ff 100%);
     min-width: 0;
     min-height: 44px;
     display: block;
@@ -1585,7 +1585,7 @@
 
 .message-input-area #message-input:focus {
     outline: none;
-    background-color: #ebebeb;
+    background: linear-gradient(90deg, #ffdfea 0%, #d6e8ff 100%);
 }
 
 .message-input-area .icon-btn {
@@ -1705,7 +1705,7 @@
         opacity: 0.58;
     }
 }
-#get-reply-btn img { width: 44px; height: 44px; object-fit: contain; display: block; }
+#get-reply-btn img { width: 52px; height: 52px; object-fit: contain; display: block; }
 
 #toggle-expansion-btn {
     transition: transform 0.3s ease, background-color 0.2s;

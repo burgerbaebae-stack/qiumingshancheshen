@@ -512,7 +512,6 @@ const SearchSystem = {
         
         const urlRegex = /^(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)|data:image\/[a-z]+;base64,)/i;
         const imageRecogRegex = /\[.*?发来了一张图片：\]/;
-        const voiceRegex = /\[.*?的语音：.*?\]/;
         const photoVideoRegex = /\[.*?发来的照片\/视频：.*?\]/;
         const transferRegex = /\[.*?的转账：.*?元.*?\]|\[.*?给你转账：.*?元.*?\]|\[.*?向.*?转账：.*?元.*?\]/;
         const giftRegex = /\[.*?送来的礼物：.*?\]|\[.*?向.*?送来了礼物：.*?\]/;
@@ -520,7 +519,6 @@ const SearchSystem = {
         const htmlRegex = /<[a-z][\s\S]*>/i;
 
         if (giftRegex.test(content)) return true;
-        if (voiceRegex.test(content)) return true;
         if (photoVideoRegex.test(content)) return true;
         if (transferRegex.test(content)) return true;
         if (imageRecogRegex.test(content) || (msg.parts && msg.parts.some(p => p.type === 'image'))) return true;
@@ -538,8 +536,14 @@ const SearchSystem = {
         // 虽然 filter 阶段已经过滤了大部分特殊消息，
         // 但保留转换逻辑以防万一，或者处理残留的格式
         
-        // 2. 普通文本处理
         let text = content.trim();
+        // 语音条：括号内为转写文字，参与关键词搜索（支持中英文冒号）
+        const voiceExtract = text.match(/^\[(?:.+?)的语音[：:]([\s\S]*)\]$/);
+        if (voiceExtract && voiceExtract[1] !== undefined) {
+            text = voiceExtract[1].trim();
+            text = text.replace(/\[发送时间:.*?\]$/, '').trim();
+            return text;
+        }
         const plainTextMatch = text.match(/^\[.*?：([\s\S]*)\]$/);
         if (plainTextMatch && plainTextMatch[1]) {
             text = plainTextMatch[1].trim();
