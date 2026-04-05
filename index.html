@@ -312,22 +312,17 @@
                     <textarea id="message-input" rows="1" autocomplete="off" placeholder="" enterkeyhint="send"></textarea>
                     <button type="button" id="voice-compose-toggle" class="icon-btn input-inner-btn voice-compose-toggle" aria-pressed="false" title="语音模式：发送为语音条">
                         <svg viewBox="0 0 24 24" width="22" height="22" overflow="visible" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-                            <defs>
-                                <linearGradient id="voice-heart-mic-body" x1="7" y1="4" x2="17" y2="21" gradientUnits="userSpaceOnUse">
-                                    <stop offset="0%" stop-color="#fff5f8"/>
-                                    <stop offset="28%" stop-color="#ffc8d9"/>
-                                    <stop offset="62%" stop-color="#f59eb8"/>
-                                    <stop offset="100%" stop-color="#c75f7c"/>
-                                </linearGradient>
-                                <radialGradient id="voice-heart-mic-shine" cx="8.5" cy="6.5" r="8" gradientUnits="userSpaceOnUse">
-                                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.72"/>
-                                    <stop offset="42%" stop-color="#ffffff" stop-opacity="0.18"/>
-                                    <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-                                </radialGradient>
-                            </defs>
-                            <g class="voice-heart-aura" transform="translate(12 11.5) scale(1.62) translate(-12 -11.5)">
-                                <path class="voice-heart-fill" fill="url(#voice-heart-mic-body)" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                                <ellipse class="voice-heart-shine" cx="8.8" cy="7.2" rx="4.2" ry="3.6" fill="url(#voice-heart-mic-shine)"/>
+                            <!-- 与原先 translate(12,11.5) scale(1.62) translate(-12,-11.5) 矩阵一致：先平移到中心 → 呼吸缩放 → scale → 平移回路径坐标 -->
+                            <g class="voice-heart-aura" pointer-events="none">
+                                <g transform="translate(12 11.5)">
+                                    <g transform="scale(1.62)">
+                                        <g transform="translate(-12 -11.5)">
+                                            <g class="voice-heart-blur voice-heart-breathe">
+                                                <path class="voice-heart-fill" fill="#f5a8c4" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                                            </g>
+                                        </g>
+                                    </g>
+                                </g>
                             </g>
                             <g class="voice-mic-capsule">
                                 <path class="voice-mic-capsule-fill" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/>
