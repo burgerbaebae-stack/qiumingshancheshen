@@ -437,22 +437,70 @@
     scroll-behavior: smooth;
 }
 
-/* 从搜索结果跳入聊天室后，目标气泡短暂高亮 */
+/* 从搜索结果跳入：荧光笔式背景（在气泡/头像下层，不挡内容） */
 .message-wrapper.search-jump-highlight {
-    animation: searchJumpRing 2.5s ease-out;
     position: relative;
-    z-index: 2;
+    isolation: isolate;
+    outline: none;
 }
 
-@keyframes searchJumpRing {
+.message-wrapper.search-jump-highlight::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+    inset: -7px -5px;
+    border-radius: var(--border-radius, 18px);
+    background: rgba(255, 168, 188, 0.38);
+    box-shadow:
+        0 0 0 1px rgba(255, 210, 220, 0.45),
+        0 4px 28px rgba(255, 130, 165, 0.22),
+        0 0 48px 18px rgba(255, 170, 195, 0.14);
+    opacity: 0;
+    animation: searchJumpHighlightLayer 9s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+}
+
+.message-wrapper.search-jump-highlight > * {
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes searchJumpHighlightLayer {
+    /* 约 2.7s：呼吸闪烁约 3 次 */
     0% {
-        box-shadow: 0 0 0 0 rgba(199, 44, 65, 0.45), 0 6px 24px rgba(199, 44, 65, 0.12);
+        opacity: 0;
+    }
+    5% {
+        opacity: 0.82;
+    }
+    10% {
+        opacity: 0.3;
+    }
+    15% {
+        opacity: 0.9;
+    }
+    20% {
+        opacity: 0.34;
     }
     25% {
-        box-shadow: 0 0 0 5px rgba(199, 44, 65, 0.2), 0 6px 20px rgba(199, 44, 65, 0.1);
+        opacity: 0.88;
     }
+    28% {
+        opacity: 0.4;
+    }
+    /* 停留约 3s（9s 的 33.3%） */
+    30%,
+    63.3% {
+        opacity: 0.58;
+        box-shadow:
+            0 0 0 1px rgba(255, 210, 220, 0.4),
+            0 4px 32px rgba(255, 130, 165, 0.2),
+            0 0 52px 20px rgba(255, 170, 195, 0.12);
+    }
+    /* 约 3.3s 淡出至透明 */
     100% {
-        box-shadow: 0 0 0 0 rgba(199, 44, 65, 0), 0 0 0 rgba(0, 0, 0, 0);
+        opacity: 0;
+        box-shadow: none;
     }
 }
 
@@ -1574,6 +1622,10 @@
     height: 32px;
 }
 
+.message-input-area #voice-compose-toggle {
+    overflow: visible;
+}
+
 .message-input-area .icon-btn svg {
     width: 20px;
     height: 20px;
@@ -1589,8 +1641,41 @@
     display: block;
 }
 
-/* 图标大小自定义 */
-#sticker-toggle-btn img { width: 24px; height: 24px; }
+/* 话筒：常态仅黑线稿；语音模式底层为更大淡粉实心爱心+柔光，话筒后绘于上层不挡线稿 */
+.message-input-area #voice-compose-toggle svg {
+    display: block;
+    width: 22px;
+    height: 22px;
+    stroke: unset;
+    fill: unset;
+    overflow: visible;
+}
+
+.message-input-area #voice-compose-toggle .voice-mic-outline,
+.message-input-area #voice-compose-toggle .voice-mic-outline path {
+    stroke: #1a1a1a !important;
+    fill: none !important;
+}
+
+.message-input-area #voice-compose-toggle .voice-heart-aura .voice-heart-fill {
+    stroke: none !important;
+    fill: rgba(255, 186, 203, 0.52) !important;
+}
+
+.message-input-area #voice-compose-toggle .voice-heart-aura {
+    opacity: 0;
+    filter: none;
+    transition: opacity 0.22s ease;
+    pointer-events: none;
+}
+
+.message-input-area #voice-compose-toggle.voice-compose-active .voice-heart-aura {
+    opacity: 1;
+    filter:
+        drop-shadow(0 0 4px rgba(255, 186, 203, 0.95))
+        drop-shadow(0 0 10px rgba(255, 186, 203, 0.55))
+        drop-shadow(0 3px 14px rgba(255, 160, 185, 0.35));
+}
 #get-reply-btn img { width: 44px; height: 44px; object-fit: contain; display: block; }
 
 #toggle-expansion-btn {
@@ -1796,163 +1881,6 @@
     color: #666;
 }
 
-/* 表情包面板 */
-#panel-sticker-area {
-    background: #fff;
-    height: 100%;
-}
-
-#panel-sticker-area .header {
-    background: #fff;
-    border-bottom: none;
-    padding: 12px 15px;
-}
-
-.sticker-nav-row {
-    display: flex;
-    align-items: center;
-    background: #fff;
-    border-bottom: 1px solid #f0f0f0;
-    padding-right: 8px;
-    flex-shrink: 0;
-}
-
-#sticker-category-bar {
-    flex-grow: 1;
-    display: flex;
-    overflow-x: auto;
-    white-space: nowrap;
-    padding: 12px 10px;
-    background: transparent;
-    border-bottom: none;
-    gap: 8px;
-    scrollbar-width: none;
-}
-
-#sticker-category-bar::-webkit-scrollbar { display: none; }
-
-#sticker-menu-btn {
-    flex-shrink: 0;
-    width: 36px;
-    height: 36px;
-    margin-left: 5px;
-    color: #666;
-    border-radius: 50%;
-    transition: background-color 0.2s;
-}
-
-#sticker-menu-btn:active { background-color: #f0f0f0; }
-
-.sticker-category-item {
-    font-size: 13px;
-    color: #666;
-    cursor: pointer;
-    padding: 6px 12px;
-    border-radius: 16px;
-    transition: all 0.2s;
-    flex-shrink: 0;
-    background-color: #f5f5f5;
-}
-
-.sticker-category-item.active {
-    color: #ffffff;
-    background-color: var(--primary-color);
-    font-weight: 500; 
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08); 
-    transform: translateY(-2px); 
-    transition: all 0.3s ease;
-}
-
-.sticker-grid {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding: 12px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-    gap: 12px;
-    align-content: flex-start;
-}
-
-.sticker-item {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    cursor: pointer;
-}
-
-.sticker-item img {
-    width: 64px;
-    height: 64px;
-    object-fit: contain;
-    border-radius: 8px;
-    transition: transform 0.1s;
-}
-
-.sticker-item:active img { transform: scale(0.95); }
-
-.sticker-item.is-managing { opacity: 1; cursor: pointer; }
-.sticker-item.is-managing img { opacity: 0.8; }
-
-.sticker-item.is-selected::after {
-    content: '✓';
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background-color: var(--primary-color);
-    color: white;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: bold;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    border: 2px solid #fff;
-}
-
-.sticker-item.is-managing:not(.is-selected)::before {
-    content: '';
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    border: 2px solid #ddd;
-    background-color: #fff;
-}
-
-.sticker-group-header {
-    grid-column: 1 / -1;
-    font-size: 14px;
-    font-weight: bold;
-    color: var(--primary-color);
-    margin-top: 10px;
-    margin-bottom: 5px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid #eee;
-    display: flex;
-    align-items: center;
-}
-
-#sticker-manage-bar {
-    padding: 10px 15px !important;
-    background: #fff !important;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-    display: none;
-    flex-shrink: 0;
-    color: #2a3032;
-}
-
-.manage-bar-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
 .icon-btn-simple {
     background: none;
     border: none;
@@ -1962,34 +1890,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-#add-sticker-modal .modal-window {
-    max-width: 360px;
-}
-
-#sticker-preview {
-    width: 100px;
-    height: 100px;
-    border: 2px dashed #ddd;
-    border-radius: 10px;
-    margin: 0 auto 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #aaa;
-    background-color: #f9f9f9;
-}
-
-#sticker-preview img {
-    max-width: 100%;
-    max-height: 100%;
-}
-
-#capture-preview-container img {
-    max-width: 100%;
-    height: auto;
-    display: block;
 }
 
 /* 多选栏 */
@@ -2014,28 +1914,6 @@
 }
 
 #multi-select-bar.visible { display: flex; }
-
-#capture-mode-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: var(--chat-room-bar-glass-bg);
-    backdrop-filter: var(--chat-room-bar-blur);
-    -webkit-backdrop-filter: var(--chat-room-bar-blur);
-    display: none;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 20px;
-    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
-    z-index: 20;
-    border-bottom-left-radius: var(--phone-corner-radius);
-    border-bottom-right-radius: var(--phone-corner-radius);
-    animation: slideUp 0.3s ease-out;
-}
-
-#capture-mode-bar.visible { display: flex; }
 
 #cancel-multi-select-btn {
     font-size: 14px !important;

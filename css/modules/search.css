@@ -133,11 +133,13 @@
     font-size: 13px;
     color: var(--scrap-muted);
     line-height: 1.6;
-    margin: 4px 4px 18px;
+    margin: 4px 0 18px;
     padding: 12px 16px;
     background: var(--scrap-cream);
     border: 1.5px solid var(--scrap-border);
-    border-radius: 16px 14px 18px 15px / 14px 18px 15px 17px;
+    border-radius: 16px;
+    box-sizing: border-box;
+    width: 100%;
     box-shadow: 3px 4px 0 rgba(160, 130, 110, 0.07), 1px 2px 10px rgba(0, 0, 0, 0.03);
 }
 
@@ -157,26 +159,20 @@
     display: flex;
     align-items: flex-start;
     gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
     padding: 14px 16px;
     background: var(--scrap-cream);
     border: 1.5px solid var(--scrap-border);
-    border-radius: 18px 14px 16px 20px / 15px 19px 14px 17px;
+    border-radius: 16px;
     box-shadow: 4px 5px 0 rgba(170, 140, 115, 0.09), 2px 3px 12px rgba(0, 0, 0, 0.04);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.search-group-item:nth-child(odd) {
-    transform: rotate(-0.35deg);
-}
-
-.search-group-item:nth-child(even) {
-    transform: rotate(0.4deg);
-}
-
 .search-group-item:active {
-    transform: rotate(0deg) scale(0.99);
+    transform: scale(0.99);
     box-shadow: 2px 3px 0 rgba(170, 140, 115, 0.12);
 }
 
@@ -274,28 +270,15 @@
     background: var(--scrap-cream);
     padding: 16px 18px;
     border: 1.5px solid var(--scrap-border);
-    border-radius: 16px 20px 14px 18px / 18px 15px 19px 14px;
+    border-radius: 16px;
     box-shadow: 4px 5px 0 rgba(165, 135, 110, 0.1), 2px 3px 14px rgba(0, 0, 0, 0.04);
     display: flex;
     flex-direction: column;
     gap: 12px;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-}
-
-.search-result-item:nth-child(3n + 1) {
-    border-radius: 17px 14px 19px 15px / 15px 18px 14px 17px;
-    transform: rotate(-0.3deg);
-}
-
-.search-result-item:nth-child(3n + 2) {
-    border-radius: 14px 18px 16px 20px / 19px 14px 17px 15px;
-    transform: rotate(0.35deg);
-}
-
-.search-result-item:nth-child(3n + 3) {
-    border-radius: 19px 16px 15px 17px / 14px 17px 16px 18px;
-    transform: rotate(-0.15deg);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .search-result-item:active {
@@ -424,63 +407,3 @@
     background: rgba(199, 44, 65, 0.08);
 }
 
-/* --- 表情包搜索 Tag 样式 --- */
-.sticker-search-tag {
-    display: flex;
-    align-items: center;
-    padding: 0 10px !important; /* 覆盖默认 padding */
-    width: 36px; /* 初始宽度，只够放图标 */
-    height: 30px; /* 与其他 tag 高度一致 */
-    overflow: hidden;
-    transition: width 0.3s cubic-bezier(0.25, 0.8, 0.5, 1), background-color 0.3s ease, border-color 0.3s ease;
-    background-color: #f5f5f5; /* 默认背景 */
-    cursor: pointer;
-    box-sizing: border-box;
-    border-radius: 15px !important; /* 圆角 */
-    border: 1px solid transparent;
-}
-
-.sticker-search-tag:hover {
-    background-color: #e0e0e0;
-}
-
-.sticker-search-tag.expanded {
-    width: 140px; /* 展开宽度 */
-    background-color: #fff; /* 展开后背景变白 */
-    border-color: var(--primary-color); /* 高亮边框 */
-    cursor: text;
-}
-
-.sticker-search-tag .search-icon {
-    flex-shrink: 0;
-    color: #666;
-    width: 16px;
-    height: 16px;
-}
-
-.sticker-search-tag.expanded .search-icon {
-    color: var(--primary-color);
-}
-
-.sticker-search-tag .sticker-search-input {
-    border: none;
-    background: transparent;
-    outline: none;
-    font-size: 13px;
-    margin-left: 6px;
-    width: 100%;
-    color: #333;
-    padding: 0;
-    height: 100%;
-    opacity: 0;
-    transition: opacity 0.2s ease 0.1s; /* 延迟显示文字 */
-    pointer-events: auto !important;
-    user-select: text !important;
-    -webkit-user-select: text !important;
-    z-index: 10;
-    position: relative;
-}
-
-.sticker-search-tag.expanded .sticker-search-input {
-    opacity: 1;
-}

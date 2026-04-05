@@ -515,13 +515,11 @@ const SearchSystem = {
         const voiceRegex = /\[.*?的语音：.*?\]/;
         const photoVideoRegex = /\[.*?发来的照片\/视频：.*?\]/;
         const transferRegex = /\[.*?的转账：.*?元.*?\]|\[.*?给你转账：.*?元.*?\]|\[.*?向.*?转账：.*?元.*?\]/;
-        const stickerRegex = /\[.*?的表情包：.*?\]|\[.*?发送的表情包：.*?\]/;
         const giftRegex = /\[.*?送来的礼物：.*?\]|\[.*?向.*?送来了礼物：.*?\]/;
         const forumShareRegex = /\[论坛分享\]标题：([\s\S]+?)\n摘要：([\s\S]+)/;
         const htmlRegex = /<[a-z][\s\S]*>/i;
 
         if (giftRegex.test(content)) return true;
-        if (stickerRegex.test(content)) return true;
         if (voiceRegex.test(content)) return true;
         if (photoVideoRegex.test(content)) return true;
         if (transferRegex.test(content)) return true;

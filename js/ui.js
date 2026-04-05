@@ -6,7 +6,7 @@ const homeScreen = document.getElementById('home-screen');
 const chatRoomScreen = document.getElementById('chat-room-screen');
 const chatExpansionPanel = document.getElementById('chat-expansion-panel');
 const panelFunctionArea = document.getElementById('panel-function-area');
-const panelStickerArea = document.getElementById('panel-sticker-area');
+const panelStickerArea = document.getElementById('panel-sticker-area'); // 已移除面板时为 null
 const messageArea = document.getElementById('message-area');
 const chatRoomHeaderDefault = document.getElementById('chat-room-header-default');
 const chatRoomHeaderSelect = document.getElementById('chat-room-header-select');
@@ -670,7 +670,7 @@ function showPanel(type) {
 
     if (type === 'function') {
         panelFunctionArea.style.display = 'flex';
-        panelStickerArea.style.display = 'none';
+        if (panelStickerArea) panelStickerArea.style.display = 'none';
         
         // 初始化功能面板的分页滑动
         if (!document.querySelector('.function-swiper-wrapper')) {
@@ -681,18 +681,10 @@ function showPanel(type) {
 
         // 触发功能面板引导
         if (window.GuideSystem) {
-            if (currentChatType === 'private') {
-                window.GuideSystem.check('guide_char_gallery');
-            } else if (currentChatType === 'group') {
+            if (currentChatType === 'group') {
                 window.GuideSystem.check('guide_group_summary');
             }
         }
-    } else if (type === 'sticker') {
-        panelFunctionArea.style.display = 'none';
-        panelStickerArea.style.display = 'flex';
-        if (toggleExpansionBtn) toggleExpansionBtn.classList.remove('rotate-45');
-        renderStickerCategories();
-        renderStickerGrid();
     }
 
     setTimeout(() => {

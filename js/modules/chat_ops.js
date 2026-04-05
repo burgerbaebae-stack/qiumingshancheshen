@@ -1,6 +1,6 @@
 // --- 消息操作模块 (编辑、撤回、多选、截图、历史记录管理) ---
 
-let currentMultiSelectMode = 'delete'; // 'delete' or 'capture'
+let currentMultiSelectMode = 'delete';
 
 function handleMessageLongPress(messageWrapper, x, y) {
     if (isInMultiSelectMode) return;
@@ -16,7 +16,6 @@ function handleMessageLongPress(messageWrapper, x, y) {
 
     const isImageRecognitionMsg = message.parts && message.parts.some(p => p.type === 'image');
     const isVoiceMessage = /\[.*?的语音：.*?\]/.test(message.content);
-    const isStickerMessage = /\[.*?的表情包：.*?\]|\[.*?发送的表情包：.*?\]/.test(message.content);
     const isPhotoVideoMessage = /\[.*?发来的照片\/视频：.*?\]/.test(message.content);
     const isTransferMessage = /\[.*?给你转账：.*?\]|\[.*?的转账：.*?\]|\[.*?向.*?转账：.*?\]/.test(message.content);
     const isGiftMessage = /\[.*?送来的礼物：.*?\]|\[.*?向.*?送来了礼物：.*?\]/.test(message.content);
@@ -33,7 +32,7 @@ function handleMessageLongPress(messageWrapper, x, y) {
     let menuItems = [];
 
     if (!isWithdrawn) {
-        if (!isImageRecognitionMsg && !isVoiceMessage && !isStickerMessage && !isPhotoVideoMessage && !isTransferMessage && !isGiftMessage && !isInvisibleMessage) {
+        if (!isImageRecognitionMsg && !isVoiceMessage && !isPhotoVideoMessage && !isTransferMessage && !isGiftMessage && !isInvisibleMessage) {
             menuItems.push({label: '编辑', action: () => startMessageEdit(messageId)});
         }
         
@@ -154,8 +153,6 @@ function startQuoteReply(messageId) {
     const textMatch = message.content.match(/\[.*?的消息：([\s\S]+?)\]/);
     if (textMatch) {
         previewContent = textMatch[1];
-    } else if (/\[.*?的表情包：.*?\]/.test(message.content)) {
-        previewContent = '[表情包]';
     } else if (/\[.*?的语音：.*?\]/.test(message.content)) {
         previewContent = '[语音]';
     } else if (/\[.*?发来的照片\/视频：.*?\]/.test(message.content)) {
@@ -397,9 +394,6 @@ function enterMultiSelectMode(initialMessageId, mode = 'delete') {
     if (mode === 'delete') {
         multiSelectBar.classList.add('visible');
         document.getElementById('multi-select-title').textContent = '选择消息';
-    } else if (mode === 'capture') {
-        document.getElementById('capture-mode-bar').classList.add('visible');
-        document.getElementById('multi-select-title').textContent = '选择截图范围';
     }
     
     chatRoomScreen.classList.add('multi-select-active');
@@ -416,7 +410,6 @@ function exitMultiSelectMode() {
     document.querySelector('.chat-input-wrapper').style.display = 'block';
     
     multiSelectBar.classList.remove('visible');
-    document.getElementById('capture-mode-bar').classList.remove('visible');
     
     chatRoomScreen.classList.remove('multi-select-active');
     selectedMessageIds.forEach(id => {
@@ -441,104 +434,6 @@ function toggleMessageSelection(messageId) {
     if (currentMultiSelectMode === 'delete') {
         selectCount.textContent = `已选择 ${selectedMessageIds.size} 项`;
         deleteSelectedBtn.disabled = selectedMessageIds.size === 0;
-    } else if (currentMultiSelectMode === 'capture') {
-        document.getElementById('capture-select-count').textContent = `已选择 ${selectedMessageIds.size} 项`;
-        // 截图模式下，即使没选也可以生成（虽然没意义，但保持逻辑简单），或者禁用
-        // document.getElementById('generate-capture-btn').disabled = selectedMessageIds.size === 0;
-    }
-}
-
-async function generateCapture() {
-    if (selectedMessageIds.size === 0) return showToast('请至少选择一条消息');
-    
-    showToast('正在生成截图，请稍候...', 3000);
-    
-    // 1. 获取选中的消息元素并排序
-    const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
-    const sortedMessages = chat.history.filter(m => selectedMessageIds.has(m.id));
-    
-    // 2. 创建临时容器
-    const tempContainer = document.createElement('div');
-    tempContainer.style.position = 'absolute';
-    tempContainer.style.top = '-9999px';
-    tempContainer.style.left = '0';
-    tempContainer.style.width = '400px'; // 固定宽度模拟手机
-    tempContainer.style.backgroundColor = '#f5f5f5'; // 默认背景
-    if (chat.chatBg) {
-        tempContainer.style.backgroundImage = `url(${chat.chatBg})`;
-        tempContainer.style.backgroundSize = 'cover';
-        tempContainer.style.backgroundPosition = 'center';
-    }
-    
-    tempContainer.style.padding = '20px';
-    tempContainer.style.display = 'flex';
-    tempContainer.style.flexDirection = 'column';
-    
-    // 3. 克隆并处理消息元素
-    // 为了保证样式正确，我们需要重新渲染这些消息，或者克隆现有的 DOM
-    // 这里选择重新渲染，因为现有的 DOM 可能包含多选状态的样式
-    
-    // 临时借用 createMessageBubbleElement，但需要注意它依赖全局状态
-    // 我们可以手动构建或者克隆现有的 DOM 并移除 .multi-select-selected 类
-    
-    sortedMessages.forEach(msg => {
-        const originalEl = messageArea.querySelector(`.message-wrapper[data-id="${msg.id}"]`);
-        if (originalEl) {
-            const clone = originalEl.cloneNode(true);
-            clone.classList.remove('multi-select-selected');
-            clone.style.marginBottom = '15px';
-            
-            // 处理一些可能在截图时显示不正常的元素
-            // 例如：如果是 HTML 气泡，iframe 可能无法被 html2canvas 捕获
-            // 这里暂时不做特殊处理，html2canvas 对 iframe 支持有限
-            
-            tempContainer.appendChild(clone);
-        }
-    });
-    
-    // 添加水印
-    
-    
-    document.body.appendChild(tempContainer);
-    
-    try {
-        // 4. 生成截图
-        const canvas = await html2canvas(tempContainer, {
-            useCORS: true, // 允许跨域图片
-            scale: 2, // 提高清晰度
-            backgroundColor: null // 透明背景
-        });
-        
-        const imgUrl = canvas.toDataURL('image/png');
-        
-        // 5. 显示结果
-        const previewContainer = document.getElementById('capture-preview-container');
-        previewContainer.innerHTML = '';
-        const img = document.createElement('img');
-        img.src = imgUrl;
-        previewContainer.appendChild(img);
-        
-        // 设置下载按钮
-        const downloadBtn = document.getElementById('download-capture-btn');
-        if (downloadBtn) {
-            downloadBtn.onclick = () => {
-                const link = document.createElement('a');
-                link.href = imgUrl;
-                link.download = `uwu_chat_${new Date().getTime()}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            };
-        }
-
-        document.getElementById('capture-result-modal').classList.add('visible');
-        exitMultiSelectMode();
-        
-    } catch (error) {
-        console.error('截图生成失败:', error);
-        showToast('截图生成失败，请重试');
-    } finally {
-        document.body.removeChild(tempContainer);
     }
 }
 

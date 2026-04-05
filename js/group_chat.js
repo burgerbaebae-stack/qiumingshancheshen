@@ -949,34 +949,6 @@ function loadGroupSettingsToSidebar() {
 
     renderGroupMembersInSettings(group);
 
-    // --- 渲染群聊表情包分组 ---
-    const stickerGroupsContainer = document.getElementById('setting-group-sticker-groups-container');
-    if (stickerGroupsContainer) {
-        stickerGroupsContainer.innerHTML = '';
-        const allGroups = [...new Set(db.myStickers.map(s => s.group || '未分类'))].filter(g => g);
-        const groupStickerGroups = (group.stickerGroups || '').split(/[,，]/).map(s => s.trim());
-
-        if (allGroups.length === 0) {
-            stickerGroupsContainer.innerHTML = '<span style="color:#999; font-size:12px;">暂无表情包分组，请先在表情包管理中添加。</span>';
-        } else {
-            allGroups.forEach(g => {
-                const tag = document.createElement('div');
-                tag.className = 'sticker-group-tag';
-                if (groupStickerGroups.includes(g)) {
-                    tag.classList.add('selected');
-                }
-                tag.textContent = g;
-                tag.dataset.group = g;
-                
-                tag.addEventListener('click', () => {
-                    tag.classList.toggle('selected');
-                });
-                
-                stickerGroupsContainer.appendChild(tag);
-            });
-        }
-    }
-
     const useGroupCustomCssCheckbox = document.getElementById('setting-group-use-custom-css'),
         groupCustomCssTextarea = document.getElementById('setting-group-custom-bubble-css'),
         groupPreviewBox = document.getElementById('group-bubble-css-preview');
@@ -1046,11 +1018,6 @@ async function saveGroupSettingsFromSidebar(showToastFlag = true) {
     group.me.avatar = document.getElementById('setting-group-my-avatar-preview').src;
     group.me.nickname = document.getElementById('setting-group-my-nickname').value;
     group.me.persona = document.getElementById('setting-group-my-persona').value;
-
-    const selectedGroups = Array.from(document.querySelectorAll('#setting-group-sticker-groups-container .sticker-group-tag.selected'))
-        .map(tag => tag.dataset.group)
-        .join(',');
-    group.stickerGroups = selectedGroups;
 
     group.maxMemory = document.getElementById('setting-group-max-memory').value;
     group.useCustomBubbleCss = document.getElementById('setting-group-use-custom-css').checked;
@@ -1230,29 +1197,11 @@ function generateGroupSystemPrompt(group) {
     prompt += `   - \`[${group.me.nickname}的消息：...]\`: 我的普通聊天消息。\n`;
     prompt += `   - \`[${group.me.nickname} 向 {某个成员真名} 转账：...]\`: 我给某个特定成员转账了。\n`;
     prompt += `   - \`[${group.me.nickname} 向 {某个成员真名} 送来了礼物：...]\`: 我给某个特定成员送了礼物。\n`;
-    prompt += `   - \`[${group.me.nickname}的表情包：...]\`, \`[${group.me.nickname}的语音：...]\`, \`[${group.me.nickname}发来的照片/视频：...]\`: 我发送了特殊类型的消息，群成员可以对此发表评论。\n`;
+    prompt += `   - \`[${group.me.nickname}的语音：...]\`, \`[${group.me.nickname}发来的照片/视频：...]\`: 我发送了特殊类型的消息，群成员可以对此发表评论。\n`;
     prompt += `   - \`[system: ...]\`, \`[...邀请...加入了群聊]\`, \`[...修改群名为...]\`: 系统通知或事件，群成员应据此作出反应，例如欢迎新人、讨论新群名等。\n\n`;
-
-    // --- 表情包逻辑 ---
-    const groups = (group.stickerGroups || '').split(/[,，]/).map(s => s.trim()).filter(s => s && s !== '未分类');
-    let stickerInstruction = '';
-    let canUseStickers = false;
-    if (groups.length > 0) {
-        const availableStickers = db.myStickers.filter(s => groups.includes(s.group));
-        if (availableStickers.length > 0) {
-            const stickerNames = availableStickers.map(s => s.name).join(', ');
-            stickerInstruction = `   - **可用表情包**: 你们可以使用以下表情包来表达情绪：[${stickerNames}]。\n`;
-            canUseStickers = true;
-        }
-    }
-    prompt += stickerInstruction;
 
     let outputFormats = `
 - **普通消息**: \`[{成员真名}的消息：{消息内容}]\``;
-
-    if (canUseStickers) {
-        outputFormats += `\n- **表情包**: \`[{成员真名}发送的表情包：{表情包名称}]\`。例如：\`[{成员真名}发送的表情包：开心]\`。`;
-    }
 
     outputFormats += `
 - **语音**: \`[{成员真名}的语音：{语音转述的文字}]\`
@@ -1284,7 +1233,7 @@ function generateGroupSystemPrompt(group) {
     const maxMessages = numMembers * 4;
     prompt += `   - **消息数量**: 你的回复需要包含 **${minMessages}到${maxMessages}条** 消息 (即平均每个成员回复2-4条)。确保有足够多的互动。\n`;
     prompt += `   - **发言者与顺序随机**: 随机选择群成员发言，顺序也必须是随机的，不要按固定顺序轮流。\n`;
-    prompt += `   - **内容多样性**: 你的回复应以普通文本消息为主，但可以 **偶尔、选择性地** 让某个成员发送一条特殊消息（表情包、语音、照片/视频），以增加真实感。不要滥用特殊消息。\n`;
+    prompt += `   - **内容多样性**: 你的回复应以普通文本消息为主，但可以 **偶尔、选择性地** 让某个成员发送一条特殊消息（语音、照片/视频），以增加真实感。不要滥用特殊消息。\n`;
     prompt += `   - **对话连贯性**: 尽管发言是随机的，但对话内容应整体围绕我和其他成员的发言展开，保持一定的逻辑连贯性。\n\n`;
 
     prompt += `6. **行为准则**:\n`;

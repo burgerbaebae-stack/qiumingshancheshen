@@ -198,7 +198,7 @@ function loadMoreMessages() {
 function createMessageBubbleElement(message, isContinuous = false) {
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
     // 这里需要把 isThinking 从 message 里解构出来
-    let {role, content, timestamp, id, transferStatus, giftStatus, stickerData, senderId, quote, isWithdrawn, originalContent, isStatusUpdate, isThinking} = message;
+    let {role, content, timestamp, id, transferStatus, giftStatus, senderId, quote, isWithdrawn, originalContent, isStatusUpdate, isThinking} = message;
     
     // 【新增补丁】如果内容以 <thinking> 开头，强制标记为 isThinking
     // 防止因为数据库加载导致 isThinking 属性丢失，或者正则没匹配到的情况
@@ -496,9 +496,6 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
     let bubbleElement;
     const urlRegex = /^(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)|data:image\/[a-z]+;base64,)/i;
     
-    const sentStickerRegex = /\[(?:.+?)发送的表情包[：:](.+?)\]/i;
-    const receivedStickerRegex = /\[(?:.*?的)?表情包[：:](.+?)\]/i;
-    
     const voiceRegex = /\[(?:.+?)的语音[：:]([\s\S]+?)\]/;
     const photoVideoRegex = /\[(?:.+?)发来的照片\/视频[：:]([\s\S]+?)\]/;
     const privateSentTransferRegex = /\[.*?给你转账[：:]([\d.,]+)元[；;]备注[：:](.*?)\]/;
@@ -523,8 +520,6 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
     const shopPayRequestMatch = content.match(shopPayRequestRegex);
     const callRecordMatch = content.match(callRecordRegex);
     
-    const sentStickerMatch = content.match(sentStickerRegex);
-    const receivedStickerMatch = content.match(receivedStickerRegex);
     const voiceMatch = content.match(voiceRegex);
     const photoVideoMatch = content.match(photoVideoRegex);
     const privateSentTransferMatch = content.match(privateSentTransferRegex);
@@ -737,34 +732,6 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
         bubbleElement.addEventListener('click', () => {
             detailsDiv.classList.toggle('active');
         });
-    } else if ((isSent && sentStickerMatch) || (!isSent && receivedStickerMatch)) {
-        bubbleElement = document.createElement('div');
-        bubbleElement.className = 'image-bubble';
-        let stickerSrc = '';
-        
-        if (isSent && stickerData) {
-            stickerSrc = stickerData;
-        } else {
-            const stickerName = isSent ? sentStickerMatch[1].trim() : receivedStickerMatch[1].trim();
-            
-            const groups = (chat.stickerGroups || '').split(/[,，]/).map(s => s.trim()).filter(Boolean);
-            
-            let targetSticker = null;
-            if (groups.length > 0) {
-                targetSticker = db.myStickers.find(s => groups.includes(s.group) && s.name === stickerName);
-            }
-            
-            if (!targetSticker) {
-                targetSticker = db.myStickers.find(s => s.name === stickerName);
-            }
-            
-            if (targetSticker) {
-                stickerSrc = targetSticker.data;
-            } else {
-                stickerSrc = 'https://i.postimg.cc/Y96LPskq/o-o-2.jpg'; 
-            }
-        }
-        bubbleElement.innerHTML = `<img src="${stickerSrc}" alt="表情包">`;
     } else if (privateGiftMatch || groupGiftMatch) {
         const match = privateGiftMatch || groupGiftMatch;
         bubbleElement = document.createElement('div');
@@ -822,27 +789,9 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
         wrapper.appendChild(transcriptDiv);
     } else if (photoVideoMatch) {
         const pvContent = photoVideoMatch[1].trim();
-        let isRealPhoto = false;
-        let realPhotoUrl = '';
-
-        // 检查真实相册匹配
-        if (currentChatType === 'private' && !isSent && chat.useRealGallery && chat.gallery) {
-            const galleryItem = chat.gallery.find(item => item.name === pvContent);
-            if (galleryItem) {
-                isRealPhoto = true;
-                realPhotoUrl = galleryItem.url;
-            }
-        }
-
-        if (isRealPhoto) {
-            bubbleElement = document.createElement('div');
-            bubbleElement.className = 'image-bubble';
-            bubbleElement.innerHTML = `<img src="${realPhotoUrl}" alt="${pvContent}" onclick="openImageViewer(this.src)" style="cursor: zoom-in;">`;
-        } else {
-            bubbleElement = document.createElement('div');
-            bubbleElement.className = 'pv-card';
-            bubbleElement.innerHTML = `<div class="pv-card-content">${pvContent}</div><div class="pv-card-image-overlay" style="background-image: url('${isSent ? 'https://i.postimg.cc/L8NFrBrW/1752307494497.jpg' : 'https://i.postimg.cc/1tH6ds9g/1752301200490.jpg'}');"></div><div class="pv-card-footer"><svg viewBox="0 0 24 24"><path d="M4,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M4,6V18H20V6H4M10,9A1,1 0 0,1 11,10A1,1 0 0,1 10,11A1,1 0 0,1 9,10A1,1 0 0,1 10,9M8,17L11,13L13,15L17,10L20,14V17H8Z"></path></svg><span>照片/视频・点击查看</span></div>`;
-        }
+        bubbleElement = document.createElement('div');
+        bubbleElement.className = 'pv-card';
+        bubbleElement.innerHTML = `<div class="pv-card-content">${pvContent}</div><div class="pv-card-image-overlay" style="background-image: url('${isSent ? 'https://i.postimg.cc/L8NFrBrW/1752307494497.jpg' : 'https://i.postimg.cc/1tH6ds9g/1752301200490.jpg'}');"></div><div class="pv-card-footer"><svg viewBox="0 0 24 24"><path d="M4,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M4,6V18H20V6H4M10,9A1,1 0 0,1 11,10A1,1 0 0,1 10,11A1,1 0 0,1 9,10A1,1 0 0,1 10,9M8,17L11,13L13,15L17,10L20,14V17H8Z"></path></svg><span>照片/视频・点击查看</span></div>`;
     } else if (privateSentTransferMatch || privateReceivedTransferMatch || groupTransferMatch) {
         const isSentTransfer = !!privateSentTransferMatch || (groupTransferMatch && isSent);
         const match = privateSentTransferMatch || privateReceivedTransferMatch || groupTransferMatch;

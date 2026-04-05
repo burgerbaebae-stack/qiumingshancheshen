@@ -1,46 +1,35 @@
 // --- 聊天辅助功能模块 ---
 
-// 辅助功能
-function setupVoiceMessageSystem() {
-    const voiceMessageBtn = document.getElementById('voice-message-btn');
-    const sendVoiceForm = document.getElementById('send-voice-form');
-    const sendVoiceModal = document.getElementById('send-voice-modal');
-    const voiceDurationPreview = document.getElementById('voice-duration-preview');
-    const voiceTextInput = document.getElementById('voice-text-input');
-
-    voiceMessageBtn.addEventListener('click', () => {
-        sendVoiceForm.reset();
-        voiceDurationPreview.textContent = '0"';
-        sendVoiceModal.classList.add('visible');
-    });
-    sendVoiceForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        sendMyVoiceMessage(voiceTextInput.value.trim());
-    });
+/** 主输入区「语音模式」：亮起时发送内容落为语音条 `[昵称的语音：…]`，由 chat.js sendMessage 分支处理 */
+function isVoiceComposeModeActive() {
+    const btn = document.getElementById('voice-compose-toggle');
+    return !!(btn && btn.classList.contains('voice-compose-active'));
 }
+window.isVoiceComposeModeActive = isVoiceComposeModeActive;
 
-function sendMyVoiceMessage(text) {
-    if (!text) return;
-    document.getElementById('send-voice-modal').classList.remove('visible');
-    setTimeout(() => {
-        const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
-        const myName = (currentChatType === 'private') ? chat.myName : chat.me.nickname;
-        const content = `[${myName}的语音：${text}]`;
-        const message = {
-            id: `msg_${Date.now()}`,
-            role: 'user',
-            content: content,
-            parts: [{type: 'text', text: content}],
-            timestamp: Date.now()
-        };
-        if (currentChatType === 'group') {
-            message.senderId = 'user_me';
-        }
-        chat.history.push(message);
-        addMessageBubble(message, currentChatId, currentChatType);
-        saveData();
-        renderChatList();
-    }, 100);
+function resetVoiceComposeMode() {
+    const btn = document.getElementById('voice-compose-toggle');
+    const input = document.getElementById('message-input');
+    if (btn) {
+        btn.classList.remove('voice-compose-active');
+        btn.setAttribute('aria-pressed', 'false');
+    }
+    if (input) input.placeholder = '';
+}
+window.resetVoiceComposeMode = resetVoiceComposeMode;
+
+function setupVoiceMessageSystem() {
+    const btn = document.getElementById('voice-compose-toggle');
+    if (!btn || btn.dataset.voiceComposeBound === '1') return;
+    btn.dataset.voiceComposeBound = '1';
+
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const on = !btn.classList.contains('voice-compose-active');
+        btn.classList.toggle('voice-compose-active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
 }
 
 function setupPhotoVideoSystem() {

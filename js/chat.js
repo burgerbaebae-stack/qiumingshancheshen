@@ -4,10 +4,10 @@
 /** 主输入框最多可视行数（超出部分在框内滚动） */
 const MESSAGE_INPUT_MAX_LINES = 7;
 
-/**
- * 按内容自动增高 #message-input（textarea），上限 MESSAGE_INPUT_MAX_LINES；侧栏按钮用 flex-end 贴底对齐。
- */
-function syncMessageInputHeight() {
+/** rAF 合并，避免每个 input 字符都强制同步布局（会卡发送与输入） */
+let messageInputHeightRaf = null;
+
+function syncMessageInputHeightImmediate() {
     const ta = typeof messageInput !== 'undefined' ? messageInput : document.getElementById('message-input');
     if (!ta || ta.tagName !== 'TEXTAREA') return;
 
@@ -29,10 +29,27 @@ function syncMessageInputHeight() {
     ta.style.overflowY = contentH > maxContentH ? 'auto' : 'hidden';
 }
 
+/**
+ * 按内容自动增高 #message-input（textarea），上限 MESSAGE_INPUT_MAX_LINES；侧栏按钮用 flex-end 贴底对齐。
+ */
+function syncMessageInputHeight() {
+    const ta = typeof messageInput !== 'undefined' ? messageInput : document.getElementById('message-input');
+    if (!ta || ta.tagName !== 'TEXTAREA') return;
+    if (messageInputHeightRaf !== null) {
+        cancelAnimationFrame(messageInputHeightRaf);
+    }
+    messageInputHeightRaf = requestAnimationFrame(() => {
+        messageInputHeightRaf = null;
+        syncMessageInputHeightImmediate();
+    });
+}
+
 function setupChatRoom() {
+    if (setupChatRoom.__initialized) return;
+    setupChatRoom.__initialized = true;
+
     const memoryJournalBtn = document.getElementById('memory-journal-btn');
     const deleteHistoryBtn = document.getElementById('delete-history-btn');
-    const captureBtn = document.getElementById('capture-btn');
     const toggleExpansionBtn = document.getElementById('toggle-expansion-btn');
     const charStatusBtn = document.getElementById('char-status-btn');
     const statusOverlay = document.getElementById('char-status-overlay');
@@ -198,13 +215,6 @@ function setupChatRoom() {
         });
     }
 
-    if (captureBtn) {
-        captureBtn.addEventListener('click', () => {
-            enterMultiSelectMode(null, 'capture');
-            showPanel('none');
-        });
-    }
-
     const shopBtn = document.getElementById('shop-btn');
     if (shopBtn) {
         shopBtn.addEventListener('click', () => {
@@ -225,18 +235,6 @@ function setupChatRoom() {
                 showPanel('none');
             } else {
                 showToast('视频通话模块未加载');
-            }
-        });
-    }
-
-    const charGalleryManageBtn = document.getElementById('char-gallery-manage-btn');
-    if (charGalleryManageBtn) {
-        charGalleryManageBtn.addEventListener('click', () => {
-            if (typeof openGalleryManager === 'function') {
-                openGalleryManager();
-                showPanel('none');
-            } else {
-                showToast('相册功能未加载');
             }
         });
     }
@@ -430,11 +428,11 @@ function setupChatRoom() {
 
     document.getElementById('cancel-multi-select-btn').addEventListener('click', exitMultiSelectMode);
     document.getElementById('delete-selected-btn').addEventListener('click', deleteSelectedMessages);
-    document.getElementById('generate-capture-btn').addEventListener('click', generateCapture);
-    document.getElementById('close-capture-modal-btn').addEventListener('click', () => {
-        document.getElementById('capture-result-modal').classList.remove('visible');
-    });
     document.getElementById('cancel-reply-btn').addEventListener('click', cancelQuoteReply);
+
+    if (typeof setupVoiceMessageSystem === 'function') {
+        setupVoiceMessageSystem();
+    }
 }
 
 /** 与 renderMessages 分页一致：返回包含 history[targetIndex] 的最小页码 */
@@ -449,7 +447,10 @@ function computePageForMessageIndex(totalMessages, pageSize, targetIndex) {
     return maxPage;
 }
 
-/** 在消息区滚动到指定 data-id 的气泡并短暂高亮 */
+/** 与 .search-jump-highlight::before 动画 searchJumpHighlightLayer 总时长一致 */
+const SEARCH_JUMP_HIGHLIGHT_MS = 9000;
+
+/** 在消息区滚动到指定 data-id 的气泡并短暂高亮（荧光笔动画结束后移除 class） */
 function tryScrollToMessageById(messageId) {
     if (!messageId || typeof messageArea === 'undefined' || !messageArea) return false;
     let target = null;
@@ -457,8 +458,17 @@ function tryScrollToMessageById(messageId) {
         if (el.dataset.id === messageId) target = el;
     });
     if (!target) return false;
+    if (target._searchJumpTimer) {
+        window.clearTimeout(target._searchJumpTimer);
+        target._searchJumpTimer = null;
+    }
+    target.classList.remove('search-jump-highlight');
+    void target.offsetWidth;
     target.classList.add('search-jump-highlight');
-    window.setTimeout(() => target.classList.remove('search-jump-highlight'), 2600);
+    target._searchJumpTimer = window.setTimeout(() => {
+        target.classList.remove('search-jump-highlight');
+        target._searchJumpTimer = null;
+    }, SEARCH_JUMP_HIGHLIGHT_MS);
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return true;
 }
@@ -512,6 +522,9 @@ function openChatRoom(chatId, type, options = {}) {
         subtitle.style.display = 'none';
     }
     getReplyBtn.style.display = 'inline-flex';
+    if (typeof resetVoiceComposeMode === 'function') {
+        resetVoiceComposeMode();
+    }
     chatRoomScreen.style.backgroundImage = chat.chatBg ? `url(${chat.chatBg})` : 'none';
     typingIndicator.style.display = 'none';
     isGenerating = false;
@@ -611,8 +624,12 @@ function openChatRoom(chatId, type, options = {}) {
 async function sendMessage() {
     const text = messageInput.value.trim();
     if (!text || isGenerating) return;
+    if (messageInputHeightRaf !== null) {
+        cancelAnimationFrame(messageInputHeightRaf);
+        messageInputHeightRaf = null;
+    }
     messageInput.value = '';
-    syncMessageInputHeight();
+    syncMessageInputHeightImmediate();
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
 
     if (!chat) return;
@@ -632,6 +649,8 @@ async function sendMessage() {
         messageContent = `[${chat.me.nickname}修改群名为“${chat.name}”]`;
     } else if (systemRegex.test(text) || inviteRegex.test(text) || shopOrderRegex.test(text)) {
         messageContent = text;
+    } else if (document.getElementById('voice-compose-toggle')?.classList.contains('voice-compose-active')) {
+        messageContent = `[${myName}的语音：${text}]`;
     } else {
         let userText = text;
         messageContent = `[${myName}的消息：${userText}]`;
@@ -664,12 +683,21 @@ async function sendMessage() {
         promptForBackupIfNeeded('history_milestone');
     }
 
-    await saveData();
-    renderChatList();
-
-    if (currentQuoteInfo) {
-        cancelQuoteReply();
-    }
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            void (async () => {
+                try {
+                    await saveData();
+                    renderChatList();
+                } catch (err) {
+                    console.error('saveData failed after sendMessage', err);
+                }
+                if (currentQuoteInfo) {
+                    cancelQuoteReply();
+                }
+            })();
+        });
+    });
 }
 
 // 备份提示

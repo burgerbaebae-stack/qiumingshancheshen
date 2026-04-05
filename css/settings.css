@@ -307,41 +307,6 @@ input:checked + .kkt-slider:before {
     background-color: #fff8fa;
 }
 
-/* Sticker Group Tags Styles in Settings */
-#setting-char-sticker-groups-container,
-#setting-group-sticker-groups-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    max-height: none !important; 
-    overflow-y: visible !important;
-    border: none !important; 
-    padding: 0 !important; 
-    background: transparent !important;
-}
-
-.sticker-group-tag {
-    padding: 6px 12px;
-    background-color: #f0f0f0;
-    color: #555;
-    border-radius: 20px;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: 1px solid transparent;
-    user-select: none;
-}
-
-.sticker-group-tag.selected {
-    background-color: var(--primary-color);
-    color: white;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.sticker-group-tag:hover {
-    transform: translateY(-1px);
-}
-
 /* Settings Tabs */
 .settings-tabs {
     display: flex;

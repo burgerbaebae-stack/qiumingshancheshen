@@ -135,13 +135,6 @@ const GuideSystem = {
                     position: 'bottom'
                 };
                 break;
-            case 'guide_char_gallery':
-                config = {
-                    target: '#char-gallery-manage-btn',
-                    text: '新增 TA 相册！在这里管理角色的专属照片，在聊天设置里开启此开关后，聊天时角色可直接发送上传的图片。',
-                    position: 'top'
-                };
-                break;
             case 'guide_group_summary':
                 config = {
                     target: '#memory-journal-btn',

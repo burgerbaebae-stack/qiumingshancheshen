@@ -228,32 +228,6 @@ function loadSettingsToSidebar() {
         document.getElementById('setting-char-remark').value = e.remarkName;
         document.getElementById('setting-char-persona').value = e.persona;
         
-        const stickerGroupsContainer = document.getElementById('setting-char-sticker-groups-container');
-        stickerGroupsContainer.innerHTML = '';
-        
-        const allGroups = [...new Set(db.myStickers.map(s => s.group || '未分类'))].filter(g => g);
-        const charGroups = (e.stickerGroups || '').split(/[,，]/).map(s => s.trim());
-
-        if (allGroups.length === 0) {
-            stickerGroupsContainer.innerHTML = '<span style="color:#999; font-size:12px;">暂无表情包分组，请先在表情包管理中添加。</span>';
-        } else {
-            allGroups.forEach(group => {
-                const tag = document.createElement('div');
-                tag.className = 'sticker-group-tag';
-                if (charGroups.includes(group)) {
-                    tag.classList.add('selected');
-                }
-                tag.textContent = group;
-                tag.dataset.group = group;
-                
-                tag.addEventListener('click', () => {
-                    tag.classList.toggle('selected');
-                });
-                
-                stickerGroupsContainer.appendChild(tag);
-            });
-        }
-        
         document.getElementById('setting-my-avatar-preview').src = e.myAvatar;
         document.getElementById('setting-my-name').value = e.myName;
         document.getElementById('setting-my-persona').value = e.myPersona;
@@ -315,8 +289,6 @@ function loadSettingsToSidebar() {
 
         document.getElementById('setting-time-perception-enabled').checked = e.timePerceptionEnabled || false;
 
-        document.getElementById('setting-use-real-gallery').checked = e.useRealGallery || false;
-
         const useCustomCssCheckbox = document.getElementById('setting-use-custom-css'),
             customCssTextarea = document.getElementById('setting-custom-bubble-css'),
             privatePreviewBox = document.getElementById('private-bubble-css-preview');
@@ -345,11 +317,6 @@ async function saveSettingsFromSidebar() {
         e.remarkName = document.getElementById('setting-char-remark').value;
         e.persona = document.getElementById('setting-char-persona').value;
         
-        const selectedGroups = Array.from(document.querySelectorAll('#setting-char-sticker-groups-container .sticker-group-tag.selected'))
-            .map(tag => tag.dataset.group)
-            .join(',');
-        e.stickerGroups = selectedGroups;
-
         e.myAvatar = document.getElementById('setting-my-avatar-preview').src;
         e.myName = document.getElementById('setting-my-name').value;
         e.myPersona = document.getElementById('setting-my-persona').value;
@@ -414,8 +381,6 @@ async function saveSettingsFromSidebar() {
         e.autoReply.interval = isNaN(autoReplyIntervalInput) ? 60 : autoReplyIntervalInput;
 
         e.timePerceptionEnabled = document.getElementById('setting-time-perception-enabled').checked;
-
-        e.useRealGallery = document.getElementById('setting-use-real-gallery').checked;
 
         // 保存角色专属语音参数（任务二）
         if (typeof TTSModule !== 'undefined') {

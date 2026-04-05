@@ -465,31 +465,6 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
         let firstMessageProcessed = false;
 
         for (const item of messages) {
-            // 自动剔除不存在的表情包
-            const stickerRegex = /\[(?:.*?的)?表情包：(.+?)\]/i;
-            const stickerMatch = item.content.match(stickerRegex);
-            if (stickerMatch) {
-                const stickerName = stickerMatch[1].trim();
-                const groups = (chat.stickerGroups || '').split(/[,，]/).map(s => s.trim()).filter(Boolean);
-                let targetSticker = null;
-                
-                // 1. 优先在绑定分组中查找
-                if (groups.length > 0) {
-                    targetSticker = db.myStickers.find(s => groups.includes(s.group) && s.name === stickerName);
-                }
-                
-                // 2. 兜底在所有表情包中查找
-                if (!targetSticker) {
-                    targetSticker = db.myStickers.find(s => s.name === stickerName);
-                }
-                
-                // 3. 如果完全找不到，则剔除该消息
-                if (!targetSticker) {
-                    console.log(`[Auto-Filter] 剔除不存在的表情包: ${stickerName}`);
-                    continue; 
-                }
-            }
-
             // --- 视频/语音通话邀请检测 ---
             const callInviteRegex = /\[(.*?)向(.*?)发起了(视频|语音)通话\]/;
             const callInviteMatch = item.content.match(callInviteRegex);
@@ -748,7 +723,7 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
                 const groupTransferRegex = /\[(.*?)\s*向\s*(.*?)\s*转账：([\d.,]+)元；备注：(.*?)\]/;
                 const transferMatch = item.content.match(groupTransferRegex);
 
-                const r = /\[(.*?)((?:的消息|的语音|发送的表情包|发来的照片\/视频))：/;
+                const r = /\[(.*?)((?:的消息|的语音|发来的照片\/视频))：/;
                 const nameMatch = item.content.match(r);
                 
                 if (transferMatch) {
@@ -878,7 +853,6 @@ function generatePrivateSystemPrompt(character) {
     prompt += `</memoir>\n\n`
     prompt += `<logic_rules>\n`
     prompt += `4. 我的消息中可能会出现特殊格式，请根据其内容和你的角色设定进行回应：
-- [${character.myName}发送的表情包：xxx]：我给你发送了一个名为xxx的表情包。你只需要根据表情包的名字理解我的情绪或意图并回应，不需要真的发送图片。
 - [${character.myName}发来了一张图片：]：我给你发送了一张图片，你需要对图片内容做出回应。
 - [${character.myName}送来的礼物：xxx]：我给你送了一个礼物，xxx是礼物的描述。
 - [${character.myName}的语音：xxx]：我给你发送了一段内容为xxx的语音。
@@ -917,35 +891,8 @@ b) [${character.realName}拒绝了${character.myName}的代付请求]
 12. 你的所有回复都必须直接是聊天内容，绝对不允许包含任何如[心理活动]、(动作)、*环境描写*等多余的、在括号或星号里的叙述性文本。
 `;
     
-    const groups = (character.stickerGroups || '').split(/[,，]/)
-        .map(s => s.trim())
-        .filter(s => s && s !== '未分类');
-        
-    let stickerInstruction = '';
-    let canUseStickers = false;
-
-    if (groups.length > 0) {
-        const availableStickers = db.myStickers.filter(s => groups.includes(s.group));
-        if (availableStickers.length > 0) {
-            const stickerNames = availableStickers.map(s => s.name).join(', ');
-            stickerInstruction = `13. 你拥有发送表情包的能力。这是一个可选功能，你可以根据对话氛围和内容，自行判断是否需要发送表情包来辅助表达。**必须从以下列表中选择表情包，不允许凭空捏造**：[${stickerNames}]。请使用格式：[表情包：名称]。**不要连续重复发送同一表情，尽量丰富一点，不要每次回复都发送表情**⚠️严格限制：必须完全精确地使用库中的名称，严禁编造中不存在的名称，否则表情包将无法显示。\n`;
-            canUseStickers = true;
-        }
-    }
-    
-    prompt += stickerInstruction;
-
-    if (character.useRealGallery && character.gallery && character.gallery.length > 0) {
-        const photoNames = character.gallery.map(p => p.name).join(', ');
-        prompt += `14. 你的手机相册里存有以下真实照片：[${photoNames}]。你可以根据对话内容发送这些照片。若要发送，请在“照片/视频”指令中准确填入照片名称。\n`;
-    }
     prompt += `</logic_rules>\n\n`
-    let photoVideoFormat = '';
-    if (character.useRealGallery && character.gallery && character.gallery.length > 0) {
-        photoVideoFormat = `e) 照片/视频: [${character.realName}发来的照片/视频：{相册图片名称} 或 {文字描述}] (优先使用相册名称，若相册无匹配则填写照片/视频的详细文字描述)`;
-    } else {
-        photoVideoFormat = `e) 照片/视频: [${character.realName}发来的照片/视频：{描述}]`;
-    }
+    const photoVideoFormat = `e) 照片/视频: [${character.realName}发来的照片/视频：{描述}]`;
  
     let outputFormats = `
 a) 普通消息: [${character.realName}的消息：{消息内容}]
@@ -955,18 +902,14 @@ d) 语音消息: [${character.realName}的语音：{语音内容}]
 ${photoVideoFormat}
 f) 给我的转账: [${character.realName}的转账：{金额}元；备注：{备注}]`;
 
-    if (canUseStickers) {
-        outputFormats += `\ng) 表情包: [${character.realName}的表情包：{表情包名称}]`;
-    }
-
     outputFormats += `
-h) 对我礼物的回应(此条不显示): [${character.realName}已接收礼物]
-i) 对我转账的回应(此条不显示): [${character.realName}接收${character.myName}的转账] 或 [${character.realName}退回${character.myName}的转账]
-j) 更新状态(此条不显示): [${character.realName}更新状态为：{新状态}]
-k) 引用我的回复: [${character.realName}引用“{我的某条消息内容}”并回复：{回复内容}]
-l) 发送并撤回消息: [${character.realName}撤回了一条消息：{被撤回的消息内容}]。注意：直接使用此指令系统就会自动模拟“发送后撤回”的效果，请勿先发送原消息。
-m) 同意代付(此条不显示): [${character.realName}同意了${character.myName}的代付请求]
-n) 拒绝代付(此条不显示): [${character.realName}拒绝了${character.myName}的代付请求]`;
+g) 对我礼物的回应(此条不显示): [${character.realName}已接收礼物]
+h) 对我转账的回应(此条不显示): [${character.realName}接收${character.myName}的转账] 或 [${character.realName}退回${character.myName}的转账]
+i) 更新状态(此条不显示): [${character.realName}更新状态为：{新状态}]
+j) 引用我的回复: [${character.realName}引用“{我的某条消息内容}”并回复：{回复内容}]
+k) 发送并撤回消息: [${character.realName}撤回了一条消息：{被撤回的消息内容}]。注意：直接使用此指令系统就会自动模拟“发送后撤回”的效果，请勿先发送原消息。
+l) 同意代付(此条不显示): [${character.realName}同意了${character.myName}的代付请求]
+m) 拒绝代付(此条不显示): [${character.realName}拒绝了${character.myName}的代付请求]`;
 
     if (character.videoCallEnabled) {
         outputFormats += `
