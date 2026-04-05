@@ -312,13 +312,22 @@
                     <textarea id="message-input" rows="1" autocomplete="off" placeholder="" enterkeyhint="send"></textarea>
                     <button type="button" id="voice-compose-toggle" class="icon-btn input-inner-btn voice-compose-toggle" aria-pressed="false" title="语音模式：发送为语音条">
                         <svg viewBox="0 0 24 24" width="22" height="22" overflow="visible" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <radialGradient id="voice-heart-radial-mic" cx="48%" cy="38%" r="62%" gradientUnits="objectBoundingBox">
+                                    <stop offset="0%" stop-color="#fff2f7"/>
+                                    <stop offset="28%" stop-color="#ffc8dc"/>
+                                    <stop offset="55%" stop-color="#f5a0be"/>
+                                    <stop offset="78%" stop-color="#e888aa"/>
+                                    <stop offset="100%" stop-color="#f8c9d8" stop-opacity="0"/>
+                                </radialGradient>
+                            </defs>
                             <!-- 与原先 translate(12,11.5) scale(1.62) translate(-12,-11.5) 矩阵一致：先平移到中心 → 呼吸缩放 → scale → 平移回路径坐标 -->
                             <g class="voice-heart-aura" pointer-events="none">
                                 <g transform="translate(12 11.5)">
                                     <g transform="scale(1.62)">
                                         <g transform="translate(-12 -11.5)">
                                             <g class="voice-heart-blur voice-heart-breathe">
-                                                <path class="voice-heart-fill" fill="#f5a8c4" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                                                <path class="voice-heart-fill" fill="url(#voice-heart-radial-mic)" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                                             </g>
                                         </g>
                                     </g>

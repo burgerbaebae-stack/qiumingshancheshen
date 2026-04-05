@@ -1666,13 +1666,13 @@
 
 .message-input-area #voice-compose-toggle .voice-heart-aura .voice-heart-fill {
     stroke: none !important;
-    fill: #f5a8c4 !important;
+    fill: url(#voice-heart-radial-mic) !important;
 }
 
 .message-input-area #voice-compose-toggle .voice-heart-aura .voice-heart-blur {
-    opacity: 0.3;
-    filter: blur(0.9px);
-    -webkit-filter: blur(0.9px);
+    opacity: 0.38;
+    filter: blur(2.1px);
+    -webkit-filter: blur(2.1px);
 }
 
 .message-input-area #voice-compose-toggle .voice-heart-aura {
