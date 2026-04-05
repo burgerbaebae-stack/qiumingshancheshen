@@ -305,8 +305,8 @@
                 <button id="cancel-reply-btn">×</button>
             </div>
             <div class="message-input-area" id="message-input-default">
-                <button id="toggle-expansion-btn" class="icon-btn circle-bg">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <button type="button" id="toggle-expansion-btn" class="icon-btn" aria-label="更多功能" title="更多功能">
+                    <img src="https://i.postimg.cc/L6Ck0bjR/wei-xin-tu-pian-20260406002303-removebg-preview.png" alt="" width="54" height="54" decoding="async" referrerpolicy="no-referrer">
                 </button>
                 <div class="input-wrapper">
                     <textarea id="message-input" rows="1" autocomplete="off" placeholder="" enterkeyhint="send"></textarea>
@@ -315,12 +315,12 @@
                             <defs>
                                 <!-- userSpaceOnUse：避免 iOS Safari 在父级 scale 下把 objectBoundingBox 径向渐变算成「竖条线性」 -->
                                 <radialGradient id="voice-heart-radial-mic" gradientUnits="userSpaceOnUse" cx="12" cy="9.5" r="11.5">
-                                    <stop offset="0%" stop-color="#fff3f9"/>
-                                    <stop offset="22%" stop-color="#ff8ec9"/>
-                                    <stop offset="48%" stop-color="#ff5da2"/>
-                                    <stop offset="72%" stop-color="#ff3399"/>
-                                    <stop offset="92%" stop-color="#ff2a93" stop-opacity="0.35"/>
-                                    <stop offset="100%" stop-color="#ff3399" stop-opacity="0"/>
+                                    <stop offset="0%" stop-color="#fff6fb"/>
+                                    <stop offset="22%" stop-color="#ffb3dc"/>
+                                    <stop offset="48%" stop-color="#ff8fc4"/>
+                                    <stop offset="72%" stop-color="#ff6aad"/>
+                                    <stop offset="92%" stop-color="#ff7aad" stop-opacity="0.28"/>
+                                    <stop offset="100%" stop-color="#ff88b8" stop-opacity="0"/>
                                 </radialGradient>
                                 <!-- SVG 原生羽化：iOS 对 SVG 子节点上 CSS filter:blur() 常无效，边缘会变实 -->
                                 <filter id="voice-heart-feather-mic" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
@@ -350,7 +350,7 @@
                     </button>
                 </div>
                 <button id="get-reply-btn" class="icon-btn">
-                    <img src="https://i.postimg.cc/gc7QCCj5/wei-xin-tu-pian-20260331232348-removebg-preview.png" alt="获取AI回复">
+                    <img src="https://i.postimg.cc/CLymstCX/wei-xin-tu-pian-20260406000829-removebg-preview.png" alt="获取AI回复">
                 </button>
                 <button id="send-message-btn" class="icon-btn send-btn circle-bg" style="display: none;">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
