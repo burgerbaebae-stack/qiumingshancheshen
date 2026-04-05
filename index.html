@@ -313,12 +313,14 @@
                     <button type="button" id="voice-compose-toggle" class="icon-btn input-inner-btn voice-compose-toggle" aria-pressed="false" title="语音模式：发送为语音条">
                         <svg viewBox="0 0 24 24" width="22" height="22" overflow="visible" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
                             <defs>
-                                <radialGradient id="voice-heart-radial-mic" cx="48%" cy="38%" r="62%" gradientUnits="objectBoundingBox">
-                                    <stop offset="0%" stop-color="#fff2f7"/>
-                                    <stop offset="28%" stop-color="#ffc8dc"/>
-                                    <stop offset="55%" stop-color="#f5a0be"/>
-                                    <stop offset="78%" stop-color="#e888aa"/>
-                                    <stop offset="100%" stop-color="#f8c9d8" stop-opacity="0"/>
+                                <!-- 洋红粉系：贴近参考图水彩顶部的 #FF3399 / #FF5DA2 感，中心略亮、向外饱和再羽化透明 -->
+                                <radialGradient id="voice-heart-radial-mic" cx="48%" cy="38%" r="64%" gradientUnits="objectBoundingBox">
+                                    <stop offset="0%" stop-color="#fff3f9"/>
+                                    <stop offset="22%" stop-color="#ff8ec9"/>
+                                    <stop offset="48%" stop-color="#ff5da2"/>
+                                    <stop offset="72%" stop-color="#ff3399"/>
+                                    <stop offset="92%" stop-color="#ff2a93" stop-opacity="0.35"/>
+                                    <stop offset="100%" stop-color="#ff3399" stop-opacity="0"/>
                                 </radialGradient>
                             </defs>
                             <!-- 与原先 translate(12,11.5) scale(1.62) translate(-12,-11.5) 矩阵一致：先平移到中心 → 呼吸缩放 → scale → 平移回路径坐标 -->

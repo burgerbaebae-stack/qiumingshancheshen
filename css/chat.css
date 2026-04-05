@@ -1670,7 +1670,7 @@
 }
 
 .message-input-area #voice-compose-toggle .voice-heart-aura .voice-heart-blur {
-    opacity: 0.38;
+    opacity: 0.34;
     filter: blur(2.1px);
     -webkit-filter: blur(2.1px);
 }
