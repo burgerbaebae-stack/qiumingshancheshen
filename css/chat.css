@@ -1670,7 +1670,7 @@
 }
 
 .message-input-area #voice-compose-toggle .voice-heart-aura .voice-heart-blur {
-    opacity: 0.34;
+    opacity: 0.38;
     /* 羽化改用 SVG <filter>（见 index.html），勿对 g 使用 CSS blur，否则 iOS Safari 易失效 */
 }
 
@@ -1688,15 +1688,22 @@
 .message-input-area #voice-compose-toggle .voice-heart-breathe {
     transform-origin: center;
     transform-box: fill-box;
+    will-change: transform, opacity;
 }
 
 .message-input-area #voice-compose-toggle.voice-compose-active .voice-heart-breathe {
-    animation: voice-heart-breathe 2.9s ease-in-out infinite;
+    animation: voice-heart-breathe 2.35s ease-in-out infinite;
 }
 
 @keyframes voice-heart-breathe {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.12); }
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.38;
+    }
+    50% {
+        transform: scale(1.28);
+        opacity: 0.58;
+    }
 }
 #get-reply-btn img { width: 44px; height: 44px; object-fit: contain; display: block; }
 
