@@ -1776,10 +1776,10 @@
 #reply-preview-bar {
     display: none;
     padding: 8px 12px;
-    background-color: rgba(240, 240, 240, 0.9);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid #eee;
-    border-bottom: 1px solid #eee;
+    background: var(--chat-room-bar-glass-bg);
+    backdrop-filter: var(--chat-room-bar-blur);
+    -webkit-backdrop-filter: var(--chat-room-bar-blur);
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
@@ -1792,14 +1792,14 @@
 .reply-preview-content {
     flex-grow: 1;
     overflow: hidden;
-    border-left: 3px solid var(--primary-color);
+    border-left: 3px solid #f06b88;
     padding-left: 8px;
 }
 
 .reply-preview-name {
     font-size: 13px;
     font-weight: 600;
-    color: var(--primary-color);
+    color: #f06b88;
     display: block;
 }
 
