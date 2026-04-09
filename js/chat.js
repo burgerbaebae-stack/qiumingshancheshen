@@ -371,17 +371,115 @@ function setupChatRoom() {
         if (!messageWrapper) return;
         handleMessageLongPress(messageWrapper, e.clientX, e.clientY);
     });
+
+    // --- 右滑引用手势 ---
+    const _SWIPE_TRIGGER_PX = 62;
+    let _swipe = { active: false, wrapper: null, startX: 0, startY: 0, dirLocked: null, triggered: false };
+    let _swipeIcon = null;
+
+    function _getSwipeIcon() {
+        if (!_swipeIcon) {
+            _swipeIcon = document.createElement('img');
+            _swipeIcon.className = 'swipe-quote-icon';
+            _swipeIcon.src = 'https://i.postimg.cc/Qt1kYcxr/wei-xin-tu-pian-20260409193808-removebg-preview.png';
+            _swipeIcon.alt = '';
+            document.body.appendChild(_swipeIcon);
+        }
+        return _swipeIcon;
+    }
+
+    function _resetSwipe(snapBack) {
+        if (snapBack && _swipe.wrapper) {
+            _swipe.wrapper.style.transition = 'transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)';
+            _swipe.wrapper.style.transform = '';
+        }
+        const icon = _getSwipeIcon();
+        icon.style.transition = 'opacity 0.2s, transform 0.2s';
+        icon.style.opacity = '0';
+        icon.style.transform = 'scale(0.4)';
+        icon.classList.remove('active');
+        _swipe = { active: false, wrapper: null, startX: 0, startY: 0, dirLocked: null, triggered: false };
+    }
+
     messageArea.addEventListener('touchstart', (e) => {
         if (e.target.id === 'load-more-btn') return;
         const messageWrapper = e.target.closest('.message-wrapper');
         if (!messageWrapper) return;
+
+        const touch = e.touches[0];
+        const startX = touch.clientX;
+        const startY = touch.clientY;
+
         longPressTimer = setTimeout(() => {
-            const touch = e.touches[0];
-            handleMessageLongPress(messageWrapper, touch.clientX, touch.clientY);
+            handleMessageLongPress(messageWrapper, startX, startY);
         }, 400);
+
+        if (messageWrapper.classList.contains('received') &&
+            !messageWrapper.classList.contains('system-notification') &&
+            !isInMultiSelectMode) {
+            _swipe = { active: true, wrapper: messageWrapper, startX, startY, dirLocked: null, triggered: false };
+        } else {
+            _swipe.active = false;
+        }
+    }, { passive: true });
+
+    messageArea.addEventListener('touchmove', (e) => {
+        clearTimeout(longPressTimer);
+        if (!_swipe.active) return;
+
+        const touch = e.touches[0];
+        const dx = touch.clientX - _swipe.startX;
+        const dy = touch.clientY - _swipe.startY;
+
+        if (!_swipe.dirLocked) {
+            if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+                _swipe.dirLocked = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+            }
+            return;
+        }
+        if (_swipe.dirLocked !== 'h' || dx <= 0) return;
+
+        e.preventDefault();
+
+        const translateX = Math.min(dx * 0.45, _SWIPE_TRIGGER_PX);
+        const progress = translateX / _SWIPE_TRIGGER_PX;
+
+        _swipe.wrapper.style.transition = 'none';
+        _swipe.wrapper.style.transform = `translateX(${translateX}px)`;
+
+        const icon = _getSwipeIcon();
+        const rect = _swipe.wrapper.getBoundingClientRect();
+        icon.style.transition = 'none';
+        icon.style.top = (rect.top + rect.height / 2 - 15) + 'px';
+        icon.style.opacity = String(progress);
+        icon.style.transform = `scale(${0.4 + 0.6 * progress})`;
+        if (progress >= 1) {
+            icon.classList.add('active');
+        } else {
+            icon.classList.remove('active');
+        }
+
+        if (progress >= 1 && !_swipe.triggered) {
+            _swipe.triggered = true;
+            if (typeof triggerHapticFeedback === 'function') triggerHapticFeedback('light');
+        }
+    }, { passive: false });
+
+    messageArea.addEventListener('touchend', () => {
+        clearTimeout(longPressTimer);
+        if (!_swipe.active) return;
+        const triggered = _swipe.triggered;
+        const wrapper = _swipe.wrapper;
+        _resetSwipe(true);
+        if (triggered && wrapper) {
+            startQuoteReply(wrapper.dataset.id);
+        }
     });
-    messageArea.addEventListener('touchend', () => clearTimeout(longPressTimer));
-    messageArea.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+
+    messageArea.addEventListener('touchcancel', () => {
+        clearTimeout(longPressTimer);
+        _resetSwipe(true);
+    });
     
     const messageEditForm = document.getElementById('message-edit-form');
     if(messageEditForm) {

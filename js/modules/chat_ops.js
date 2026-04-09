@@ -36,10 +36,6 @@ function handleMessageLongPress(messageWrapper, x, y) {
             menuItems.push({label: '编辑', action: () => startMessageEdit(messageId)});
         }
         
-        if (!isInvisibleMessage) {
-            menuItems.push({label: '引用', action: () => startQuoteReply(messageId)});
-        }
-
         if (message.role === 'user') {
             menuItems.push({label: '撤回', action: () => withdrawMessage(messageId)});
         }

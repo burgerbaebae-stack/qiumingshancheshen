@@ -187,10 +187,13 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                        content = msg.content;
                    }
 
+                   // OpenAI 兼容协议不支持 system 角色出现在对话中间，会被 API 忽略
+                   // 将历史中的 system 消息（如通话记录总结）转为 user 角色，确保 AI 能读取到
+                   const apiRole = msg.role === 'system' ? 'user' : msg.role;
                    if (typeof content === 'string') {
-                       messages.push({role: msg.role, content: content});
+                       messages.push({role: apiRole, content: content});
                    } else {
-                       messages.push({role: msg.role, content: content});
+                       messages.push({role: apiRole, content: content});
                    }
                }
             });
@@ -1421,7 +1424,7 @@ async function generateCallSummary(chat, callContext) {
         .map(j => `标题：${j.title}\n内容：${j.content}`)
         .join('\n\n---\n\n');
 
-    let prompt = `请根据以下背景信息和通话记录，生成一段简短的聊天记录总结。\n\n`;
+    let prompt = `请根据以下背景信息和通话记录，生成一份详尽完整的通话记录总结。此总结将作为后续聊天的上下文记忆，角色只能通过此总结了解通话中发生的一切，因此必须尽可能完整，不得遗漏重要细节。\n\n`;
 
     prompt += `<char_settings>\n`;
     prompt += `角色名：${chat.realName}\n`;
@@ -1446,9 +1449,11 @@ async function generateCallSummary(chat, callContext) {
 
     prompt += `要求：\n`;
     prompt += `1. 第三人称叙述。\n`;
-    prompt += `2. **客观平实**：使用第三人称视角，客观陈述事实。**绝对禁止使用强烈的情绪词汇**（如“极度愤怒”、“痛彻心扉”、“欣喜若狂”等），保持冷静、克制的叙述风格。\n`;
-    prompt += `3. **无升华**：不要进行价值升华、感悟或总结性评价，仅记录发生了什么。\n`;
-    prompt += `4. 不要包含“通话记录如下”等废话，直接输出总结内容。\n`;
+    prompt += `2. **完整覆盖，不得省略**：按照通话发展顺序，逐一记录每一个话题、重要对话、事件与行为。通话越长内容越多，总结篇幅也应相应越长，绝对不允许以"简短"为由压缩或跳过任何内容。\n`;
+    prompt += `3. **保留关键细节**：双方说过的重要的话、做出的约定或承诺、表达的态度与立场、透露的信息都需要记录在内。\n`;
+    prompt += `4. **客观平实**：使用第三人称视角，客观陈述事实。**绝对禁止使用强烈的情绪词汇**（如"极度愤怒"、"痛彻心扉"、"欣喜若狂"等），保持冷静、克制的叙述风格。\n`;
+    prompt += `5. **无升华**：不要进行价值升华、感悟或总结性评价，仅记录发生了什么。\n`;
+    prompt += `6. 不要包含"通话记录如下"等废话，直接输出总结内容。\n`;
 
     const messages = [{role: 'user', content: prompt}];
     

@@ -433,6 +433,7 @@
 .message-area {
     flex-grow: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 10px 10px 10px;
     scroll-behavior: smooth;
 }
@@ -670,6 +671,20 @@
 
 .message-wrapper.received {
     align-items: flex-start;
+}
+
+/* 右滑引用悬浮图标（fixed，JS 动态更新 top） */
+.swipe-quote-icon {
+    position: fixed;
+    left: 6px;
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0;
+    transform: scale(0.4);
+    user-select: none;
 }
 
 .message-wrapper.system-notification {
