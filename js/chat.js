@@ -52,6 +52,18 @@ function setupChatRoom() {
     const deleteHistoryBtn = document.getElementById('delete-history-btn');
     const toggleExpansionBtn = document.getElementById('toggle-expansion-btn');
     const charStatusBtn = document.getElementById('char-status-btn');
+
+    const getReplyBtn = document.getElementById('get-reply-btn');
+    if (getReplyBtn) {
+        getReplyBtn.addEventListener('click', () => {
+            getReplyBtn.classList.remove('paw-bounce');
+            void getReplyBtn.offsetWidth;
+            getReplyBtn.classList.add('paw-bounce');
+            getReplyBtn.addEventListener('animationend', () => {
+                getReplyBtn.classList.remove('paw-bounce');
+            }, { once: true });
+        });
+    }
     const statusOverlay = document.getElementById('char-status-overlay');
     const closeStatusBtn = document.getElementById('close-status-panel-btn');
     const statusContent = document.getElementById('char-status-content');
@@ -379,10 +391,10 @@ function setupChatRoom() {
 
     function _getSwipeIcon() {
         if (!_swipeIcon) {
-            _swipeIcon = document.createElement('img');
+            _swipeIcon = document.createElement('div');
             _swipeIcon.className = 'swipe-quote-icon';
-            _swipeIcon.src = 'https://i.postimg.cc/Qt1kYcxr/wei-xin-tu-pian-20260409193808-removebg-preview.png';
-            _swipeIcon.alt = '';
+            _swipeIcon.setAttribute('aria-hidden', 'true');
+            _swipeIcon.innerHTML = '<svg class="swipe-quote-icon-arrow" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" d="M9 10 4 15l5 5"/><path stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none" d="M4 15h10a6 6 0 0 0 0-12h-3"/></svg>';
             document.body.appendChild(_swipeIcon);
         }
         return _swipeIcon;
@@ -396,7 +408,7 @@ function setupChatRoom() {
         const icon = _getSwipeIcon();
         icon.style.transition = 'opacity 0.2s, transform 0.2s';
         icon.style.opacity = '0';
-        icon.style.transform = 'scale(0.4)';
+        icon.style.transform = 'translateY(-50%) scale(0.4)';
         icon.classList.remove('active');
         _swipe = { active: false, wrapper: null, startX: 0, startY: 0, dirLocked: null, triggered: false };
     }
@@ -450,9 +462,9 @@ function setupChatRoom() {
         const icon = _getSwipeIcon();
         const rect = _swipe.wrapper.getBoundingClientRect();
         icon.style.transition = 'none';
-        icon.style.top = (rect.top + rect.height / 2 - 15) + 'px';
+        icon.style.top = (rect.top + rect.height / 2) + 'px';
         icon.style.opacity = String(progress);
-        icon.style.transform = `scale(${0.4 + 0.6 * progress})`;
+        icon.style.transform = `translateY(-50%) scale(${0.4 + 0.6 * progress})`;
         if (progress >= 1) {
             icon.classList.add('active');
         } else {

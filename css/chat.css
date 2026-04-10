@@ -673,18 +673,39 @@
     align-items: flex-start;
 }
 
-/* 右滑引用悬浮图标（fixed，JS 动态更新 top） */
+/* 右滑引用悬浮图标（fixed，JS 动态更新 top；磨砂圆 + 回撤箭头） */
 .swipe-quote-icon {
     position: fixed;
     left: 6px;
-    width: 44px;
-    height: 44px;
-    object-fit: contain;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    background: var(--chat-room-bar-glass-bg);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    backdrop-filter: var(--chat-room-bar-blur);
+    -webkit-backdrop-filter: var(--chat-room-bar-blur);
+    color: rgba(60, 60, 60, 0.78);
     pointer-events: none;
     z-index: 1000;
     opacity: 0;
-    transform: scale(0.4);
+    transform: translateY(-50%) scale(0.4);
     user-select: none;
+}
+
+.swipe-quote-icon-arrow {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+}
+
+.swipe-quote-icon.active {
+    color: rgba(30, 30, 30, 0.9);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
 }
 
 .message-wrapper.system-notification {
@@ -1579,11 +1600,12 @@
 
 .message-input-area #message-input {
     width: 100%;
-    border: 3px solid rgba(0, 0, 0, 0.82);
+    border: 1px solid rgba(0, 0, 0, 0.12);
     padding: 10px 14px;
     padding-right: 40px;
     border-radius: 14px;
     background-color: rgba(255, 255, 255, 0.22);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
     min-width: 0;
     min-height: 44px;
     display: block;
@@ -1601,7 +1623,8 @@
 .message-input-area #message-input:focus {
     outline: none;
     background-color: rgba(255, 255, 255, 0.34);
-    border-color: rgba(0, 0, 0, 0.94);
+    border-color: rgba(0, 0, 0, 0.18);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
 }
 
 .message-input-area .icon-btn {
@@ -1723,6 +1746,27 @@
 }
 #get-reply-btn img { width: 46px; height: 46px; object-fit: contain; display: block; }
 
+#get-reply-btn {
+    transform-origin: center bottom;
+    transition: transform 0.08s ease;
+}
+
+#get-reply-btn:active {
+    transform: scale(0.82);
+}
+
+#get-reply-btn.paw-bounce {
+    animation: pawBounce 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
+}
+
+@keyframes pawBounce {
+    0%   { transform: scale(0.82); }
+    40%  { transform: scale(1.18) rotate(-8deg); }
+    65%  { transform: scale(0.94) rotate(4deg); }
+    82%  { transform: scale(1.06) rotate(-2deg); }
+    100% { transform: scale(1)    rotate(0deg); }
+}
+
 /* 布局占位与单行 #message-input 外高一致，避免撑高底栏；大图用 overflow 溢出，仍与输入框底对齐 */
 #toggle-expansion-btn {
     transition: opacity 0.2s;
@@ -1737,13 +1781,14 @@
     overflow: visible;
     position: relative;
     z-index: 1;
+    margin-right: 4px;
 }
 #toggle-expansion-btn:active {
     opacity: 0.72;
 }
 #toggle-expansion-btn img {
-    width: 54px;
-    height: 54px;
+    width: 52px;
+    height: 52px;
     max-width: none;
     max-height: none;
     object-fit: contain;
@@ -1751,19 +1796,16 @@
     pointer-events: none;
     user-select: none;
     -webkit-user-drag: none;
-    position: absolute;
-    left: 50%;
-    bottom: 0;
-    transform: translateX(-50%);
-    transform-origin: 50% 100%;
-    transition: transform 0.3s ease;
+    position: static;
+    transform-origin: 50% 50%;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 #toggle-expansion-btn.rotate-45 {
     transform: none;
     background: transparent !important;
 }
 #toggle-expansion-btn.rotate-45 img {
-    transform: translateX(-50%) rotate(45deg);
+    transform: rotate(45deg);
 }
 
 #send-message-btn { display: none; }
