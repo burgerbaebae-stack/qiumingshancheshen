@@ -215,28 +215,34 @@
 .journal-sticky-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
-    padding: 8px 20px 24px;
+    gap: 18px;
+    padding: 10px 18px 28px;
 }
 
 .journal-month-note {
     position: relative;
-    /* 撕边纸张感：非对称圆角 */
-    border-radius: 2px 16px 14px 2px;
-    padding: 22px 14px 14px;
+    border-radius: 18px 4px 18px 4px;
+    padding: 24px 14px 14px;
     cursor: pointer;
     transform: rotate(var(--rot, 0deg));
-    /* 多层阴影 = 纸张叠层深度 */
     box-shadow:
-        0 1px 0   rgba(255,255,255,0.6) inset,
-        0 5px 14px rgba(90,70,50,0.18),
-        0 2px 4px  rgba(90,70,50,0.10);
+        0 1px 0   rgba(255,255,255,0.72) inset,
+        0 6px 18px rgba(90,70,50,0.16),
+        0 2px 5px  rgba(90,70,50,0.09);
     transition: transform 0.22s ease, box-shadow 0.22s ease;
-    min-height: 115px;
+    min-height: 130px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    overflow: visible; /* 让胶带可以溢出顶部 */
+    overflow: visible;
+}
+
+.journal-month-note:hover {
+    transform: rotate(var(--rot, 0deg)) translateY(-4px);
+    box-shadow:
+        0 1px 0   rgba(255,255,255,0.72) inset,
+        0 12px 28px rgba(90,70,50,0.20),
+        0 4px 10px  rgba(90,70,50,0.12);
 }
 
 /* ── 牛皮纸胶带（默认：kraft tape，奇数卡片向左倾） ── */
@@ -339,48 +345,88 @@
     box-shadow: 0 2px 7px rgba(90,70,50,0.13);
 }
 
-/* ── 月份卡片统一色：与参考图「一月」一致的暖奶油桃纸（#FEE9D6 系） ── */
-.note-color-0,
-.note-color-1,
-.note-color-2,
-.note-color-3,
-.note-color-4,
-.note-color-5,
-.note-color-6,
-.note-color-7,
-.note-color-8,
-.note-color-9,
-.note-color-10,
-.note-color-11 {
-    background: linear-gradient(148deg, #fff4ec 0%, #fee9d6 42%, #f7e0cc 100%);
+/* ── 底角折页耳（非回形针卡片） ── */
+.journal-month-note:not(:nth-child(4n))::after {
+    content: '';
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 20px; height: 20px;
+    background: linear-gradient(
+        225deg,
+        rgba(130, 100, 65, 0.14) 0%,
+        rgba(130, 100, 65, 0.14) 50%,
+        transparent 50%
+    );
+    border-radius: 0 0 18px 0;
+    pointer-events: none;
 }
 
-/* 大头针 - 已被胶带/回形针替代，隐藏 */
-.month-note-pin { display: none; }
-
-.month-note-month {
-    font-family: 'Georgia', serif;
-    font-size: 20px;
-    font-weight: bold;
-    color: rgba(50,35,20,0.80);
-    margin-top: 2px; /* 胶带已占顶部空间 */
+/* ── 四季微妙色差（全在暖奶油桃色系内） ── */
+/* 春：1–3月 (idx 0-2) — 玫瑰桃 */
+.note-color-0, .note-color-1, .note-color-2 {
+    background: linear-gradient(150deg, #fff5f1 0%, #fde8d8 55%, #f8dece 100%);
+}
+/* 夏：4–6月 (idx 3-5) — 暖金桃 */
+.note-color-3, .note-color-4, .note-color-5 {
+    background: linear-gradient(150deg, #fffaee 0%, #fde8cc 55%, #f8dfbe 100%);
+}
+/* 秋：7–9月 (idx 6-8) — 中性奶桃 */
+.note-color-6, .note-color-7, .note-color-8 {
+    background: linear-gradient(150deg, #fff4ec 0%, #fee9d6 55%, #f7e0cc 100%);
+}
+/* 冬：10–12月 (idx 9-11) — 奶白 */
+.note-color-9, .note-color-10, .note-color-11 {
+    background: linear-gradient(150deg, #fefcf6 0%, #f8ecdc 55%, #f2e5d2 100%);
 }
 
+/* 月份数字区 */
+.month-note-top {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    margin-top: 2px;
+    line-height: 1;
+}
+
+.month-num {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 44px;
+    font-weight: 900;
+    line-height: 1;
+    color: rgba(55, 38, 22, 0.66);
+    letter-spacing: -2px;
+}
+
+.month-cn {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(55, 38, 22, 0.45);
+    font-family: inherit;
+    padding-bottom: 4px;
+}
+
+/* 统计徽章 */
 .month-note-stats {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    gap: 5px;
     margin-top: 10px;
-    gap: 4px;
 }
 
 .month-note-stats span {
     font-size: 11px;
-    color: rgba(55,40,25,0.60);
-    background: rgba(255,255,255,0.52);
-    padding: 2px 7px;
-    border-radius: 8px;
+    color: rgba(55, 38, 22, 0.60);
+    background: rgba(255,255,255,0.62);
+    padding: 3px 8px;
+    border-radius: 20px;
+    border: 1px solid rgba(175, 143, 103, 0.18);
     white-space: nowrap;
+    font-family: 'Georgia', serif;
 }
+
+/* 大头针已被胶带/回形针替代 */
+.month-note-pin { display: none; }
 
 /* ─── 日期视图 — 拍立得卡片 ─── */
 .journal-day-view { display: flex; flex-direction: column; }
@@ -395,69 +441,120 @@
 .journal-day-polaroid {
     cursor: pointer;
     transform: rotate(var(--pol-rot, 0deg));
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    background: #fff;
-    border-radius: 3px;
-    padding: 8px 8px 26px;
-    box-shadow: 0 4px 14px rgba(90,70,50,0.18);
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    background: linear-gradient(170deg, #fffdf9 0%, #fdf8f1 100%);
+    border-radius: 12px 12px 10px 10px;
+    /* 白色内边框 = 相纸白边感 */
+    padding: 5px 5px 0;
+    box-shadow:
+        0 1px 0 rgba(255,255,255,0.85) inset,
+        0 4px 16px rgba(80, 60, 35, 0.18),
+        0 1px 4px  rgba(80, 60, 35, 0.10);
     display: flex;
     flex-direction: column;
     align-items: center;
     position: relative;
+    gap: 0;
+}
+
+.journal-day-polaroid:hover {
+    transform: rotate(var(--pol-rot, 0deg)) translateY(-4px) scale(1.03);
+    box-shadow:
+        0 1px 0 rgba(255,255,255,0.85) inset,
+        0 10px 24px rgba(80, 60, 35, 0.22),
+        0 3px 8px  rgba(80, 60, 35, 0.12);
 }
 
 .journal-day-polaroid:active {
     transform: rotate(var(--pol-rot, 0deg)) scale(0.93);
+    box-shadow: 0 2px 8px rgba(80,60,35,0.14);
 }
 
-/* 圆孔 */
-.polaroid-hole {
+/* 金铜色撞钉（替换原来的圆孔） */
+.polaroid-brad {
     position: absolute;
-    top: -5px; left: 50%;
+    top: -7px; left: 50%;
     transform: translateX(-50%);
-    width: 11px; height: 11px;
-    background: var(--j-cream);
+    width: 14px; height: 14px;
     border-radius: 50%;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.15);
+    background: radial-gradient(circle at 36% 34%,
+        #f0ddb8 0%, #d4a85a 40%, #a87830 72%, #7a5418 100%);
+    box-shadow:
+        0 2px 4px rgba(0,0,0,0.22),
+        inset 0 1px 0 rgba(255,255,255,0.40);
+    z-index: 2;
 }
 
-/* 照片区 */
+/* 中间凹孔 */
+.polaroid-brad::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #5a3a10 0%, #3a2008 100%);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+}
+
+/* 照片区：3 色轮换，薄荷鼠尾草绿系 */
 .polaroid-photo-area {
     width: 100%;
     aspect-ratio: 1;
-    background: linear-gradient(135deg, var(--j-green-pale) 0%, var(--j-cream-deep) 100%);
-    border-radius: 2px;
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1px;
+    gap: 2px;
+}
+
+.journal-day-polaroid:nth-child(3n+1) .polaroid-photo-area {
+    background: linear-gradient(140deg, #d8ecdf 0%, #bfddcc 100%);
+}
+.journal-day-polaroid:nth-child(3n+2) .polaroid-photo-area {
+    background: linear-gradient(140deg, #e4f2e8 0%, #cce5d6 100%);
+}
+.journal-day-polaroid:nth-child(3n) .polaroid-photo-area {
+    background: linear-gradient(140deg, #cce5d5 0%, #b5d8c4 100%);
 }
 
 .polaroid-date-num {
     font-family: 'Georgia', serif;
-    font-size: 26px;
-    font-weight: bold;
+    font-size: 28px;
+    font-weight: 900;
     color: var(--j-green-dark);
     line-height: 1;
+    letter-spacing: -1px;
 }
 
 .polaroid-month-label {
-    font-size: 10px;
-    color: var(--j-text-mid);
+    font-size: 9px;
+    color: rgba(40, 80, 55, 0.60);
     font-family: 'Georgia', serif;
+    font-weight: 600;
+    letter-spacing: 0.04em;
 }
 
-/* 拍立得底部 */
+/* 白色底条（相纸白边下半段） */
 .polaroid-caption {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 26px;
+    width: 100%;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 4px;
     font-size: 10px;
     color: var(--j-text-mid);
+    font-family: 'Georgia', serif;
+    border-top: 1px solid rgba(175, 150, 110, 0.12);
+    margin-top: 4px;
+}
+
+.pol-cnt {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--j-green-dark);
     font-family: 'Georgia', serif;
 }
 

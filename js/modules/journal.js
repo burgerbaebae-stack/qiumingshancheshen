@@ -94,11 +94,13 @@ function _buildMonthView(yearData) {
                 return `
                 <div class="journal-month-note note-color-${idx % 12}"
                      data-month="${m}" style="--rot: ${rot}deg">
-                    <div class="month-note-pin"></div>
-                    <div class="month-note-month">${J_MONTH_CN[idx]}</div>
+                    <div class="month-note-top">
+                        <span class="month-num">${String(parseInt(m)).padStart(2,'0')}</span>
+                        <span class="month-cn">月</span>
+                    </div>
                     <div class="month-note-stats">
-                        <span>${dayCount} 天</span>
-                        <span>${entryCount} 篇</span>
+                        <span class="stat-days">📅 ${dayCount} 天</span>
+                        <span class="stat-entries">✍️ ${entryCount} 篇</span>
                     </div>
                 </div>`;
             }).join('')}
@@ -124,12 +126,12 @@ function _buildDayView(monthData) {
                 return `
                 <div class="journal-day-polaroid" data-day="${day}"
                      style="--pol-rot: ${rot}deg">
-                    <div class="polaroid-hole"></div>
+                    <div class="polaroid-brad"></div>
                     <div class="polaroid-photo-area">
                         <div class="polaroid-date-num">${pad(parseInt(day))}</div>
                         <div class="polaroid-month-label">${ms}月</div>
                     </div>
-                    <div class="polaroid-caption">${cnt} 篇</div>
+                    <div class="polaroid-caption"><span class="pol-cnt">${cnt}</span> 篇</div>
                 </div>`;
             }).join('')}
         </div>`;
