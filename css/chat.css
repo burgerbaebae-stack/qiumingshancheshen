@@ -1782,6 +1782,7 @@
     position: relative;
     z-index: 1;
     margin-right: 4px;
+    margin-bottom: 4px;
 }
 #toggle-expansion-btn:active {
     opacity: 0.72;
