@@ -1135,6 +1135,14 @@
     color: rgba(255,255,255,0.95);
 }
 
+/* 移动端 WebView 不会自动拉伸无尺寸 SVG，必须显式给宽高 */
+#memory-journal-detail-screen .app-header .action-btn svg {
+    width: 22px;
+    height: 22px;
+    fill: rgba(255,255,255,0.95);
+    stroke: none;
+}
+
 #journal-detail-title {
     margin-top: 0;
     font-size: 22px;
