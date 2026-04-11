@@ -2060,24 +2060,36 @@
                 <h1 class="title">回忆日记</h1>
             </div>
             <div class="action-btn-group">
-                <button class="action-btn" id="journal-manage-btn" title="管理日记">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-                        <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/>
+                <button class="action-btn journal-header-icon-btn" id="journal-manage-btn" title="管理日记">
+                    <!-- 手账清单本：圆角 + 小圆点，偏可爱 -->
+                    <svg class="journal-header-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <rect x="4.5" y="3" width="15" height="18" rx="2.5" ry="2.5" stroke="currentColor" stroke-width="1.65" stroke-linejoin="round"/>
+                        <path d="M9 3v2.2c0 .55.45 1 1 1h4c.55 0 1-.45 1-1V3" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        <circle cx="7.25" cy="9.5" r="1.15" fill="currentColor"/>
+                        <circle cx="7.25" cy="13.5" r="1.15" fill="currentColor"/>
+                        <circle cx="7.25" cy="17.5" r="1.15" fill="currentColor"/>
+                        <path d="M10.2 9.5h7.3M10.2 13.5h6M10.2 17.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                 </button>
                 <button class="action-btn" id="journal-cancel-manage-btn" title="取消" style="display: none; font-size: 14px; width: auto; padding: 0 8px;">
                     取消
                 </button>
-                <button class="action-btn" id="bind-journal-worldbook-btn" title="绑定世界书">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                <button class="action-btn journal-header-icon-btn" id="bind-journal-worldbook-btn" title="绑定世界书">
+                    <!-- 翻开的书 + 书脊小爱心书签 -->
+                    <svg class="journal-header-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M12 7v14" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
+                        <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" stroke="currentColor" stroke-width="1.65" stroke-linejoin="round" fill="#fff" fill-opacity="0.14"/>
+                        <path d="M12 2.85c-.32-.42-.95-.42-1.28 0-.18.22-.18.58 0 .82l1.28 1.42 1.28-1.42c.18-.24.18-.6 0-.82-.33-.42-.96-.42-1.28 0z" fill="currentColor"/>
                     </svg>
                 </button>
-                <button class="action-btn" id="generate-new-journal-btn" title="生成新日记">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                <button class="action-btn journal-header-icon-btn" id="generate-new-journal-btn" title="生成新日记">
+                    <!-- 信纸 + 铅笔 + 小闪光 -->
+                    <svg class="journal-header-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M4 19.5h11" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" opacity="0.9"/>
+                        <path d="M5.5 16c2.2.45 5-.35 7-2.5" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/>
+                        <path d="M15.2 5.2 19.5 9.5a1.05 1.05 0 0 1 0 1.48l-6.2 6.2a1.05 1.05 0 0 1-.74.31H11v-3.05a1.05 1.05 0 0 1 .31-.74l6.2-6.2a1.05 1.05 0 0 1 1.48 0z" stroke="currentColor" stroke-width="1.65" stroke-linejoin="round" fill="#fff" fill-opacity="0.14"/>
+                        <path d="M13.9 6.5 17.5 10.1" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
+                        <circle cx="19.2" cy="4.8" r="1.05" fill="currentColor"/>
                     </svg>
                 </button>
             </div>
@@ -2086,7 +2098,7 @@
             <div id="journal-list-container"></div>
             <div class="placeholder-text" id="no-journals-placeholder" style="display: none;">
                 <p>还没有日记哦~</p>
-                <p>点击右上角的“+号”来创建第一篇吧！</p>
+                <p>点击右上角「新篇」按钮来创建第一篇吧！</p>
             </div>
         </main>
         
@@ -2106,7 +2118,7 @@
             <span id="journal-select-count">已选 0 篇</span>
             <div style="display: flex; gap: 10px;">
                 <button class="btn btn-danger btn-small" id="journal-batch-delete-btn">删除</button>
-                <button class="btn btn-primary btn-small" id="journal-merge-btn">合并精简</button>
+                <button class="btn btn-primary btn-small" id="journal-merge-btn">合并为一篇</button>
             </div>
         </div>
     </div>

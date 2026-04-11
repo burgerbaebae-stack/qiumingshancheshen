@@ -3,7 +3,14 @@
 // 数据结构零改动，全部逻辑在 renderJournalList() 中做分组展示
 
 // ─── 模块状态 ───
-let generatingChatId = null;
+// 与全局 isGenerating（聊天 AI 回复）分离，避免日记生成时无法发消息、也无法并行请求
+let isJournalGenerating = false;
+let generatingChatId    = null;
+
+// 生成结果顶栏：null | { kind: 'success'|'error', chatId, chatType }
+let journalGenerateOutcomeBanner = null;
+// 上次「生成日记」表单参数（仅用于失败重试预填；须与当前会话匹配）
+let lastJournalGenerateParams    = null;
 
 // 层级导航（仅影响显示，不影响数据）
 let jView  = 'year';  // 'year' | 'month' | 'day'
@@ -51,6 +58,37 @@ function _countYear(yd) {
 }
 function _countMonth(md) {
     return Object.values(md).reduce((s, a) => s + a.length, 0);
+}
+
+function _journalOutcomeBannerApplies() {
+    const b = journalGenerateOutcomeBanner;
+    return !!(b && b.chatId === currentChatId && b.chatType === currentChatType);
+}
+
+/** 打开生成日记弹窗；prefill 仅在与当前会话一致时使用 */
+function openGenerateJournalModal(opts = {}) {
+    const prefill = opts.prefill;
+    const modal   = document.getElementById('generate-journal-modal');
+    const form    = document.getElementById('generate-journal-form');
+    if (!modal || !form) return;
+
+    const chat  = _jChat();
+    const total = chat ? chat.history.length : 0;
+    const info  = document.getElementById('journal-range-info');
+    if (info) info.textContent = `当前聊天总消息数: ${total}`;
+
+    const h3 = document.querySelector('#generate-journal-modal h3');
+    if (h3) h3.textContent = (currentChatType === 'group') ? '生成群聊总结' : '指定总结范围';
+
+    if (prefill && prefill.chatId === currentChatId && prefill.chatType === currentChatType) {
+        document.getElementById('journal-range-start').value = prefill.start;
+        document.getElementById('journal-range-end').value   = prefill.end;
+        document.getElementById('journal-include-favorited').checked = !!prefill.includeFavorited;
+    } else {
+        form.reset();
+    }
+
+    modal.classList.add('visible');
 }
 
 // ─── 构建：年份视图 ───
@@ -198,7 +236,7 @@ function _openSheet(day) {
                 <div class="entry-card-preview">${preview}</div>
                 <div class="entry-card-footer">
                     <span class="entry-card-range">消息 ${j.range.start}–${j.range.end}</span>
-                    ${j.isFavorited ? '<span class="entry-card-tag">🩷 已收藏</span>' : ''}
+                    ${j.isFavorited ? '<span class="entry-card-tag">已收藏</span>' : ''}
                 </div>
             </div>`;
         }).join('');
@@ -265,23 +303,54 @@ function renderJournalList() {
         if (titleEl)  titleEl.textContent   = '回忆日记';
     }
 
-    // 生成中状态
-    let showingLoading = false;
-    if (typeof isGenerating !== 'undefined' && isGenerating && generatingChatId === currentChatId) {
+    const genLoadingVisible = isJournalGenerating && generatingChatId === currentChatId;
+    const outcomeVisible    = _journalOutcomeBannerApplies();
+    const hasTopStatus      = genLoadingVisible || outcomeVisible;
+
+    // 空状态（若有顶栏：生成中 / 成功提示 / 失败提示，则不显示全屏空状态）
+    if ((!journals || journals.length === 0) && !hasTopStatus) {
+        if (placeholder) placeholder.style.display = 'block';
+        return;
+    }
+    if (placeholder) placeholder.style.display = 'none';
+
+    // 顶栏：生成结果 或 生成中
+    if (outcomeVisible) {
+        const kind = journalGenerateOutcomeBanner.kind;
+        const card = document.createElement('div');
+        card.className = 'journal-generating-card journal-banner-' + (kind === 'success' ? 'success' : 'error');
+        card.id = 'journal-generating-card';
+        if (kind === 'success') {
+            const msg = currentChatType === 'group' ? '新总结已生成~' : '新日记已生成~';
+            card.innerHTML = `
+                <div class="journal-banner-row">
+                    <button type="button" class="journal-banner-dismiss journal-banner-ok" aria-label="知道了" title="知道了">
+                        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                    </button>
+                    <div class="journal-banner-textcol">
+                        <div class="text">${msg}</div>
+                        <p class="journal-banner-hint">可到对应日期查看新内容</p>
+                    </div>
+                </div>`;
+        } else {
+            const errMsg = currentChatType === 'group' ? '群聊总结生成失败…' : '日记生成失败…';
+            card.innerHTML = `
+                <div class="journal-banner-row journal-banner-row-error">
+                    <button type="button" class="journal-banner-retry" title="重新选择范围并生成">重新生成</button>
+                    <div class="journal-banner-textcol">
+                        <div class="text">${errMsg}</div>
+                        <p class="journal-banner-hint">将打开生成窗口，可沿用或修改上次的范围与选项</p>
+                    </div>
+                </div>`;
+        }
+        container.appendChild(card);
+    } else if (genLoadingVisible) {
         const el = document.createElement('div');
         el.className = 'journal-generating-card';
         el.id = 'journal-generating-card';
         el.innerHTML = `<div class="spinner"></div><div class="text">正在${currentChatType === 'group' ? '总结群聊' : '编织回忆'}...</div>`;
         container.appendChild(el);
-        showingLoading = true;
     }
-
-    // 空状态
-    if ((!journals || journals.length === 0) && !showingLoading) {
-        if (placeholder) placeholder.style.display = 'block';
-        return;
-    }
-    if (placeholder) placeholder.style.display = 'none';
 
     // 管理模式：平铺全部日记
     if (jManageMode) {
@@ -374,7 +443,7 @@ function setupMemoryJournalScreen() {
         });
     }
 
-    // ── 合并精简 ──
+    // ── 合并为一篇（机械拼接，不调 API） ──
     if (mergeBtn) {
         mergeBtn.addEventListener('click', async () => {
             if (jSelectedIds.size < 2) { showToast('请至少选择 2 篇日记进行合并'); return; }
@@ -419,15 +488,7 @@ function setupMemoryJournalScreen() {
     });
 
     // ── 生成新日记 ──
-    generateNewJournalBtn.addEventListener('click', () => {
-        const chat = _jChat();
-        const total = chat ? chat.history.length : 0;
-        document.getElementById('journal-range-info').textContent = `当前聊天总消息数: ${total}`;
-        const h3 = document.querySelector('#generate-journal-modal h3');
-        if (h3) h3.textContent = (currentChatType === 'group') ? '生成群聊总结' : '指定总结范围';
-        generateJournalForm.reset();
-        generateJournalModal.classList.add('visible');
-    });
+    generateNewJournalBtn.addEventListener('click', () => openGenerateJournalModal({}));
 
     generateJournalForm.addEventListener('submit', async e => {
         e.preventDefault();
@@ -435,6 +496,13 @@ function setupMemoryJournalScreen() {
         const end              = parseInt(document.getElementById('journal-range-end').value);
         const includeFavorited = document.getElementById('journal-include-favorited').checked;
         if (isNaN(start) || isNaN(end) || start <= 0 || end < start) { showToast('请输入有效的起止范围'); return; }
+        lastJournalGenerateParams = {
+            chatId: currentChatId,
+            chatType: currentChatType,
+            start,
+            end,
+            includeFavorited
+        };
         generateJournalModal.classList.remove('visible');
         await generateJournal(start, end, includeFavorited);
     });
@@ -442,6 +510,16 @@ function setupMemoryJournalScreen() {
     // ── 列表容器点击：层级导航 + 管理模式选择 ──
     journalListContainer.addEventListener('click', e => {
         const target = e.target;
+
+        if (target.closest('.journal-banner-dismiss')) {
+            journalGenerateOutcomeBanner = null;
+            renderJournalList();
+            return;
+        }
+        if (target.closest('.journal-banner-retry')) {
+            openGenerateJournalModal({ prefill: lastJournalGenerateParams });
+            return;
+        }
 
         // 管理模式：切换选中
         if (jManageMode) {
@@ -521,7 +599,7 @@ function setupMemoryJournalScreen() {
                 if (journal.isFavorited && !existingTag) {
                     const tag = document.createElement('span');
                     tag.className = 'entry-card-tag';
-                    tag.textContent = '🩷 已收藏';
+                    tag.textContent = '已收藏';
                     footer.appendChild(tag);
                 } else if (!journal.isFavorited && existingTag) {
                     existingTag.remove();
@@ -579,19 +657,13 @@ function setupMemoryJournalScreen() {
 async function generateJournal(start, end, includeFavorited = false) {
     showToast('正在生成日记，请稍候...');
 
-    const container   = document.getElementById('journal-list-container');
     const placeholder = document.getElementById('no-journals-placeholder');
     if (placeholder) placeholder.style.display = 'none';
 
-    const loadingCard = document.createElement('div');
-    loadingCard.className = 'journal-generating-card';
-    loadingCard.id = 'journal-generating-card';
-    loadingCard.innerHTML = `<div class="spinner"></div><div class="text">正在${currentChatType === 'group' ? '总结群聊' : '编织回忆'}...</div>`;
-    if (container.firstChild) container.insertBefore(loadingCard, container.firstChild);
-    else container.appendChild(loadingCard);
-
-    isGenerating     = true;
-    generatingChatId = currentChatId;
+    journalGenerateOutcomeBanner = null;
+    isJournalGenerating         = true;
+    generatingChatId            = currentChatId;
+    renderJournalList();
 
     try {
         const chat = _jChat();
@@ -653,19 +725,24 @@ async function generateJournal(start, end, includeFavorited = false) {
                 if (favPrompt) summaryPrompt += favPrompt;
                 summaryPrompt += `要求：\n1. **体现时间进程**：正文内容必须按时间顺序组织，并明确指出时间点。请严格按照"x年x月x日，发生了[事件]"的格式进行叙述，确保时间线清晰。\n2. **客观平实**：使用第三人称视角，客观陈述事实。**绝对禁止使用强烈的情绪词汇**，保持冷静、克制的叙述风格。\n3. **抓取重点**：识别对话中的核心事件、重要话题转折、关键决策或信息。忽略无关的闲聊和琐碎细节。\n4. **关键原话摘录（重要）**：\n    - 仅当出现具有**极高情感价值**或**重大剧情价值**的对话时，请**直接引用角色的原话**。\n    - **引用格式**：使用引号包裹原话，例如：${chat.realName}说："我永远不会离开你。"\n    - **严格控制数量**：只摘录最闪光、最不可替代的那几句。\n5. **无升华**：不要进行价值升华、感悟或总结性评价，仅记录发生了什么。\n\n你的输出必须是一个JSON对象，包含以下两个字段：\n- 'title': 格式为"日期范围·核心事件"，例如"1月20日-1月22日·关于旅行计划的讨论"。\n- 'content': 总结正文。\n\nStrictly output in JSON format only. Do not speak outside the JSON object.\n\n聊天记录如下：\n\n---\n${historyText}\n---`;
             } else {
-                summaryPrompt = `你是一个日记整理助手。请以角色 "${chat.remarkName || chat.name}" 的第一人称视角，总结以下聊天记录。请专注于重要的情绪、事件和细节。\n\n`;
+                summaryPrompt = `请根据下方聊天记录，以第一人称写一篇日记。**叙述者就是角色「${chat.remarkName || chat.name}」本人**：要像他自己记录，而不是第三者摘要或客服式总结。语气、用词、对 ${chat.myName} 的称呼、思维方式须贴合下方人设与世界观。\n\n`;
                 if (favPrompt) summaryPrompt += favPrompt;
                 summaryPrompt += "为了更好地理解角色和背景，请参考以下信息：\n=====\n";
                 if (worldBooksContent) summaryPrompt += `世界观设定:\n${worldBooksContent}\n\n`;
                 summaryPrompt += `你的角色设定:\n- 角色名: ${chat.realName}\n- 人设: ${chat.persona || "一个友好、乐于助人的伙伴。"}\n\n`;
-                summaryPrompt += `我的角色设定:\n- 我的称呼: ${chat.myName}\n- 我的人设: ${chat.myPersona || "无特定人设。"}\n\n`;
+                summaryPrompt += `我的角色设定（对话中的对方）:\n- 我的称呼: ${chat.myName}\n- 我的人设: ${chat.myPersona || "无特定人设。"}\n\n`;
                 summaryPrompt += "=====\n";
                 if (style.mode === 'custom') {
                     const custwbs = (style.customWorldBookIds || []).map(id => db.worldBooks.find(wb => wb.id === id)).filter(Boolean);
                     const custContent = custwbs.map(wb => wb.content).join('\n\n');
                     if (custContent) summaryPrompt += `\n**特别日记格式/风格要求**：\n请优先严格遵循以下风格指南或格式要求来撰写日记：\n${custContent}\n\n`;
                 }
-                summaryPrompt += `请基于以上所有背景信息，总结以下聊天记录。你的输出必须是一个JSON对象，包含 'title' (年月日·一个简洁的标题) 和 'content' (完整的日记正文) 两个字段，Strictly output in JSON format only. Do not speak outside the JSON object.聊天记录如下：\n\n---\n${historyText}\n---`;
+                summaryPrompt += `【写作要求】\n`;
+                summaryPrompt += `1. **时间锚点**：title 须为「x年x月x日」或「x年x月x日-x月x日·简短主题」，与正文时间范围一致。content 开头先用一句带**公历绝对日期**的话锚定（例如 xxxx年x月x日，……）；若跨越多天，写到新的日期时必须再点明。**同一天内**若聊天跨了不同时段，请结合消息中的时间线索，用自然口吻点出时段（如早上、中午、下午、傍晚、晚上、深夜、凌晨等）再写发生的事，便于理清先后；**不必**写清「几点到几点」，除非聊天里明确出现了具体时刻且对剧情重要。尽量避免不经日期锚定就单独使用「今天」「昨天」「刚才」「那晚」等相对说法，以免日后与「当下对话」混淆。\n`;
+                summaryPrompt += `2. **文风抓人设（核心）**：全文口吻、节奏、冷感或热烈、用词粗鄙或文雅、对 ${chat.myName} 的称呼，必须严格贴合上方人设；人设中的口癖、习惯、世界观用语应自然出现。允许碎碎念、主观感受、联想与评价，像真人日记；禁止写成千篇一律的「标准日记模板腔」。\n`;
+                summaryPrompt += `3. **事实底线（不可漏写，但用角色自己的话说）**：聊天里若出现过下列内容，正文中必须交代清楚，不可省略到无迹可寻——双方明确的约定、承诺、决定；重要的具体数字、金额、日期或时间点；关系或剧情上的明显转折；${chat.myName} 明确提出且在本段聊天中得到回应的问题或请求。若聊天中本就没有某类信息，不要编造。\n`;
+                summaryPrompt += `4. **篇幅**：不追求缩短；在保持人设口吻的前提下写全应记之事，可分段，气氛与细节可写足，但第3条中的要点不得因铺陈气氛而被挤掉。\n\n`;
+                summaryPrompt += `你的输出必须是一个 JSON 对象，仅含两个字段：'title'、'content'（完整日记正文）。Strictly output in JSON format only. Do not speak outside the JSON object.\n\n聊天记录如下：\n\n---\n${historyText}\n---`;
             }
         }
 
@@ -695,108 +772,121 @@ async function generateJournal(start, end, includeFavorited = false) {
         if (!chat.memoryJournals) chat.memoryJournals = [];
         chat.memoryJournals.push(newJournal);
         await saveData();
+        isJournalGenerating = false;
+        generatingChatId    = null;
+        journalGenerateOutcomeBanner = {
+            kind: 'success',
+            chatId: currentChatId,
+            chatType: currentChatType
+        };
         renderJournalList();
         showToast('新日记已生成！');
 
     } catch (error) {
-        const card = document.getElementById('journal-generating-card');
-        if (card) card.remove();
-        const chat = _jChat();
-        if (!chat || !chat.memoryJournals || chat.memoryJournals.length === 0) {
-            const ph = document.getElementById('no-journals-placeholder');
-            if (ph) ph.style.display = 'block';
-        }
+        isJournalGenerating = false;
+        generatingChatId    = null;
+        journalGenerateOutcomeBanner = {
+            kind: 'error',
+            chatId: currentChatId,
+            chatType: currentChatType
+        };
+        renderJournalList();
         showApiError(error);
     } finally {
-        isGenerating     = false;
-        generatingChatId = null;
+        isJournalGenerating = false;
+        generatingChatId    = null;
     }
 }
 
-// ─── 合并日记 ───
+// ─── 从日记标题开头解析「x年x月x日」或「x年x月x日-x日」（用于机械合并标题） ───
+function _parseJournalTitleCalendarSpan(title) {
+    if (!title || typeof title !== 'string') return null;
+    const m = title.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日(?:-(\d{1,2})日)?/);
+    if (!m) return null;
+    const y = m[1];
+    const mo = parseInt(m[2], 10);
+    const d0 = parseInt(m[3], 10);
+    const d1 = m[4] != null ? parseInt(m[4], 10) : d0;
+    return {
+        startStr: `${y}年${mo}月${d0}日`,
+        endStr: `${y}年${mo}月${d1}日`
+    };
+}
+
+function _buildMechanicalMergeTitle(selected, mergedStart, mergedEnd) {
+    const n = selected.length;
+    const first = _parseJournalTitleCalendarSpan(selected[0].title);
+    const last = _parseJournalTitleCalendarSpan(selected[selected.length - 1].title);
+    if (first && last) {
+        const a = first.startStr;
+        const b = last.endStr;
+        if (a === b) return `合并回忆 · ${a}（${n}篇）`;
+        return `合并回忆 · ${a}–${b}（${n}篇）`;
+    }
+    return `合并回忆 · 消息#${mergedStart}-#${mergedEnd}（${n}篇）`;
+}
+
+// ─── 合并日记：机械拼接为一篇，不调 API；合并篇收藏，原篇取消收藏 ───
 async function mergeJournals(journalIds) {
     const chat = _jChat();
     if (!chat) return;
 
     const selected = (chat.memoryJournals || [])
         .filter(j => journalIds.includes(j.id))
-        .sort((a, b) => a.range.start - b.range.start);
+        .sort((a, b) => (a.range?.start ?? 0) - (b.range?.start ?? 0));
     if (selected.length === 0) return;
 
-    const mergedStart = selected[0].range.start;
-    const mergedEnd   = selected[selected.length - 1].range.end;
-    const combined    = selected.map(j => `【${j.title}】\n${j.content}`).join('\n\n---\n\n');
+    const mergedStart = selected[0].range?.start ?? 0;
+    const mergedEnd   = selected[selected.length - 1].range?.end ?? mergedStart;
 
-    let prompt = `你是一个专业的档案记录员。请将以下多篇日记合并整理成一篇连贯、精简的"回忆录"。\n\n`;
-    prompt += `【核心要求】\n1. **体现时间进程**：正文内容必须按时间顺序组织，并明确指出时间点。格式规范：请严格按照"x年x月x日，发生了[事件]"的格式进行叙述，确保时间线清晰。\n`;
-    prompt += `2. **客观平实**：使用第三人称视角，客观陈述事实。**绝对禁止使用强烈的情绪词汇**，保持冷静、克制的叙述风格。\n`;
-    prompt += `3. **抓取重点**：识别对话中的核心事件、重要话题转折、关键决策或信息。忽略无关的闲聊和琐碎细节。\n`;
-    prompt += `4. **关键原话摘录（重要）**：\n    - 仅当出现具有**极高情感价值**（如表白、郑重承诺、极具感染力的情感宣泄）或**重大剧情价值**（如揭示核心秘密、决定性瞬间）的对话时，请**直接引用角色的原话**。\n    - **引用格式**：使用引号包裹原话，例如：${chat.realName}说："我永远不会离开你。"\n    - **严格控制数量**：只摘录最闪光、最不可替代的那几句。如果聊天记录平淡无奇或全是日常琐事，**请不要摘录任何原话**，以免破坏摘要的精简性。\n`;
-    prompt += `5. **无升华**：不要进行价值升华、感悟或总结性评价，仅记录发生了什么。\n\n`;
-    prompt += `你的输出必须是一个JSON对象，包含以下两个字段：\n- 'title': 一个概括性的标题，例如"1月上旬·关于旅行的筹备与出发"。\n- 'content': 合并后的正文内容。\n\nStrictly output in JSON format only. Do not speak outside the JSON object.\n\n待合并的日记内容如下：\n\n${combined}`;
+    const n = selected.length;
+    const mergeTitle = _buildMechanicalMergeTitle(selected, mergedStart, mergedEnd);
+    const header = `以下为多篇日记原文按时间顺序合并（共 ${n} 篇），各段保留原标题以便对准时间线：\n\n`;
+    const body = selected.map((j, i) => `【${j.title || `第${i + 1}段`}】\n${j.content ?? ''}`).join('\n\n---\n\n');
+    const mergeContent = header + body;
 
-    showToast('正在合并精简，请稍候...');
+    const prevFavoriteState = selected.map(j => ({ j, was: !!j.isFavorited }));
+    selected.forEach(j => { j.isFavorited = false; });
 
-    // 退出管理模式
+    const newJournal = {
+        id: `journal_${Date.now()}`,
+        range: { start: mergedStart, end: mergedEnd },
+        title: mergeTitle,
+        content: mergeContent,
+        createdAt: Date.now(),
+        chatId: currentChatId,
+        chatType: currentChatType,
+        isFavorited: true
+    };
+
+    if (!chat.memoryJournals) chat.memoryJournals = [];
+    chat.memoryJournals.push(newJournal);
+
+    journalGenerateOutcomeBanner = null;
+
     jManageMode = false;
     jSelectedIds.clear();
-    document.getElementById('journal-manage-btn').style.display        = 'flex';
-    document.getElementById('journal-cancel-manage-btn').style.display = 'none';
-    document.getElementById('journal-multi-select-bar').style.display  = 'none';
-    document.getElementById('generate-new-journal-btn').style.display  = 'flex';
+    const manageBtnEl = document.getElementById('journal-manage-btn');
+    const cancelManageEl = document.getElementById('journal-cancel-manage-btn');
+    const multiBarEl = document.getElementById('journal-multi-select-bar');
+    const genBtn = document.getElementById('generate-new-journal-btn');
     const bwb = document.getElementById('bind-journal-worldbook-btn');
+    if (manageBtnEl) manageBtnEl.style.display = 'flex';
+    if (cancelManageEl) cancelManageEl.style.display = 'none';
+    if (multiBarEl) multiBarEl.style.display = 'none';
+    if (genBtn) genBtn.style.display = 'flex';
     if (bwb && currentChatType === 'private') bwb.style.display = 'flex';
     jView = 'year';
 
-    // 显示 loading
-    const container = document.getElementById('journal-list-container');
-    const loadingCard = document.createElement('div');
-    loadingCard.className = 'journal-generating-card';
-    loadingCard.id = 'journal-generating-card';
-    loadingCard.innerHTML = `<div class="spinner"></div><div class="text">正在合并回忆...</div>`;
-    container.innerHTML = '';
-    container.appendChild(loadingCard);
-
-    isGenerating     = true;
-    generatingChatId = currentChatId;
-
     try {
-        let { url, key, model } = db.apiSettings;
-        if (!url || !key || !model) throw new Error('API设置不完整。');
-        if (url.endsWith('/')) url = url.slice(0, -1);
-
-        const requestBody = { model, messages: [{ role: 'user', content: prompt }], temperature: 0.7, response_format: { type: 'json_object' } };
-        const endpoint    = `${url}/v1/chat/completions`;
-        const headers     = { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` };
-
-        const rawContent = await fetchAiResponse(db.apiSettings, requestBody, headers, endpoint);
-        let clean = rawContent.trim().replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-        const data = JSON.parse(clean);
-
-        const newJournal = {
-            id: `journal_${Date.now()}`,
-            range: { start: mergedStart, end: mergedEnd },
-            title:   data.title   || '合并日记',
-            content: data.content || '内容为空。',
-            createdAt: Date.now(),
-            chatId: currentChatId,
-            chatType: currentChatType,
-            isFavorited: false
-        };
-
-        if (!chat.memoryJournals) chat.memoryJournals = [];
-        chat.memoryJournals.push(newJournal);
         await saveData();
         renderJournalList();
-        showToast('日记合并完成！');
-
+        showToast('已合并为一篇：合并篇已收藏，原篇已取消收藏');
     } catch (error) {
-        const card = document.getElementById('journal-generating-card');
-        if (card) card.remove();
+        chat.memoryJournals.pop();
+        prevFavoriteState.forEach(({ j, was }) => { j.isFavorited = was; });
+        renderJournalList();
         showApiError(error);
-    } finally {
-        isGenerating     = false;
-        generatingChatId = null;
     }
 }
 

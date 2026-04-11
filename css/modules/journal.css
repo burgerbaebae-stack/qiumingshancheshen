@@ -48,9 +48,32 @@
     color: rgba(255, 255, 255, 0.95);
 }
 
-#memory-journal-screen .app-header .action-btn-group { gap: 18px; }
+#memory-journal-screen .app-header .action-btn-group { gap: 12px; align-items: center; }
 #memory-journal-screen .app-header .action-btn-group .action-btn { width: 22px; height: 22px; padding: 0; }
 #memory-journal-screen .app-header .action-btn-group .action-btn svg { width: 22px; height: 22px; }
+/* 回忆日记顶栏：圆角软糖块 + 略大图标，更贴手账气质 */
+#memory-journal-screen .app-header .action-btn-group .journal-header-icon-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.28) inset, 0 2px 6px rgba(60, 90, 70, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#memory-journal-screen .app-header .action-btn-group .journal-header-icon-btn:active {
+    background: rgba(255, 255, 255, 0.26);
+    transform: scale(0.96);
+}
+#memory-journal-screen .app-header .journal-header-svg {
+    width: 19px;
+    height: 19px;
+    display: block;
+    /* 避免部分环境下 fill="currentColor" 未继承成白色，小圆点/爱心被画成默认黑 */
+    color: rgba(255, 255, 255, 0.96);
+}
 
 /* list-container 内部滚动由 .content 的 overflow-y 处理 */
 #journal-list-container {
@@ -830,6 +853,98 @@
 @keyframes j-pulse-text {
     0%, 100% { opacity: 0.6; }
     50%       { opacity: 1; }
+}
+
+/* 生成结果顶栏（成功 / 失败）：取消虚线脉动，版式为横向 */
+.journal-generating-card.journal-banner-success,
+.journal-generating-card.journal-banner-error {
+    animation: none;
+    border-color: var(--j-green-lt);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+}
+
+.journal-banner-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+}
+
+.journal-banner-textcol {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+}
+
+.journal-banner-textcol .text {
+    animation: none;
+    opacity: 1;
+    margin: 0;
+    text-align: left;
+}
+
+.journal-banner-success .journal-banner-textcol .text {
+    color: var(--j-green-dark);
+}
+
+.journal-banner-hint {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--j-text-lt);
+    font-family: 'Georgia', 'Times New Roman', serif;
+    line-height: 1.35;
+}
+
+.journal-banner-ok {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(145deg, var(--j-green-lt) 0%, var(--j-green) 100%);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(90, 130, 100, 0.35);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.journal-banner-ok:active {
+    transform: scale(0.96);
+    opacity: 0.92;
+}
+
+.journal-banner-error .journal-banner-textcol .text {
+    color: #7a5c52;
+    font-weight: 600;
+}
+
+.journal-banner-retry {
+    flex-shrink: 0;
+    align-self: center;
+    padding: 10px 16px;
+    border-radius: 14px;
+    border: 2px solid var(--j-green-mid);
+    background: var(--j-cream);
+    color: var(--j-green-dark);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    cursor: pointer;
+    box-shadow: 0 2px 8px var(--j-shadow);
+}
+
+.journal-banner-retry:active {
+    background: var(--j-green-pale);
+}
+
+.journal-banner-row-error {
+    align-items: flex-start;
 }
 
 /* ─── 层切换动画 ─── */
