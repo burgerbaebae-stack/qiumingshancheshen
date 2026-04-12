@@ -1486,6 +1486,15 @@
                                     <input type="number" id="setting-reply-count-max" value="8" min="1" style="width:30px; text-align:center; border:none; background: rgba(0,0,0,0.05); border-radius: 4px;">
                                 </div>
                             </div>
+                            <div class="kkt-item">
+                                <div class="kkt-item-label">未发消息时可继续要回复</div>
+                                <div class="kkt-item-control">
+                                    <label class="kkt-switch">
+                                        <input type="checkbox" id="setting-continue-without-user-enabled">
+                                        <span class="kkt-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- 商城互动设置 -->
@@ -2071,9 +2080,6 @@
                         <path d="M10.2 9.5h7.3M10.2 13.5h6M10.2 17.5h5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                 </button>
-                <button class="action-btn" id="journal-cancel-manage-btn" title="取消" style="display: none; font-size: 14px; width: auto; padding: 0 8px;">
-                    取消
-                </button>
                 <button class="action-btn journal-header-icon-btn" id="bind-journal-worldbook-btn" title="绑定世界书">
                     <!-- 翻开的书 + 书脊小爱心书签 -->
                     <svg class="journal-header-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -2115,10 +2121,10 @@
         
         <!-- 日记多选操作栏 -->
         <div id="journal-multi-select-bar" style="display: none;">
-            <span id="journal-select-count">已选 0 篇</span>
-            <div style="display: flex; gap: 10px;">
-                <button class="btn btn-danger btn-small" id="journal-batch-delete-btn">删除</button>
-                <button class="btn btn-primary btn-small" id="journal-merge-btn">合并为一篇</button>
+            <span id="journal-select-count" class="journal-multi-select-count">已选 0 篇</span>
+            <div class="journal-multi-select-actions">
+                <button type="button" class="jm-ms-btn jm-ms-btn-delete" id="journal-batch-delete-btn">删除</button>
+                <button type="button" class="jm-ms-btn jm-ms-btn-merge" id="journal-merge-btn">合并为一篇</button>
             </div>
         </div>
     </div>
@@ -2126,7 +2132,7 @@
     <!-- Memory Journal Detail Screen -->
     <div id="memory-journal-detail-screen" class="screen">
         <header class="app-header">
-            <button class="back-btn" data-target="memory-journal-screen">‹</button>
+            <button type="button" class="back-btn" id="journal-detail-back-btn" data-target="memory-journal-screen" aria-label="返回">‹</button>
             <div class="title-container">
                 <h1 class="title">日记详情</h1>
             </div>
@@ -3086,7 +3092,10 @@
                     <span class="kkt-slider"></span>
                 </label>
             </div>
-            <button type="submit" class="btn btn-primary">✨ 生成日记</button>
+            <div class="jm-actions">
+                <button type="button" id="journal-delete-range-images-btn" class="btn jm-delete-images-btn">🗑 删除所选范围内的真实图片</button>
+                <button type="submit" class="btn btn-primary">✨ 生成日记</button>
+            </div>
         </form>
     </div>
 </div>

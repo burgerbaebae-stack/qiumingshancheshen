@@ -7,7 +7,8 @@
 let isJournalGenerating = false;
 let generatingChatId    = null;
 
-// 生成结果顶栏：null | { kind: 'success'|'error', chatId, chatType }
+// 生成结果顶栏：null | { kind, chatId, chatType, successNav? }
+// successNav：成功时点 ✓ 跳转日视图并打开抽屉 { jYear, jMonth, day }（与 _groupByDate 键一致）
 let journalGenerateOutcomeBanner = null;
 // 上次「生成日记」表单参数（仅用于失败重试预填；须与当前会话匹配）
 let lastJournalGenerateParams    = null;
@@ -16,10 +17,16 @@ let lastJournalGenerateParams    = null;
 let jView  = 'year';  // 'year' | 'month' | 'day'
 let jYear  = null;    // e.g. '2025'
 let jMonth = null;    // e.g. '12'
+/** 最近一次打开的「某日」底部抽屉对应的日（字符串，与 polaroid dataset.day 一致）；用于合并后/详情返回恢复抽屉 */
+let jLastOpenedSheetDay = null;
+/** 进入日记详情时，若从某日抽屉点入，则记下该日以便返回时重新打开抽屉 */
+let jDetailFromSheetDay = null;
 
 // 管理模式
 let jManageMode = false;
 let jSelectedIds = new Set();
+/** 进入「合并/多选」前记下年/月/日导航，退出时还原（不强制回年份） */
+let jManageReturnSnapshot = null;
 
 // ─── 常量 ───
 const J_MONTH_CN   = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
@@ -199,6 +206,7 @@ function _buildManageList(journals) {
 
 // ─── 底部抽屉：打开 ───
 function _openSheet(day) {
+    jLastOpenedSheetDay = String(day);
     const ms = J_MONTH_SHORT[parseInt(jMonth) - 1];
     document.getElementById('journal-entry-sheet-date').textContent =
         `${jYear} 年 ${ms} 月 ${parseInt(day)} 日`;
@@ -252,8 +260,60 @@ function _closeSheet() {
     document.getElementById('journal-sheet-overlay').classList.remove('visible');
 }
 
+function _captureJournalNavForManage() {
+    jManageReturnSnapshot = {
+        jView: jView,
+        jYear: jYear,
+        jMonth: jMonth,
+        jLastOpenedSheetDay: jLastOpenedSheetDay
+    };
+}
+
+function _restoreJournalNavAfterManage() {
+    if (!jManageReturnSnapshot) return;
+    jView = jManageReturnSnapshot.jView;
+    jYear = jManageReturnSnapshot.jYear;
+    jMonth = jManageReturnSnapshot.jMonth;
+    jLastOpenedSheetDay = jManageReturnSnapshot.jLastOpenedSheetDay;
+    jManageReturnSnapshot = null;
+}
+
+function _syncJournalManageChrome(managing) {
+    const manageBtnEl = document.getElementById('journal-manage-btn');
+    const multiBarEl    = document.getElementById('journal-multi-select-bar');
+    const genBtn        = document.getElementById('generate-new-journal-btn');
+    const bwb           = document.getElementById('bind-journal-worldbook-btn');
+    if (managing) {
+        if (manageBtnEl) manageBtnEl.style.display = 'none';
+        if (multiBarEl) multiBarEl.style.display = 'flex';
+        if (genBtn) genBtn.style.display = 'none';
+        if (bwb) bwb.style.display = 'none';
+    } else {
+        if (manageBtnEl) manageBtnEl.style.display = 'flex';
+        if (multiBarEl) multiBarEl.style.display = 'none';
+        if (genBtn) genBtn.style.display = 'flex';
+        if (bwb && currentChatType === 'private') bwb.style.display = 'flex';
+    }
+}
+
+function _updateJournalSelectCountBadge() {
+    const el = document.getElementById('journal-select-count');
+    if (el) el.textContent = `已选 ${jSelectedIds.size} 篇`;
+}
+
+/** 退出多选/合并模式并回到进入前的日记层级（年/月/日） */
+function exitJournalManageMode() {
+    _restoreJournalNavAfterManage();
+    jManageMode = false;
+    jSelectedIds.clear();
+    _syncJournalManageChrome(false);
+    _updateJournalSelectCountBadge();
+    renderJournalList();
+}
+
 // ─── 打开详情页 ───
 function _openDetail(journal) {
+    jDetailFromSheetDay = jLastOpenedSheetDay;
     const d = new Date(journal.createdAt);
     const dateStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
     currentJournalDetailId = journal.id;
@@ -324,12 +384,12 @@ function renderJournalList() {
             const msg = currentChatType === 'group' ? '新总结已生成~' : '新日记已生成~';
             card.innerHTML = `
                 <div class="journal-banner-row">
-                    <button type="button" class="journal-banner-dismiss journal-banner-ok" aria-label="知道了" title="知道了">
+                    <button type="button" class="journal-banner-dismiss journal-banner-ok" aria-label="打开该日日记列表" title="打开该日日记列表">
                         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
                     </button>
                     <div class="journal-banner-textcol">
                         <div class="text">${msg}</div>
-                        <p class="journal-banner-hint">可到对应日期查看新内容</p>
+                        <p class="journal-banner-hint">点左侧 ✓ 打开该日日记列表</p>
                     </div>
                 </div>`;
         } else {
@@ -389,45 +449,43 @@ function setupMemoryJournalScreen() {
     const customStyleContainer      = document.getElementById('journal-custom-style-container');
     const journalStyleWorldBookList = document.getElementById('journal-style-worldbook-list');
     const manageBtn                 = document.getElementById('journal-manage-btn');
-    const cancelManageBtn           = document.getElementById('journal-cancel-manage-btn');
-    const multiSelectBar            = document.getElementById('journal-multi-select-bar');
     const batchDeleteBtn            = document.getElementById('journal-batch-delete-btn');
     const mergeBtn                  = document.getElementById('journal-merge-btn');
-    const selectCountSpan           = document.getElementById('journal-select-count');
     const journalListContainer      = document.getElementById('journal-list-container');
     const entryList                 = document.getElementById('journal-entry-list');
     const sheetCloseBtn             = document.getElementById('journal-entry-sheet-close');
     const sheetOverlay              = document.getElementById('journal-sheet-overlay');
 
-    // ── 管理模式切换 ──
+    // ── 管理模式切换（退出时还原进入前的年/月/日，不强制回年份） ──
     function _toggleManage(active) {
-        jManageMode = active;
-        jSelectedIds.clear();
-        _updateCount();
-        if (active) {
-            manageBtn.style.display       = 'none';
-            cancelManageBtn.style.display = 'flex';
-            multiSelectBar.style.display  = 'flex';
-            generateNewJournalBtn.style.display = 'none';
-            if (bindWorldBookBtn) bindWorldBookBtn.style.display = 'none';
-            _closeSheet();
-        } else {
-            manageBtn.style.display       = 'flex';
-            cancelManageBtn.style.display = 'none';
-            multiSelectBar.style.display  = 'none';
-            generateNewJournalBtn.style.display = 'flex';
-            if (bindWorldBookBtn && currentChatType === 'private') bindWorldBookBtn.style.display = 'flex';
-            jView = 'year'; // 退出管理后回年份视图
+        if (!active) {
+            exitJournalManageMode();
+            return;
         }
+        _captureJournalNavForManage();
+        jManageMode = true;
+        jSelectedIds.clear();
+        _updateJournalSelectCountBadge();
+        _syncJournalManageChrome(true);
+        _closeSheet();
         renderJournalList();
     }
 
     function _updateCount() {
-        if (selectCountSpan) selectCountSpan.textContent = `已选 ${jSelectedIds.size} 篇`;
+        _updateJournalSelectCountBadge();
     }
 
-    if (manageBtn)       manageBtn.addEventListener('click', () => _toggleManage(true));
-    if (cancelManageBtn) cancelManageBtn.addEventListener('click', () => _toggleManage(false));
+    if (manageBtn) manageBtn.addEventListener('click', () => _toggleManage(true));
+
+    // 合并/多选模式下拦截左上角返回：须早于 main.js 里 body 上对 .back-btn 的全局处理（否则会进聊天室）
+    document.addEventListener('click', (e) => {
+        if (!jManageMode) return;
+        const back = e.target.closest && e.target.closest('#memory-journal-screen .app-header .back-btn');
+        if (!back) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        exitJournalManageMode();
+    }, true);
 
     // ── 批量删除 ──
     if (batchDeleteBtn) {
@@ -507,13 +565,72 @@ function setupMemoryJournalScreen() {
         await generateJournal(start, end, includeFavorited);
     });
 
+    const journalDeleteRangeImagesBtn = document.getElementById('journal-delete-range-images-btn');
+    if (journalDeleteRangeImagesBtn) {
+        journalDeleteRangeImagesBtn.addEventListener('click', async () => {
+            const start = parseInt(document.getElementById('journal-range-start').value, 10);
+            const end   = parseInt(document.getElementById('journal-range-end').value, 10);
+            if (isNaN(start) || isNaN(end) || start <= 0 || end < start) {
+                showToast('请输入有效的起止范围');
+                return;
+            }
+            const chat = _jChat();
+            if (!chat) {
+                showToast('未找到当前聊天。');
+                return;
+            }
+            if (!confirm(
+                `将永久删除第 ${start}～${end} 条消息范围内的所有内嵌真实图片（如相册识图产生的 data URL / 大图数据）。\n` +
+                '不会删除：纯 http(s) 图片链接、仅文字的「发来的照片/视频：…」描述。\n' +
+                '去掉图后若没有可读文字，将整行删除（与聊天里多选删除一致）。此操作不可恢复。\n\n确定继续？'
+            )) return;
+
+            const r = deleteEmbeddedImagesInChatRange(chat, start, end);
+            if (r.error) {
+                showToast(r.error);
+                return;
+            }
+            if (r.scannedWithImage === 0) {
+                showToast('该范围内没有可删除的内嵌图片');
+                return;
+            }
+
+            await saveData();
+            if (currentChatType === 'private' && typeof recalculateChatStatus === 'function')
+                recalculateChatStatus(chat);
+            if (typeof renderMessages === 'function' && chat.id === currentChatId)
+                renderMessages(false, false);
+            if (typeof renderChatList === 'function') renderChatList();
+
+            const info = document.getElementById('journal-range-info');
+            if (info) info.textContent = `当前聊天总消息数: ${chat.history.length}`;
+
+            showToast(`已处理 ${r.scannedWithImage} 条含内嵌图的消息：整行删除 ${r.deletedRows} 条，其余 ${r.cleanedRows} 条已去掉图片并保留文字`);
+        });
+    }
+
     // ── 列表容器点击：层级导航 + 管理模式选择 ──
     journalListContainer.addEventListener('click', e => {
         const target = e.target;
 
         if (target.closest('.journal-banner-dismiss')) {
+            const b = journalGenerateOutcomeBanner;
             journalGenerateOutcomeBanner = null;
-            renderJournalList();
+            if (b && b.kind === 'success' && b.successNav &&
+                b.chatId === currentChatId && b.chatType === currentChatType) {
+                const { jYear: navY, jMonth: navM, day: navD } = b.successNav;
+                jYear  = navY;
+                jMonth = navM;
+                jView  = 'day';
+                renderJournalList();
+                _openSheet(navD);
+                requestAnimationFrame(() => {
+                    const le = document.getElementById('journal-entry-list');
+                    if (le) le.scrollTop = le.scrollHeight;
+                });
+            } else {
+                renderJournalList();
+            }
             return;
         }
         if (target.closest('.journal-banner-retry')) {
@@ -541,17 +658,41 @@ function setupMemoryJournalScreen() {
 
         // 年份标签 → 月份视图
         const yearTab = target.closest('.journal-year-tab');
-        if (yearTab) { jYear = yearTab.dataset.year; jView = 'month'; renderJournalList(); return; }
+        if (yearTab) {
+            jYear = yearTab.dataset.year;
+            jView = 'month';
+            jLastOpenedSheetDay = null;
+            renderJournalList();
+            return;
+        }
 
         // 返回年份
-        if (target.closest('[data-action="back-year"]')) { jView = 'year'; jYear = null; renderJournalList(); return; }
+        if (target.closest('[data-action="back-year"]')) {
+            jView = 'year';
+            jYear = null;
+            jLastOpenedSheetDay = null;
+            renderJournalList();
+            return;
+        }
 
         // 月份便利贴 → 日期视图
         const monthNote = target.closest('.journal-month-note');
-        if (monthNote) { jMonth = monthNote.dataset.month; jView = 'day'; renderJournalList(); return; }
+        if (monthNote) {
+            jMonth = monthNote.dataset.month;
+            jView = 'day';
+            jLastOpenedSheetDay = null;
+            renderJournalList();
+            return;
+        }
 
         // 返回月份
-        if (target.closest('[data-action="back-month"]')) { jView = 'month'; jMonth = null; renderJournalList(); return; }
+        if (target.closest('[data-action="back-month"]')) {
+            jView = 'month';
+            jMonth = null;
+            jLastOpenedSheetDay = null;
+            renderJournalList();
+            return;
+        }
 
         // 拍立得 → 打开底部抽屉
         const polaroid = target.closest('.journal-day-polaroid');
@@ -651,6 +792,119 @@ function setupMemoryJournalScreen() {
             titleEl.focus();
         }
     });
+
+    const journalDetailBackBtn = document.getElementById('journal-detail-back-btn');
+    if (journalDetailBackBtn) {
+        journalDetailBackBtn.addEventListener('click', () => {
+            const day = jDetailFromSheetDay;
+            // 须保留 data-target：全局委托会在冒泡阶段 switchScreen(data-target)；若缺少则会 switchScreen(undefined) 导致无任何 .screen.active → 白屏。
+            // 在下一轮再打开某日抽屉，避免与全局切屏顺序打架。
+            setTimeout(() => {
+                renderJournalList();
+                if (jView === 'day' && jYear && jMonth && day) {
+                    _openSheet(day);
+                    requestAnimationFrame(() => {
+                        const le = document.getElementById('journal-entry-list');
+                        if (le) le.scrollTop = le.scrollHeight;
+                    });
+                }
+            }, 0);
+        });
+    }
+}
+
+// ─── 日记范围：删除内嵌真实图片（data URL / 大块 base64），与「生成日记」分步、独立 ───
+const J_IMAGE_STUB_REGEX = /^\[.*?发来了一张图片[：:]\]$/;
+
+function _jIsEmbeddedImageData(str) {
+    if (!str || typeof str !== 'string') return false;
+    const s = str.trim();
+    if (/^data:image\//i.test(s)) return true;
+    if (/^https?:\/\//i.test(s)) return false;
+    if (s.length < 400) return false;
+    const compact = s.replace(/\s/g, '');
+    return /^[A-Za-z0-9+/]+=*$/.test(compact);
+}
+
+function _jPartIsEmbeddedImage(p) {
+    return !!(p && p.type === 'image' && typeof p.data === 'string' && _jIsEmbeddedImageData(p.data));
+}
+
+function _jMessageHasEmbeddedImage(msg) {
+    if (msg.parts && Array.isArray(msg.parts) && msg.parts.some(_jPartIsEmbeddedImage)) return true;
+    if (msg.content && typeof msg.content === 'string' && _jIsEmbeddedImageData(msg.content)) return true;
+    return false;
+}
+
+/** 去掉识图占位句后，是否还有可读正文（不含纯外链图 URL 文案） */
+function _jMeaningfulTextsAfterStrip(msg) {
+    const out = [];
+    for (const p of msg.parts || []) {
+        if (p.type !== 'text' && p.type !== 'html') continue;
+        const t = (p.text || '').trim();
+        if (!t || J_IMAGE_STUB_REGEX.test(t)) continue;
+        out.push(t);
+    }
+    const c = (msg.content && typeof msg.content === 'string') ? msg.content.trim() : '';
+    if (c && !_jIsEmbeddedImageData(c) && !J_IMAGE_STUB_REGEX.test(c)) out.push(c);
+    return out;
+}
+
+/**
+ * 在 1-based 闭区间 [start, end] 内删除内嵌真实图片；纯 http(s) 图链、仅文字的「照片/视频」描述不处理。
+ * 去掉图后若无正文则整行删除（与聊天多选删消息一致）。
+ * @returns {{ error?: string, deletedRows: number, cleanedRows: number, scannedWithImage: number }}
+ */
+function deleteEmbeddedImagesInChatRange(chat, start, end) {
+    if (!chat || !Array.isArray(chat.history)) return { error: '数据异常' };
+    const startIndex = start - 1;
+    const endIndex = end;
+    if (startIndex < 0 || endIndex > chat.history.length || startIndex >= endIndex)
+        return { error: '无效的消息范围。' };
+
+    let deletedRows = 0;
+    let cleanedRows = 0;
+    let scannedWithImage = 0;
+
+    for (let i = endIndex - 1; i >= startIndex; i--) {
+        const msg = chat.history[i];
+        if (!_jMessageHasEmbeddedImage(msg)) continue;
+        scannedWithImage++;
+
+        const newParts = (msg.parts || []).filter(p => !_jPartIsEmbeddedImage(p));
+        if (newParts.length) msg.parts = newParts;
+        else delete msg.parts;
+
+        if (msg.content && typeof msg.content === 'string' && _jIsEmbeddedImageData(msg.content))
+            msg.content = '';
+
+        const meaningful = _jMeaningfulTextsAfterStrip(msg);
+        if (meaningful.length === 0) {
+            chat.history.splice(i, 1);
+            deletedRows++;
+            continue;
+        }
+
+        if (msg.parts && msg.parts.some(p => p.type === 'html')) {
+            if (!msg.content || _jIsEmbeddedImageData(msg.content)) {
+                const tParts = msg.parts.filter(p => p.type === 'text').map(p => p.text).filter(Boolean);
+                msg.content = tParts.join('\n') || '[多媒体消息]';
+            }
+        } else if (msg.parts && msg.parts.length) {
+            const t = (msg.parts || [])
+                .filter(p => p.type === 'text' || p.type === 'html')
+                .map(p => (p.text || '').trim())
+                .filter(Boolean)
+                .filter(x => !J_IMAGE_STUB_REGEX.test(x));
+            msg.content = t.join('\n');
+            delete msg.parts;
+        } else {
+            msg.content = meaningful.join('\n');
+        }
+        cleanedRows++;
+    }
+
+    return { deletedRows, cleanedRows, scannedWithImage };
 }
 
 // ─── 生成日记 ───
@@ -774,10 +1028,16 @@ async function generateJournal(start, end, includeFavorited = false) {
         await saveData();
         isJournalGenerating = false;
         generatingChatId    = null;
+        const cd = new Date(newJournal.createdAt);
         journalGenerateOutcomeBanner = {
             kind: 'success',
             chatId: currentChatId,
-            chatType: currentChatType
+            chatType: currentChatType,
+            successNav: {
+                jYear: String(cd.getFullYear()),
+                jMonth: String(cd.getMonth() + 1),
+                day: String(cd.getDate())
+            }
         };
         renderJournalList();
         showToast('新日记已生成！');
@@ -813,17 +1073,117 @@ function _parseJournalTitleCalendarSpan(title) {
     };
 }
 
-function _buildMechanicalMergeTitle(selected, mergedStart, mergedEnd) {
-    const n = selected.length;
-    const first = _parseJournalTitleCalendarSpan(selected[0].title);
-    const last = _parseJournalTitleCalendarSpan(selected[selected.length - 1].title);
-    if (first && last) {
-        const a = first.startStr;
-        const b = last.endStr;
+/** 从字符串中提取所有「YYYY年M月D日」（须含四位年份），返回首尾 */
+function _extractCalendarAnchorsFromString(s) {
+    if (!s || typeof s !== 'string') return null;
+    const re = /(\d{4})年(\d{1,2})月(\d{1,2})日/g;
+    const hits = [];
+    let m;
+    while ((m = re.exec(s)) !== null) {
+        hits.push(`${m[1]}年${parseInt(m[2], 10)}月${parseInt(m[3], 10)}日`);
+    }
+    return hits.length ? { first: hits[0], last: hits[hits.length - 1] } : null;
+}
+
+/** 用于合并总标题：从一段的标题或正文首行取带年份的日期锚点 */
+function _segmentCalendarEndpoints(seg) {
+    if (!seg) return null;
+    let p = _parseJournalTitleCalendarSpan(seg.title);
+    if (p) return { start: p.startStr, end: p.endStr };
+    let anchors = _extractCalendarAnchorsFromString(seg.title);
+    if (anchors) return { start: anchors.first, end: anchors.last };
+    const firstLine = (seg.content || '').split('\n')[0].trim();
+    anchors = _extractCalendarAnchorsFromString(firstLine);
+    if (anchors) return { start: anchors.first, end: anchors.last };
+    return null;
+}
+
+function _buildMechanicalMergeTitleFromSegments(segments, mergedStart, mergedEnd) {
+    const n = segments.length;
+    if (n === 0) return `合并回忆 · 消息#${mergedStart}-#${mergedEnd}（0篇）`;
+    const r0 = _segmentCalendarEndpoints(segments[0]);
+    const r1 = _segmentCalendarEndpoints(segments[n - 1]);
+    if (r0 && r1) {
+        const a = r0.start;
+        const b = r1.end;
         if (a === b) return `合并回忆 · ${a}（${n}篇）`;
         return `合并回忆 · ${a}–${b}（${n}篇）`;
     }
     return `合并回忆 · 消息#${mergedStart}-#${mergedEnd}（${n}篇）`;
+}
+
+const _MERGE_PREAMBLE_RE = /^以下为多篇日记原文按时间顺序合并（共 \d+ 篇），各段保留原标题以便对准时间线：\s*/;
+
+function _isMergeProductTitle(t) {
+    return t && String(t).trim().startsWith('合并回忆');
+}
+
+function _isMergeProductJournal(j) {
+    return j && _isMergeProductTitle(j.title);
+}
+
+function _stripMergePreambles(text) {
+    let t = (text || '').replace(/\r\n/g, '\n').trim();
+    while (_MERGE_PREAMBLE_RE.test(t)) t = t.replace(_MERGE_PREAMBLE_RE, '').trim();
+    return t;
+}
+
+/** 解析「【标题】\n正文」单段 */
+function _parseBracketDiarySection(part) {
+    const m = String(part).trim().match(/^【([^】]*)】\s*([\s\S]*)$/);
+    if (!m) return null;
+    return { secTitle: m[1].trim(), secBody: m[2] };
+}
+
+/**
+ * 将一篇「合并回忆」正文摊平为若干 { title, content }（递归处理套娃合并）
+ */
+function _expandMergeBody(fallbackTitle, content) {
+    const raw = (content || '').replace(/\r\n/g, '\n');
+    const text = _stripMergePreambles(raw);
+    if (!text) return [{ title: fallbackTitle || '日记', content: raw.trim() }];
+
+    const parts = text.split(/\n\s*---\s*\n/).map(p => p.trim()).filter(Boolean);
+    if (parts.length === 0)
+        return [{ title: fallbackTitle || '日记', content: text }];
+
+    const out = [];
+    for (const part of parts) {
+        const parsed = _parseBracketDiarySection(part);
+        if (!parsed) {
+            out.push({ title: '片段', content: part });
+            continue;
+        }
+        const { secTitle, secBody } = parsed;
+        if (_isMergeProductTitle(secTitle)) {
+            out.push(..._expandMergeBody(secTitle, secBody));
+        } else {
+            out.push({ title: secTitle || '日记', content: secBody.trim() });
+        }
+    }
+    return out.length ? out : [{ title: fallbackTitle || '日记', content: text }];
+}
+
+/** 勾选列表 → 摊平后的片段（仅当含合并产物时拆包；否则每篇一条） */
+function _collectMechanicalMergeSegments(selected) {
+    const hasBundle = selected.some(_isMergeProductJournal);
+    if (!hasBundle) {
+        return selected.map(j => ({
+            title: j.title || '日记',
+            content: (j.content || '').trim()
+        }));
+    }
+    const out = [];
+    for (const j of selected) {
+        if (_isMergeProductJournal(j)) {
+            const inner = _expandMergeBody(j.title, j.content);
+            if (inner.length) out.push(...inner);
+            else out.push({ title: j.title, content: (j.content || '').trim() });
+        } else {
+            out.push({ title: j.title || '日记', content: (j.content || '').trim() });
+        }
+    }
+    return out;
 }
 
 // ─── 合并日记：机械拼接为一篇，不调 API；合并篇收藏，原篇取消收藏 ───
@@ -839,10 +1199,11 @@ async function mergeJournals(journalIds) {
     const mergedStart = selected[0].range?.start ?? 0;
     const mergedEnd   = selected[selected.length - 1].range?.end ?? mergedStart;
 
-    const n = selected.length;
-    const mergeTitle = _buildMechanicalMergeTitle(selected, mergedStart, mergedEnd);
+    const segments = _collectMechanicalMergeSegments(selected);
+    const n = segments.length;
+    const mergeTitle = _buildMechanicalMergeTitleFromSegments(segments, mergedStart, mergedEnd);
     const header = `以下为多篇日记原文按时间顺序合并（共 ${n} 篇），各段保留原标题以便对准时间线：\n\n`;
-    const body = selected.map((j, i) => `【${j.title || `第${i + 1}段`}】\n${j.content ?? ''}`).join('\n\n---\n\n');
+    const body = segments.map((s, i) => `【${s.title || `第${i + 1}段`}】\n${s.content ?? ''}`).join('\n\n---\n\n');
     const mergeContent = header + body;
 
     const prevFavoriteState = selected.map(j => ({ j, was: !!j.isFavorited }));
@@ -856,7 +1217,9 @@ async function mergeJournals(journalIds) {
         createdAt: Date.now(),
         chatId: currentChatId,
         chatType: currentChatType,
-        isFavorited: true
+        isFavorited: true,
+        isMergedBundle: true,
+        mergedSegmentCount: n
     };
 
     if (!chat.memoryJournals) chat.memoryJournals = [];
@@ -864,23 +1227,16 @@ async function mergeJournals(journalIds) {
 
     journalGenerateOutcomeBanner = null;
 
-    jManageMode = false;
-    jSelectedIds.clear();
-    const manageBtnEl = document.getElementById('journal-manage-btn');
-    const cancelManageEl = document.getElementById('journal-cancel-manage-btn');
-    const multiBarEl = document.getElementById('journal-multi-select-bar');
-    const genBtn = document.getElementById('generate-new-journal-btn');
-    const bwb = document.getElementById('bind-journal-worldbook-btn');
-    if (manageBtnEl) manageBtnEl.style.display = 'flex';
-    if (cancelManageEl) cancelManageEl.style.display = 'none';
-    if (multiBarEl) multiBarEl.style.display = 'none';
-    if (genBtn) genBtn.style.display = 'flex';
-    if (bwb && currentChatType === 'private') bwb.style.display = 'flex';
-    jView = 'year';
-
     try {
         await saveData();
-        renderJournalList();
+        exitJournalManageMode();
+        if (jView === 'day' && jYear && jMonth && jLastOpenedSheetDay) {
+            _openSheet(jLastOpenedSheetDay);
+            requestAnimationFrame(() => {
+                const le = document.getElementById('journal-entry-list');
+                if (le) le.scrollTop = le.scrollHeight;
+            });
+        }
         showToast('已合并为一篇：合并篇已收藏，原篇已取消收藏');
     } catch (error) {
         chat.memoryJournals.pop();

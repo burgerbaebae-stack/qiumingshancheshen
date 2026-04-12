@@ -43,7 +43,8 @@ function setupAddCharModal() {
                 enabled: false,
                 interval: 60,
                 lastTriggerTime: 0
-            }
+            },
+            continueReplyWithoutUserEnabled: false
        };
         db.characters.push(newChar);
         await saveData();
@@ -211,7 +212,8 @@ async function createCharacterFromData(data, avatar) {
             enabled: false,
             interval: 60,
             lastTriggerTime: 0
-        }
+        },
+        continueReplyWithoutUserEnabled: false
     };
 
     const importedWorldBookIds = [];

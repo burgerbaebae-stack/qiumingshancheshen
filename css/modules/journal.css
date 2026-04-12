@@ -957,32 +957,103 @@
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── 底部多选操作栏（保持原样） ─── */
+/* ─── 底部多选操作栏（手账色：cream + 薄荷边 + 鼠尾草主按钮） ─── */
 #journal-multi-select-bar {
     position: absolute;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background-color: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    padding: 10px 20px;
-    border-radius: 30px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    background: linear-gradient(165deg, #fffdf8 0%, var(--j-cream) 45%, #f2ebe0 100%);
+    border: 1px solid rgba(155, 133, 98, 0.22);
+    border-left: 4px solid var(--j-green-lt);
+    padding: 12px 16px 12px 14px;
+    border-radius: 22px;
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.85) inset,
+        0 6px 22px rgba(74, 64, 53, 0.12),
+        0 2px 8px rgba(80, 100, 85, 0.08);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
+    gap: 14px;
     z-index: 100;
     width: 90%;
     max-width: 400px;
     animation: slideUpBar 0.3s ease-out;
 }
 
-#journal-select-count {
-    font-size: 14px;
-    color: #333;
-    font-weight: 500;
+#journal-multi-select-bar .journal-multi-select-count,
+#journal-select-count.journal-multi-select-count {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--j-text-mid);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+#journal-multi-select-bar .journal-multi-select-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+#journal-multi-select-bar .jm-ms-btn {
+    width: auto;
+    margin: 0;
+    padding: 9px 14px;
+    border-radius: 999px;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#journal-multi-select-bar .jm-ms-btn-delete {
+    color: #5c4038;
+    background: linear-gradient(180deg, rgba(255, 250, 248, 0.98) 0%, rgba(245, 232, 228, 0.95) 100%);
+    border: 1.5px solid rgba(165, 110, 98, 0.42);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75) inset, 0 2px 8px rgba(90, 50, 45, 0.08);
+}
+
+#journal-multi-select-bar .jm-ms-btn-delete:hover {
+    color: #4a322c;
+    background: rgba(252, 236, 232, 0.98);
+    border-color: rgba(150, 95, 85, 0.55);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset, 0 3px 12px rgba(120, 70, 60, 0.1);
+}
+
+#journal-multi-select-bar .jm-ms-btn-delete:active {
+    transform: scale(0.96);
+}
+
+#journal-multi-select-bar .jm-ms-btn-merge {
+    color: #fff;
+    background: linear-gradient(135deg, var(--j-green) 0%, var(--j-green-dark) 100%);
+    border: 1px solid rgba(90, 120, 95, 0.25);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.22) inset,
+        0 3px 12px rgba(80, 130, 100, 0.28);
+}
+
+#journal-multi-select-bar .jm-ms-btn-merge:hover {
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.28) inset,
+        0 4px 16px rgba(80, 130, 100, 0.34);
+}
+
+#journal-multi-select-bar .jm-ms-btn-merge:active {
+    transform: scale(0.96);
+    box-shadow: 0 2px 8px rgba(80, 130, 100, 0.22);
 }
 
 @keyframes slideUpBar {
@@ -1306,6 +1377,48 @@
     color: var(--j-text-mid);
     margin-bottom: 0;
     font-family: 'Georgia', serif;
+}
+
+/* 生成日记 / 删图按钮区 */
+#generate-journal-modal .jm-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+/* 删图：次级操作，与输入框/虚线开关同系的纸感 + 鼠尾草描边，避免沿用全局 btn-secondary 蓝 */
+#generate-journal-modal .jm-delete-images-btn {
+    width: 100%;
+    margin-bottom: 0;
+    border-radius: 50px;
+    font-size: 14px;
+    padding: 11px 18px;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--j-text);
+    background: linear-gradient(180deg, rgba(255, 253, 248, 0.98) 0%, rgba(245, 239, 230, 0.96) 100%);
+    border: 1.5px solid rgba(122, 171, 138, 0.5);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.88) inset,
+        0 2px 10px rgba(74, 64, 53, 0.06);
+    transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+#generate-journal-modal .jm-delete-images-btn:hover {
+    color: var(--j-green-dark);
+    background: linear-gradient(180deg, rgba(255, 255, 252, 1) 0%, var(--j-green-pale) 100%);
+    border-color: var(--j-green-mid);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.75) inset,
+        0 3px 14px rgba(80, 130, 100, 0.12);
+}
+
+#generate-journal-modal .jm-delete-images-btn:active {
+    transform: scale(0.97);
+    border-color: var(--j-green-dark);
+    box-shadow: 0 1px 5px rgba(80, 130, 100, 0.1);
 }
 
 /* 生成按钮 */

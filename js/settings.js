@@ -241,6 +241,11 @@ function loadSettingsToSidebar() {
         document.getElementById('setting-reply-count-min').value = e.replyCountMin || 3;
         document.getElementById('setting-reply-count-max').value = e.replyCountMax || 8;
 
+        const continueWithoutUserEl = document.getElementById('setting-continue-without-user-enabled');
+        if (continueWithoutUserEl) {
+            continueWithoutUserEl.checked = !!e.continueReplyWithoutUserEnabled;
+        }
+
         document.getElementById('setting-bilingual-mode').checked = e.bilingualModeEnabled || false;
         document.getElementById('setting-bilingual-style').value = e.bilingualBubbleStyle || 'under';
         
@@ -324,6 +329,10 @@ async function saveSettingsFromSidebar() {
         e.replyCountEnabled = document.getElementById('setting-reply-count-enabled').checked;
         e.replyCountMin = parseInt(document.getElementById('setting-reply-count-min').value, 10) || 3;
         e.replyCountMax = parseInt(document.getElementById('setting-reply-count-max').value, 10) || 8;
+        const continueWithoutUserSave = document.getElementById('setting-continue-without-user-enabled');
+        if (continueWithoutUserSave) {
+            e.continueReplyWithoutUserEnabled = continueWithoutUserSave.checked;
+        }
         e.useCustomBubbleCss = document.getElementById('setting-use-custom-css').checked;
         e.customBubbleCss = document.getElementById('setting-custom-bubble-css').value;
         e.bilingualModeEnabled = document.getElementById('setting-bilingual-mode').checked;

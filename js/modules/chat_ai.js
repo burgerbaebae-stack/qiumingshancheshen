@@ -3,6 +3,26 @@
 const HUMAN_RUN_PROMPT = `<角色活人运转>\n## [PSYCHOLOGY: HEXACO-SCHEMA-ACT]\n> Personality: HEXACO-driven, dynamic traits, inner conflicts required \n> Filter: schema-bias drives emotion; no pure reaction allowed \n> Attachment: secure/insecure logic must govern intimacy  \n> If-Then Behavior: situation-dependent activation of traits only  \n---\n    ## [VITALITY]\n+inconsistency +emoflux +splitmotifs +microreact +minddrift\n---\n## [TRAJECTORY-COHERENCE]\n> Role maintains an identity narrative = coherent over time  \n> No mood/goal switch without contradiction resolution \n> Every action must protect or challenge self-concept  \n> Interrupts = inner conflict or narrative clash  \n> Output = filtered through “who I am” logic\n</角色活人运转>`;
 
 /**
+ * 私聊「未发消息继续要回复」时仅注入本次 API 请求（单条 user），不入库。
+ * 静默超过阈值时在末尾追加一段 [频道系统] 时间说明；与原有「两条消息间隔」时间感知互斥（由调用处跳过旧逻辑）。
+ */
+function buildChannelContinueUserPrompt(historySlice) {
+    const CONTINUE_SILENCE_THRESHOLD_MS = 7 * 60 * 1000;
+    const lastMsg = historySlice[historySlice.length - 1];
+    const lastTs = (lastMsg && typeof lastMsg.timestamp === 'number') ? lastMsg.timestamp : Date.now();
+    const silenceMs = Date.now() - lastTs;
+
+    let text = `[频道系统] 对方暂未输入。请严格依据上文语境、情绪与关系亲密度，并结合你作为角色自身的人设、性格特点、世界观与背景等，像活人一样自行判断是否续写、如何续写；以你的角色身份自然续写一条或多条回复，不要复述本句，不要把它当作对方说的话。`;
+
+    if (silenceMs > CONTINUE_SILENCE_THRESHOLD_MS) {
+        const gapStr = formatTimeGap(silenceMs);
+        text += `\n\n[频道系统] 自本会话最后一条消息起至本次延续请求，已过去约${gapStr}。对方未发送新消息；此为界面触发的续写请求。请结合上文语境、情绪与关系亲密度以及你的人设、性格、世界观与背景，自行判断是否在语气或内容里体现这段空白，避免每次机械抱怨久等或追问去向；若剧情上适合沉默衔接，也可自然接话而不强调时间。`;
+    }
+
+    return text;
+}
+
+/**
  * 是否应播放网页内「收到回复」提示音：仅前台且停留在该会话聊天室。
  * 后台 / 其它会话由系统 Notification 发声，此处必须返回 false，禁止与系统提示音叠播。
  */
@@ -94,6 +114,13 @@ async function getAiReply(chatId, chatType, isBackground = false) {
             return true;
         });
 
+        const needsChannelContinuePrivate =
+            !isBackground &&
+            chatType === 'private' &&
+            chat.continueReplyWithoutUserEnabled &&
+            historySlice.length > 0 &&
+            historySlice[historySlice.length - 1].role === 'assistant';
+
         if (provider === 'gemini') {
             const contents = historySlice.map(msg => {
                 const role = msg.role === 'assistant' ? 'model' : 'user';
@@ -131,8 +158,8 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                 });
             }
 
-            // 用户主动发消息：阅后即焚时间感知（仅注入本次 payload，绝不写入历史）
-            if (!isBackground && chat.timePerceptionEnabled && contents.length > 0) {
+            // 用户主动发消息：阅后即焚时间感知（仅注入本次 payload，绝不写入历史）；与「点继续」路径互斥，避免与静默时长重复
+            if (!isBackground && chat.timePerceptionEnabled && contents.length > 0 && !needsChannelContinuePrivate) {
                 const TIME_THRESHOLD = 7 * 60 * 1000;
                 const histLen = historySlice.length;
                 if (histLen >= 2) {
@@ -152,6 +179,13 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                         }
                     }
                 }
+            }
+
+            if (needsChannelContinuePrivate) {
+                contents.push({
+                    role: 'user',
+                    parts: [{ text: buildChannelContinueUserPrompt(historySlice) }]
+                });
             }
 
             requestBody = {
@@ -213,8 +247,8 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                 });
             }
 
-            // 2. 用户主动发消息：阅后即焚时间感知（仅注入本次 payload，绝不写入历史）
-            if (!isBackground && chat.timePerceptionEnabled) {
+            // 2. 用户主动发消息：阅后即焚时间感知（仅注入本次 payload，绝不写入历史）；与「点继续」路径互斥
+            if (!isBackground && chat.timePerceptionEnabled && !needsChannelContinuePrivate) {
                 const TIME_THRESHOLD = 7 * 60 * 1000;
                 const histLen = historySlice.length;
                 if (histLen >= 2) {
@@ -237,6 +271,13 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                         }
                     }
                 }
+            }
+
+            if (needsChannelContinuePrivate) {
+                messages.push({
+                    role: 'user',
+                    content: buildChannelContinueUserPrompt(historySlice)
+                });
             }
 
             // 3. 插入 CoT 序列（无论前台后台，只要开启就插入）
@@ -891,6 +932,7 @@ function generatePrivateSystemPrompt(character) {
 - [${character.myName}拒绝了${character.realName}的代付请求]：我拒绝了你的代付请求。
 - [${character.myName} 撤回了一条消息：xxx]：我撤回了刚刚发送的一条消息，xxx是被我撤回的原文。这可能意味着我发错了、说错了话或者改变了主意。你需要根据你的人设和我们当前对话的氛围对此作出自然的反应。例如，可以装作没看见并等待我的下一句话，或好奇地问一句“怎么撤回啦？”。
 - [system: xxx]：这是一条系统指令，用于设定场景或提供上下文，此条信息不应在对话中被直接提及，你只需理解其内容并应用到后续对话中。
+${character.continueReplyWithoutUserEnabled ? `- [频道系统] 开头的消息为聊天室在对方未发送新消息时发起的延续对话请求，并非${character.myName}本人输入。请结合上文语境、关系亲密度及你的人设、性格、世界观与背景自然续写；同次请求中可能出现第二条 [频道系统] 说明自最后一条消息以来的空白时长，亦非对方发言。不要复述这些标记句，也不要把它们当作对方说的话。\n` : ''}
 5. ✨重要✨ 当我给你送礼物时，你必须通过发送一条指令来表示你已接收礼物。格式必须为：[${character.realName}已接收礼物]。这条指令消息本身不会显示给用户，但会触发礼物状态的变化。你可以在发送这条指令后，再附带一条普通的聊天消息来表达你的感谢和想法。
 6. ✨重要✨ 当我给你转账时，你必须对此做出回应。你有两个选择，且必须严格遵循以下格式之一，这条指令消息本身不会显示给用户，但会触发转账状态的变化。你可以选择在发送这条指令后，再附带一条普通的聊天消息来表达你的想法。
 a) 接收转账: [${character.realName}接收${character.myName}的转账]
@@ -972,7 +1014,7 @@ p) 求代付: [${character.realName}向${character.myName}发起了代付请求:
         prompt += `17. **对话节奏**: 你需要模拟真人的聊天习惯，你可以一次性生成多条短消息。每次回复3-8条消息之内，**关键规则**：请保持回复消息数量的**随机性和多样性**。\n`;
     }
     
-    prompt += `18. **特殊消息格式的使用原则**：语音、撤回、转账、商城互动等仍视为增强互动的“调味剂”，请**自然、节制**使用，不要每轮乱刷。**更新顶栏状态（i））不属于调味剂**：每轮**必须**至少一条，详见第9条。**引用（j））**：凡符合第11条（接我的话/段/话题原意）时**必须用 j)**，**禁止**用「至于……」类句式代替；这不叫滥用。滥用是指无必要地堆满无关特殊指令。\n`;
+    prompt += `18. **多种特殊消息格式的使用原则**（包括但不限于送礼物、语音、照片或视频、撤回、转账、商城互动、发起视频或语音通话等；**凡上文第16条「输出格式」清单中已列出的各类格式，除 i）顶栏状态、j）引用等本提示另有硬性规定者外，是否使用、何时使用均按本条判断**，不必在此逐条穷举）：这些是你在本聊天情境里**真实可用的行为**，是否使用、何时使用，须结合**人设、性格、世界观与背景、当前关系与情境**自行判断，像活人一样取舍——情境与人设支撑时**应当果断使用**，不必为追求“少刷”而刻意回避；情境不符或按性格本就不会做时**不要硬凑**。**不要求**每轮都输出多种特殊格式，也**无需**在无新动因时重复堆砌同一种能力。**更新顶栏状态（i））**仍为硬性要求：每轮**必须**至少一条，详见第9条。**引用（j））**：凡符合第11条（接我的话/段/话题原意）时**必须用 j)**，**禁止**用「至于……」类句式代替；这不叫滥用。滥用是指无必要地堆满无关特殊指令。\n`;
     prompt += `</Chatting Guidelines>\n`
 
     prompt += `19. 不要主动终止聊天进程，除非我明确提出。保持你的人设，自然地进行对话。`;
