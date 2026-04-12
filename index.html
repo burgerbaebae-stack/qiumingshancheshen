@@ -2063,12 +2063,17 @@
     </div>
     <!-- Memory Journal Screen -->
     <div id="memory-journal-screen" class="screen">
-        <header class="app-header">
-            <button class="back-btn" data-target="chat-room-screen">‹</button>
-            <div class="title-container">
-                <h1 class="title">回忆日记</h1>
+        <header class="app-header journal-screen-header">
+            <div class="journal-header-leading">
+                <button class="back-btn" data-target="chat-room-screen">‹</button>
+                <h1 class="title journal-header-title">回忆</h1>
             </div>
             <div class="action-btn-group">
+                <button class="action-btn journal-header-icon-btn" id="journal-favorites-btn" title="全部收藏">
+                    <svg class="journal-header-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="#ffffff" stroke-width="1.75" stroke-linejoin="round"/>
+                    </svg>
+                </button>
                 <button class="action-btn journal-header-icon-btn" id="journal-manage-btn" title="管理日记">
                     <!-- 手账清单本：圆角 + 小圆点，偏可爱 -->
                     <svg class="journal-header-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -2111,11 +2116,25 @@
         <!-- 日记条目底部抽屉 -->
         <div id="journal-entry-sheet" class="journal-entry-sheet">
             <div class="journal-sheet-handle"></div>
-            <div class="journal-sheet-header">
+            <div class="journal-sheet-header journal-favorites-sheet-header">
                 <h3 id="journal-entry-sheet-date" class="journal-sheet-title"></h3>
-                <button id="journal-entry-sheet-close" class="journal-sheet-close">&times;</button>
+                <div class="journal-sheet-header-actions">
+                    <button type="button" id="journal-entry-sort-btn" class="journal-favorites-sort-btn" title="按日记时间排序">新→旧</button>
+                    <button type="button" id="journal-entry-sheet-close" class="journal-sheet-close">&times;</button>
+                </div>
             </div>
             <div id="journal-entry-list" class="journal-entry-list"></div>
+        </div>
+        <div id="journal-favorites-sheet" class="journal-entry-sheet journal-favorites-sheet">
+            <div class="journal-sheet-handle"></div>
+            <div class="journal-sheet-header journal-favorites-sheet-header">
+                <h3 class="journal-sheet-title">全部收藏</h3>
+                <div class="journal-sheet-header-actions">
+                    <button type="button" id="journal-favorites-sort-btn" class="journal-favorites-sort-btn" title="按日记日期排序">新→旧</button>
+                    <button type="button" id="journal-favorites-sheet-close" class="journal-sheet-close">&times;</button>
+                </div>
+            </div>
+            <div id="journal-favorites-list" class="journal-entry-list"></div>
         </div>
         <div id="journal-sheet-overlay" class="journal-sheet-overlay"></div>
         

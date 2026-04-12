@@ -37,6 +37,31 @@
     padding-right: 15px;
 }
 
+#memory-journal-screen .app-header.journal-screen-header {
+    justify-content: space-between;
+    gap: 8px;
+}
+
+#memory-journal-screen .journal-header-leading {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+#memory-journal-screen .journal-header-leading .back-btn {
+    flex-shrink: 0;
+}
+
+#memory-journal-screen .journal-header-title {
+    margin: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 #memory-journal-screen .app-header .title {
     color: #fff;
     font-family: 'Georgia', 'Times New Roman', serif;
@@ -197,6 +222,56 @@
     font-size: 20px;
     font-weight: 300;
     flex-shrink: 0;
+}
+
+/* 年/月/日卡片：含收藏角标（鼠尾草空心心，与主色协调） */
+.journal-fav-mark {
+    color: var(--j-green-dark);
+    pointer-events: none;
+    line-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.journal-fav-mark-svg {
+    display: block;
+    filter: drop-shadow(0 1px 2px rgba(80, 110, 90, 0.2));
+}
+/* 年份条：收藏角标在「×篇」徽章左侧 */
+.journal-fav-mark--year {
+    position: static;
+    flex-shrink: 0;
+    margin-right: 2px;
+}
+.journal-fav-mark--year .journal-fav-mark-svg {
+    width: 18px;
+    height: 18px;
+}
+/* 月份便利贴：卡片内右上方留白区（与胶带/回形针错开） */
+.journal-fav-mark--month {
+    position: absolute;
+    top: 22px;
+    right: 16px;
+    z-index: 6;
+}
+.journal-fav-mark--month .journal-fav-mark-svg {
+    width: 26px;
+    height: 26px;
+}
+.journal-month-note:nth-child(4n) .journal-fav-mark--month {
+    right: 30px;
+    top: 20px;
+}
+/* 日视图：绿色相片区域右上 */
+.journal-fav-mark--day {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
+}
+.journal-fav-mark--day .journal-fav-mark-svg {
+    width: 21px;
+    height: 21px;
 }
 
 /* ─── 面包屑导航 ─── */
@@ -437,7 +512,8 @@
     margin-top: 10px;
 }
 
-.month-note-stats span {
+.month-note-stats .stat-days,
+.month-note-stats .stat-entries {
     font-size: 11px;
     color: rgba(55, 38, 22, 0.60);
     background: rgba(255,255,255,0.62);
@@ -522,6 +598,7 @@
 
 /* 照片区：3 色轮换，薄荷鼠尾草绿系 */
 .polaroid-photo-area {
+    position: relative;
     width: 100%;
     aspect-ratio: 1;
     border-radius: 8px;
@@ -599,6 +676,53 @@
 
 .journal-entry-sheet.open {
     transform: translateY(0);
+}
+
+/* 全部收藏：半屏高度，叠在单日抽屉之上 */
+#journal-favorites-sheet.journal-favorites-sheet {
+    z-index: 201;
+    max-height: 50vh;
+    height: 50vh;
+}
+
+.journal-favorites-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.journal-favorites-sheet-header .journal-sheet-title {
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+}
+
+.journal-sheet-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.journal-favorites-sort-btn {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--j-cream-line);
+    background: #fff;
+    color: var(--j-text-mid);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(90, 70, 50, 0.08);
+}
+
+.journal-favorites-sort-btn:active {
+    background: var(--j-cream-deep);
+    transform: scale(0.97);
 }
 
 .journal-sheet-handle {

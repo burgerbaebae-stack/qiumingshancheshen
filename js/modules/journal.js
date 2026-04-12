@@ -28,6 +28,12 @@ let jSelectedIds = new Set();
 /** 进入「合并/多选」前记下年/月/日导航，退出时还原（不强制回年份） */
 let jManageReturnSnapshot = null;
 
+/** 全部收藏弹层：按日记日期排序，true 为较新日期在前 */
+let jFavoritesDateDesc = true;
+
+/** 某日日记抽屉内列表：按 createdAt 排序，true 为较新在前 */
+let jDaySheetDateDesc = true;
+
 // ─── 常量 ───
 const J_MONTH_CN   = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 const J_MONTH_SHORT = ['一','二','三','四','五','六','七','八','九','十','十一','十二'];
@@ -35,6 +41,9 @@ const NOTE_ROTS = [1.2, -1.5, 0.8, -2.0, 1.6, -0.9, 2.1, -1.3, 0.7, -1.8, 1.4, -
 const POL_ROTS  = [1.5,-1.2, 2.0,-0.8, 1.8,-2.1, 0.6,-1.7, 1.3,-0.9, 2.2,-1.4,
                    0.7,-1.1, 1.9,-0.5, 1.6,-1.8, 0.8,-2.0, 1.1,-0.7, 1.7,-1.5,
                    2.0,-0.6, 1.4,-1.9, 0.9,-1.3, 2.1];
+
+/** 年/月/日卡片「含收藏」角标：空心 + 淡填充，与手账鼠尾草绿一致 */
+const J_FAV_MARK_SVG = '<svg class="journal-fav-mark-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round" fill="currentColor" fill-opacity="0.16"/></svg>';
 
 // ─── 工具：获取当前聊天对象 ───
 function _jChat() {
@@ -65,6 +74,53 @@ function _countYear(yd) {
 }
 function _countMonth(md) {
     return Object.values(md).reduce((s, a) => s + a.length, 0);
+}
+
+/** 年 / 月 / 日 是否含至少一篇收藏（用于卡片角标） */
+function _favoriteLocationSets(journals) {
+    const years = new Set();
+    const ym  = new Set();
+    const ymd = new Set();
+    for (const j of journals || []) {
+        if (!j.isFavorited) continue;
+        const d = new Date(j.createdAt);
+        const y = String(d.getFullYear());
+        const m = String(d.getMonth() + 1);
+        const day = String(d.getDate());
+        years.add(y);
+        ym.add(`${y}\t${m}`);
+        ymd.add(`${y}\t${m}\t${day}`);
+    }
+    return { years, ym, ymd };
+}
+
+function _journalEntryCardHtml(j) {
+    const preview = j.content
+        ? (j.content.length > 80 ? j.content.slice(0, 80) + '…' : j.content)
+        : '';
+    return `
+            <div class="journal-entry-card" data-id="${j.id}">
+                <div class="entry-card-header">
+                    <div class="entry-card-title">${j.title}</div>
+                    <div class="entry-card-actions">
+                        <button class="entry-action-btn favorite-journal-btn${j.isFavorited ? ' favorited' : ''}" title="${j.isFavorited ? '取消收藏' : '收藏'}">
+                            <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        </button>
+                        <button class="entry-action-btn delete-journal-btn" title="删除">
+                            <svg viewBox="0 0 24 24"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="entry-card-preview">${preview}</div>
+                <div class="entry-card-footer">
+                    <span class="entry-card-range">消息 ${j.range.start}–${j.range.end}</span>
+                    ${j.isFavorited ? '<span class="entry-card-tag">已收藏</span>' : ''}
+                </div>
+            </div>`;
+}
+
+function _journalEntryCardsHtml(entries) {
+    return entries.map(_journalEntryCardHtml).join('');
 }
 
 function _journalOutcomeBannerApplies() {
@@ -99,7 +155,8 @@ function openGenerateJournalModal(opts = {}) {
 }
 
 // ─── 构建：年份视图 ───
-function _buildYearView(grouped) {
+function _buildYearView(grouped, favLoc) {
+    const fl = favLoc || { years: new Set(), ym: new Set(), ymd: new Set() };
     const years = Object.keys(grouped).sort((a, b) => b - a);
     const title = (currentChatType === 'group') ? '智能总结' : '回忆日记';
     const div = document.createElement('div');
@@ -113,6 +170,7 @@ function _buildYearView(grouped) {
             ${years.map(year => `
             <div class="journal-year-tab" data-year="${year}">
                 <span class="journal-year-tab-year">${year}</span>
+                ${fl.years.has(year) ? `<span class="journal-fav-mark journal-fav-mark--year" title="该年含收藏">${J_FAV_MARK_SVG}</span>` : ''}
                 <span class="journal-year-tab-count">${_countYear(grouped[year])} 篇</span>
                 <span class="journal-year-tab-arrow">›</span>
             </div>`).join('')}
@@ -121,7 +179,8 @@ function _buildYearView(grouped) {
 }
 
 // ─── 构建：月份视图（便利贴） ───
-function _buildMonthView(yearData) {
+function _buildMonthView(yearData, favLoc) {
+    const fl = favLoc || { years: new Set(), ym: new Set(), ymd: new Set() };
     const months = Object.keys(yearData).sort((a, b) => a - b);
     const div = document.createElement('div');
     div.className = 'journal-month-view journal-layer-enter';
@@ -136,9 +195,11 @@ function _buildMonthView(yearData) {
                 const dayCount   = Object.keys(yearData[m]).length;
                 const entryCount = _countMonth(yearData[m]);
                 const rot = NOTE_ROTS[idx] ?? 0;
+                const hasFav = fl.ym.has(`${jYear}\t${m}`);
                 return `
                 <div class="journal-month-note note-color-${idx % 12}"
                      data-month="${m}" style="--rot: ${rot}deg">
+                    ${hasFav ? `<span class="journal-fav-mark journal-fav-mark--month" title="该月含收藏">${J_FAV_MARK_SVG}</span>` : ''}
                     <div class="month-note-top">
                         <span class="month-num">${String(parseInt(m)).padStart(2,'0')}</span>
                         <span class="month-cn">月</span>
@@ -154,7 +215,8 @@ function _buildMonthView(yearData) {
 }
 
 // ─── 构建：日期视图（拍立得） ───
-function _buildDayView(monthData) {
+function _buildDayView(monthData, favLoc) {
+    const fl = favLoc || { years: new Set(), ym: new Set(), ymd: new Set() };
     const days = Object.keys(monthData).sort((a, b) => a - b);
     const ms = J_MONTH_SHORT[parseInt(jMonth) - 1];
     const div = document.createElement('div');
@@ -168,11 +230,13 @@ function _buildDayView(monthData) {
             ${days.map((day, idx) => {
                 const cnt = monthData[day].length;
                 const rot = POL_ROTS[idx % POL_ROTS.length];
+                const hasFav = fl.ymd.has(`${jYear}\t${jMonth}\t${day}`);
                 return `
                 <div class="journal-day-polaroid" data-day="${day}"
                      style="--pol-rot: ${rot}deg">
                     <div class="polaroid-brad"></div>
                     <div class="polaroid-photo-area">
+                        ${hasFav ? `<span class="journal-fav-mark journal-fav-mark--day" title="该日含收藏">${J_FAV_MARK_SVG}</span>` : ''}
                         <div class="polaroid-date-num">${pad(parseInt(day))}</div>
                         <div class="polaroid-month-label">${ms}月</div>
                     </div>
@@ -204,12 +268,18 @@ function _buildManageList(journals) {
     return div;
 }
 
-// ─── 底部抽屉：打开 ───
-function _openSheet(day) {
-    jLastOpenedSheetDay = String(day);
-    const ms = J_MONTH_SHORT[parseInt(jMonth) - 1];
-    document.getElementById('journal-entry-sheet-date').textContent =
-        `${jYear} 年 ${ms} 月 ${parseInt(day)} 日`;
+function _syncDaySheetSortBtnLabel() {
+    const btn = document.getElementById('journal-entry-sort-btn');
+    if (btn) btn.textContent = jDaySheetDateDesc ? '新→旧' : '旧→新';
+}
+
+function _renderDaySheetList() {
+    const listEl = document.getElementById('journal-entry-list');
+    if (!listEl || !jYear || !jMonth || jLastOpenedSheetDay == null) return;
+    const day = String(jLastOpenedSheetDay);
+    const ms  = J_MONTH_SHORT[parseInt(jMonth) - 1];
+    const dateTitle = document.getElementById('journal-entry-sheet-date');
+    if (dateTitle) dateTitle.textContent = `${jYear} 年 ${ms} 月 ${parseInt(day, 10)} 日`;
 
     const chat = _jChat();
     const all  = chat ? (chat.memoryJournals || []) : [];
@@ -218,37 +288,21 @@ function _openSheet(day) {
         return String(d.getFullYear())   === String(jYear)  &&
                String(d.getMonth() + 1)  === String(jMonth) &&
                String(d.getDate())        === String(day);
-    }).sort((a, b) => a.createdAt - b.createdAt);
+    }).sort((a, b) => (jDaySheetDateDesc ? b.createdAt - a.createdAt : a.createdAt - b.createdAt));
 
-    const listEl = document.getElementById('journal-entry-list');
     if (entries.length === 0) {
         listEl.innerHTML = '<p style="text-align:center;color:#aaa;padding:20px;font-family:Georgia,serif;">暂无记录</p>';
     } else {
-        listEl.innerHTML = entries.map(j => {
-            const preview = j.content
-                ? (j.content.length > 80 ? j.content.slice(0, 80) + '…' : j.content)
-                : '';
-            return `
-            <div class="journal-entry-card" data-id="${j.id}">
-                <div class="entry-card-header">
-                    <div class="entry-card-title">${j.title}</div>
-                    <div class="entry-card-actions">
-                        <button class="entry-action-btn favorite-journal-btn${j.isFavorited ? ' favorited' : ''}" title="${j.isFavorited ? '取消收藏' : '收藏'}">
-                            <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                        </button>
-                        <button class="entry-action-btn delete-journal-btn" title="删除">
-                            <svg viewBox="0 0 24 24"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg>
-                        </button>
-                    </div>
-                </div>
-                <div class="entry-card-preview">${preview}</div>
-                <div class="entry-card-footer">
-                    <span class="entry-card-range">消息 ${j.range.start}–${j.range.end}</span>
-                    ${j.isFavorited ? '<span class="entry-card-tag">已收藏</span>' : ''}
-                </div>
-            </div>`;
-        }).join('');
+        listEl.innerHTML = _journalEntryCardsHtml(entries);
     }
+}
+
+// ─── 底部抽屉：打开 ───
+function _openSheet(day) {
+    document.getElementById('journal-favorites-sheet').classList.remove('open');
+    jLastOpenedSheetDay = String(day);
+    _syncDaySheetSortBtnLabel();
+    _renderDaySheetList();
 
     document.getElementById('journal-entry-sheet').classList.add('open');
     document.getElementById('journal-sheet-overlay').classList.add('visible');
@@ -257,7 +311,60 @@ function _openSheet(day) {
 // ─── 底部抽屉：关闭 ───
 function _closeSheet() {
     document.getElementById('journal-entry-sheet').classList.remove('open');
+    const favOpen = document.getElementById('journal-favorites-sheet').classList.contains('open');
+    if (!favOpen) document.getElementById('journal-sheet-overlay').classList.remove('visible');
+}
+
+function _closeFavoritesSheet() {
+    document.getElementById('journal-favorites-sheet').classList.remove('open');
+    const dayOpen = document.getElementById('journal-entry-sheet').classList.contains('open');
+    if (!dayOpen) document.getElementById('journal-sheet-overlay').classList.remove('visible');
+}
+
+function _closeAllJournalSheets() {
+    document.getElementById('journal-entry-sheet').classList.remove('open');
+    document.getElementById('journal-favorites-sheet').classList.remove('open');
     document.getElementById('journal-sheet-overlay').classList.remove('visible');
+}
+
+function _syncFavoritesSortBtnLabel() {
+    const btn = document.getElementById('journal-favorites-sort-btn');
+    if (btn) btn.textContent = jFavoritesDateDesc ? '新→旧' : '旧→新';
+}
+
+function _renderFavoritesListInner() {
+    const listEl = document.getElementById('journal-favorites-list');
+    if (!listEl) return;
+    const chat = _jChat();
+    const all  = chat ? (chat.memoryJournals || []) : [];
+    const fav  = all.filter(j => j.isFavorited);
+    fav.sort((a, b) => (jFavoritesDateDesc ? b.createdAt - a.createdAt : a.createdAt - b.createdAt));
+    if (fav.length === 0) {
+        listEl.innerHTML = '<p style="text-align:center;color:#aaa;padding:20px;font-family:Georgia,serif;">暂无收藏</p>';
+    } else {
+        listEl.innerHTML = _journalEntryCardsHtml(fav);
+    }
+}
+
+function _refreshFavoritesSheetIfOpen() {
+    const fs = document.getElementById('journal-favorites-sheet');
+    if (fs && fs.classList.contains('open')) _renderFavoritesListInner();
+}
+
+function _refreshDaySheetIfOpen() {
+    const sh = document.getElementById('journal-entry-sheet');
+    if (sh && sh.classList.contains('open')) {
+        _syncDaySheetSortBtnLabel();
+        _renderDaySheetList();
+    }
+}
+
+function _openFavoritesSheet() {
+    document.getElementById('journal-entry-sheet').classList.remove('open');
+    _syncFavoritesSortBtnLabel();
+    _renderFavoritesListInner();
+    document.getElementById('journal-favorites-sheet').classList.add('open');
+    document.getElementById('journal-sheet-overlay').classList.add('visible');
 }
 
 function _captureJournalNavForManage() {
@@ -280,16 +387,19 @@ function _restoreJournalNavAfterManage() {
 
 function _syncJournalManageChrome(managing) {
     const manageBtnEl = document.getElementById('journal-manage-btn');
+    const favBtnEl    = document.getElementById('journal-favorites-btn');
     const multiBarEl    = document.getElementById('journal-multi-select-bar');
     const genBtn        = document.getElementById('generate-new-journal-btn');
     const bwb           = document.getElementById('bind-journal-worldbook-btn');
     if (managing) {
         if (manageBtnEl) manageBtnEl.style.display = 'none';
+        if (favBtnEl) favBtnEl.style.display = 'none';
         if (multiBarEl) multiBarEl.style.display = 'flex';
         if (genBtn) genBtn.style.display = 'none';
         if (bwb) bwb.style.display = 'none';
     } else {
         if (manageBtnEl) manageBtnEl.style.display = 'flex';
+        if (favBtnEl) favBtnEl.style.display = 'flex';
         if (multiBarEl) multiBarEl.style.display = 'none';
         if (genBtn) genBtn.style.display = 'flex';
         if (bwb && currentChatType === 'private') bwb.style.display = 'flex';
@@ -312,8 +422,8 @@ function exitJournalManageMode() {
 }
 
 // ─── 打开详情页 ───
-function _openDetail(journal) {
-    jDetailFromSheetDay = jLastOpenedSheetDay;
+function _openDetail(journal, opts = {}) {
+    jDetailFromSheetDay = opts.fromFavorites ? null : jLastOpenedSheetDay;
     const d = new Date(journal.createdAt);
     const dateStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
     currentJournalDetailId = journal.id;
@@ -360,7 +470,7 @@ function renderJournalList() {
         if (titleEl)  titleEl.textContent   = '智能总结';
     } else {
         if (bindBtn && !jManageMode) bindBtn.style.display = 'flex';
-        if (titleEl)  titleEl.textContent   = '回忆日记';
+        if (titleEl)  titleEl.textContent   = '回忆';
     }
 
     const genLoadingVisible = isJournalGenerating && generatingChatId === currentChatId;
@@ -370,6 +480,8 @@ function renderJournalList() {
     // 空状态（若有顶栏：生成中 / 成功提示 / 失败提示，则不显示全屏空状态）
     if ((!journals || journals.length === 0) && !hasTopStatus) {
         if (placeholder) placeholder.style.display = 'block';
+        _refreshFavoritesSheetIfOpen();
+        _refreshDaySheetIfOpen();
         return;
     }
     if (placeholder) placeholder.style.display = 'none';
@@ -415,25 +527,30 @@ function renderJournalList() {
     // 管理模式：平铺全部日记
     if (jManageMode) {
         container.appendChild(_buildManageList(journals));
+        _refreshFavoritesSheetIfOpen();
+        _refreshDaySheetIfOpen();
         return;
     }
 
     // 正常模式：层级导航
     const grouped = _groupByDate(journals);
+    const favLoc  = _favoriteLocationSets(journals);
 
     if (jView === 'year') {
-        container.appendChild(_buildYearView(grouped));
+        container.appendChild(_buildYearView(grouped, favLoc));
 
     } else if (jView === 'month') {
         const yd = grouped[jYear];
-        if (!yd) { jView = 'year'; container.appendChild(_buildYearView(grouped)); }
-        else      container.appendChild(_buildMonthView(yd));
+        if (!yd) { jView = 'year'; container.appendChild(_buildYearView(grouped, favLoc)); }
+        else      container.appendChild(_buildMonthView(yd, favLoc));
 
     } else if (jView === 'day') {
         const md = grouped[jYear]?.[jMonth];
-        if (!md) { jView = 'month'; container.appendChild(_buildMonthView(grouped[jYear] || {})); }
-        else      container.appendChild(_buildDayView(md));
+        if (!md) { jView = 'month'; container.appendChild(_buildMonthView(grouped[jYear] || {}, favLoc)); }
+        else      container.appendChild(_buildDayView(md, favLoc));
     }
+    _refreshFavoritesSheetIfOpen();
+    _refreshDaySheetIfOpen();
 }
 
 // ─── 初始化事件绑定 ───
@@ -455,6 +572,11 @@ function setupMemoryJournalScreen() {
     const entryList                 = document.getElementById('journal-entry-list');
     const sheetCloseBtn             = document.getElementById('journal-entry-sheet-close');
     const sheetOverlay              = document.getElementById('journal-sheet-overlay');
+    const favoritesBtn              = document.getElementById('journal-favorites-btn');
+    const favoritesList             = document.getElementById('journal-favorites-list');
+    const favoritesCloseBtn         = document.getElementById('journal-favorites-sheet-close');
+    const favoritesSortBtn          = document.getElementById('journal-favorites-sort-btn');
+    const entrySortBtn              = document.getElementById('journal-entry-sort-btn');
 
     // ── 管理模式切换（退出时还原进入前的年/月/日，不强制回年份） ──
     function _toggleManage(active) {
@@ -467,7 +589,7 @@ function setupMemoryJournalScreen() {
         jSelectedIds.clear();
         _updateJournalSelectCountBadge();
         _syncJournalManageChrome(true);
-        _closeSheet();
+        _closeAllJournalSheets();
         renderJournalList();
     }
 
@@ -701,7 +823,29 @@ function setupMemoryJournalScreen() {
 
     // ── 底部抽屉关闭 ──
     if (sheetCloseBtn) sheetCloseBtn.addEventListener('click', _closeSheet);
-    if (sheetOverlay)  sheetOverlay.addEventListener('click', _closeSheet);
+    if (sheetOverlay)  sheetOverlay.addEventListener('click', _closeAllJournalSheets);
+
+    if (favoritesBtn) {
+        favoritesBtn.addEventListener('click', () => {
+            if (jManageMode) return;
+            _openFavoritesSheet();
+        });
+    }
+    if (favoritesCloseBtn) favoritesCloseBtn.addEventListener('click', _closeFavoritesSheet);
+    if (favoritesSortBtn) {
+        favoritesSortBtn.addEventListener('click', () => {
+            jFavoritesDateDesc = !jFavoritesDateDesc;
+            _syncFavoritesSortBtnLabel();
+            _renderFavoritesListInner();
+        });
+    }
+    if (entrySortBtn) {
+        entrySortBtn.addEventListener('click', () => {
+            jDaySheetDateDesc = !jDaySheetDateDesc;
+            _syncDaySheetSortBtnLabel();
+            _renderDaySheetList();
+        });
+    }
 
     // ── 底部抽屉内：条目操作 ──
     if (entryList) {
@@ -746,12 +890,49 @@ function setupMemoryJournalScreen() {
                     existingTag.remove();
                 }
                 showToast(journal.isFavorited ? '已收藏' : '已取消收藏');
+                renderJournalList();
                 return;
             }
 
             // 点击卡片主体 → 进入详情
             _closeSheet();
             _openDetail(journal);
+        });
+    }
+
+    if (favoritesList) {
+        favoritesList.addEventListener('click', async e => {
+            const target = e.target;
+            const card   = target.closest('.journal-entry-card');
+            if (!card) return;
+
+            const id   = card.dataset.id;
+            const chat = _jChat();
+            if (!chat) return;
+            const journal = (chat.memoryJournals || []).find(j => j.id === id);
+            if (!journal) return;
+
+            if (target.closest('.delete-journal-btn')) {
+                if (!confirm('确定要删除这篇日记吗？')) return;
+                chat.memoryJournals = chat.memoryJournals.filter(j => j.id !== id);
+                await saveData();
+                _renderFavoritesListInner();
+                renderJournalList();
+                showToast('日记已删除');
+                return;
+            }
+
+            if (target.closest('.favorite-journal-btn')) {
+                journal.isFavorited = !journal.isFavorited;
+                await saveData();
+                showToast(journal.isFavorited ? '已收藏' : '已取消收藏');
+                _renderFavoritesListInner();
+                renderJournalList();
+                return;
+            }
+
+            _closeFavoritesSheet();
+            _openDetail(journal, { fromFavorites: true });
         });
     }
 
