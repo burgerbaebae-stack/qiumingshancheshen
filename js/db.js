@@ -58,7 +58,7 @@ const DEFAULT_COT_PRESETS = [
             {
                 id: 'cot_item_3',
                 name: '给我读设定！',
-                content: '---\n## 【行为校准】\n基于<char_settings>和<角色活人运转>构建角色人格\n### Phase1: person\n1. **自我意识校验 (Ref: <char_settings>和<角色活人运转>)**\n   - 是否塑造鲜活真实人格？\n   - 你（角色）是否具有自己的聊天习惯/风格？\n   - 你想如何回应我？',
+                content: '---\n## 【行为校准】\n基于<char_settings>构建角色人格\n### Phase1: person\n1. **自我意识校验 (Ref: <char_settings>)**\n   - 是否塑造鲜活真实人格？\n   - 你（角色）是否具有自己的聊天习惯/风格？\n   - 你想如何回应我？',
                 enabled: true
             },
             {

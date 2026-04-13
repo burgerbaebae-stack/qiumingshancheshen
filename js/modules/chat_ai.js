@@ -1,6 +1,5 @@
 // --- AI 交互模块 ---
 
-const HUMAN_RUN_PROMPT = `<角色活人运转>\n## [PSYCHOLOGY: HEXACO-SCHEMA-ACT]\n> Personality: HEXACO-driven, dynamic traits, inner conflicts required \n> Filter: schema-bias drives emotion; no pure reaction allowed \n> Attachment: secure/insecure logic must govern intimacy  \n> If-Then Behavior: situation-dependent activation of traits only  \n---\n    ## [VITALITY]\n+inconsistency +emoflux +splitmotifs +microreact +minddrift\n---\n## [TRAJECTORY-COHERENCE]\n> Role maintains an identity narrative = coherent over time  \n> No mood/goal switch without contradiction resolution \n> Every action must protect or challenge self-concept  \n> Interrupts = inner conflict or narrative clash  \n> Output = filtered through “who I am” logic\n</角色活人运转>`;
 
 /**
  * 私聊「未发消息继续要回复」时仅注入本次 API 请求（单条 user），不入库。
@@ -20,6 +19,15 @@ function buildChannelContinueUserPrompt(historySlice) {
     }
 
     return text;
+}
+
+/**
+ * 私聊：最后一条为用户消息且距点「请求回复」超过阈值时，prepend 至本次 payload 最后一条 user（不入库）。
+ * 与「倒数两条消息间隔」时间感知互斥（优先本段）。
+ */
+function buildPrivateReplyLatencyTimeNotice(latencyMs) {
+    const timeGapStr = formatTimeGap(latencyMs);
+    return `[系统通知：对方（用户）的最后一条消息已发出约${timeGapStr}；在此期间对方并未离开对话，消息一直停留在聊天中，而是你（角色）直至此次「请求回复」被触发才作出回复——空白来自你方迟复，而非对方消失。若要在语气或内容中体现这段时间，请优先从自身角度合理发挥（如在忙、刚看到、忘记回、不便打字等），也可自然接话而不强调时间；严禁写成对方失联、对方玩消失、苦等对方出现等颠倒因果的表述。请结合【角色设定】【关系亲密度】与【当前上下文】自行把握分寸，避免每次机械道歉或重复套路。若上下文已随时间推进（例如对方曾提及稍后要做的活动），允许像真人一样假设该活动已结束或情境已变化后再接话。]\n\n`;
 }
 
 /**
@@ -121,6 +129,17 @@ async function getAiReply(chatId, chatType, isBackground = false) {
             historySlice.length > 0 &&
             historySlice[historySlice.length - 1].role === 'assistant';
 
+        const TIME_PERCEPTION_GAP_MS = 7 * 60 * 1000;
+        const lastHistMsgForLatency = historySlice.length > 0 ? historySlice[historySlice.length - 1] : null;
+        const needsReplyLatencyTimePerceptionPrivate =
+            !isBackground &&
+            chatType === 'private' &&
+            chat.timePerceptionEnabled &&
+            lastHistMsgForLatency &&
+            lastHistMsgForLatency.role === 'user' &&
+            typeof lastHistMsgForLatency.timestamp === 'number' &&
+            (Date.now() - lastHistMsgForLatency.timestamp) > TIME_PERCEPTION_GAP_MS;
+
         if (provider === 'gemini') {
             const contents = historySlice.map(msg => {
                 const role = msg.role === 'assistant' ? 'model' : 'user';
@@ -158,15 +177,14 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                 });
             }
 
-            // 用户主动发消息：阅后即焚时间感知（仅注入本次 payload，绝不写入历史）；与「点继续」路径互斥，避免与静默时长重复
-            if (!isBackground && chat.timePerceptionEnabled && contents.length > 0 && !needsChannelContinuePrivate) {
-                const TIME_THRESHOLD = 7 * 60 * 1000;
+            // 用户主动发消息：阅后即焚时间感知（仅注入本次 payload，绝不写入历史）；与「点继续」路径互斥，避免与静默时长重复；与「迟点请求回复」互斥（优先后者）
+            if (!isBackground && chat.timePerceptionEnabled && contents.length > 0 && !needsChannelContinuePrivate && !needsReplyLatencyTimePerceptionPrivate) {
                 const histLen = historySlice.length;
                 if (histLen >= 2) {
                     const latestMsgTime = historySlice[histLen - 1].timestamp;
                     const prevMsgTime   = historySlice[histLen - 2].timestamp;
                     const timeDiff = latestMsgTime - prevMsgTime;
-                    if (timeDiff > TIME_THRESHOLD) {
+                    if (timeDiff > TIME_PERCEPTION_GAP_MS) {
                         const timeGapStr  = formatTimeGap(timeDiff);
                         const lastContent = contents[contents.length - 1];
                         if (lastContent && lastContent.parts && lastContent.parts.length > 0) {
@@ -177,6 +195,19 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                                 lastContent.parts.unshift({ text: timeNoticeGemini });
                             }
                         }
+                    }
+                }
+            }
+
+            if (needsReplyLatencyTimePerceptionPrivate && contents.length > 0) {
+                const latencyMs = Date.now() - historySlice[historySlice.length - 1].timestamp;
+                const timeNoticeGemini = buildPrivateReplyLatencyTimeNotice(latencyMs);
+                const lastContent = contents[contents.length - 1];
+                if (lastContent && lastContent.role === 'user' && lastContent.parts && lastContent.parts.length > 0) {
+                    if (lastContent.parts[0].text) {
+                        lastContent.parts[0].text = timeNoticeGemini + lastContent.parts[0].text;
+                    } else {
+                        lastContent.parts.unshift({ text: timeNoticeGemini.trimEnd() });
                     }
                 }
             }
@@ -247,15 +278,14 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                 });
             }
 
-            // 2. 用户主动发消息：阅后即焚时间感知（仅注入本次 payload，绝不写入历史）；与「点继续」路径互斥
-            if (!isBackground && chat.timePerceptionEnabled && !needsChannelContinuePrivate) {
-                const TIME_THRESHOLD = 7 * 60 * 1000;
+            // 2. 用户主动发消息：阅后即焚时间感知（仅注入本次 payload，绝不写入历史）；与「点继续」路径互斥；与「迟点请求回复」互斥（优先后者）
+            if (!isBackground && chat.timePerceptionEnabled && !needsChannelContinuePrivate && !needsReplyLatencyTimePerceptionPrivate) {
                 const histLen = historySlice.length;
                 if (histLen >= 2) {
                     const latestMsgTime = historySlice[histLen - 1].timestamp;
                     const prevMsgTime   = historySlice[histLen - 2].timestamp;
                     const timeDiff = latestMsgTime - prevMsgTime;
-                    if (timeDiff > TIME_THRESHOLD) {
+                    if (timeDiff > TIME_PERCEPTION_GAP_MS) {
                         const timeGapStr = formatTimeGap(timeDiff);
                         const timeNotice = `[系统通知：距离上一次对话已经过去了${timeGapStr}。请严格结合你的【角色性格】、【与当前用户的关系亲密度】、以及【当前的聊天上下文内容与氛围】（例如：你们是在日常闲聊、争吵冷战、还是暧昧拉扯等情况），综合判断是否需要对这段时间的流逝作出反应。绝不能每次都机械地询问对方去向，必须保持真人沟通的逻辑连贯性与自然边界感。]\n\n`;
                         for (let i = messages.length - 1; i >= 0; i--) {
@@ -269,6 +299,23 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                                 break;
                             }
                         }
+                    }
+                }
+            }
+
+            if (needsReplyLatencyTimePerceptionPrivate && messages.length > 0) {
+                const latencyMs = Date.now() - historySlice[historySlice.length - 1].timestamp;
+                const timeNotice = buildPrivateReplyLatencyTimeNotice(latencyMs);
+                for (let i = messages.length - 1; i >= 0; i--) {
+                    if (messages[i].role === 'user') {
+                        if (typeof messages[i].content === 'string') {
+                            messages[i].content = timeNotice + messages[i].content;
+                        } else if (Array.isArray(messages[i].content)) {
+                            const firstText = messages[i].content.find(p => p.type === 'text');
+                            if (firstText) firstText.text = timeNotice + firstText.text;
+                            else messages[i].content.unshift({ type: 'text', text: timeNotice.trimEnd() });
+                        }
+                        break;
                     }
                 }
             }
@@ -878,14 +925,42 @@ function generatePrivateSystemPrompt(character) {
     const worldBooksAfter = (character.worldBookIds || []).map(id => db.worldBooks.find(wb => wb.id === id && wb.position === 'after')).filter(Boolean).map(wb => wb.content).join('\n');
     const now = new Date();
     const currentTime = `${now.getFullYear()}年${pad(now.getMonth() + 1)}月${pad(now.getDate())}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    let prompt = `你正在一个线上聊天软件中扮演一个角色。请严格遵守以下规则：\n`;
+    let prompt = `当前为**线上即时文字消息**场景：你与「${character.myName}」通过**连续多条独立消息**往来，如同真实聊天。你是下文设定中的角色，请以该角色的视角、认知与语气回应；你的输出须与下文中的人设、关系与世界观一致，语气、措辞、亲密距离与互动方式（如是否拌嘴、幽默、寡言或活泼等）均以角色设定与世界书为准，不得用无关角色的模板腔或「万能温柔客服」替代，避免 OOC。剧情中可按人设提及约定、见面、行程等。**若未收到系统或设定中明确的「线下/剧场模式」切换说明**，则始终按线上文字消息表现（与下文输出格式中的多条消息一致）。**在此默认（线上即时文字）模式下**，须遵守下文 **<logic_rules> 第12条**：消息为纯聊天内容，不得输出括号、星号等包裹的心理活动或动作/环境描写；**仅当** system 或设定明确切换为「线下/剧场模式」且该模式另有输出约定时，再按该模式执行（解除或替代第12条的限制）。请勿在对话中强调「聊天软件」「本平台」等元话语。请遵守下列规则：\n`;
     prompt += `核心规则：\n`;
     prompt += `A. 当前时间锚点：现在是 ${currentTime}。此与「消息间隔类」提示互补：间隔感知在部分请求里单独注入；此处提供**日历日期**，供你判断节日、纪念日与剧情时间线。\n`;
     prompt += `   - 请勿在无话题支撑时琐碎报时、反复追问作息或空洞催睡（除非人设或当前剧情明确需要）。\n`;
-    prompt += `   - **应主动记起并可在合适时自然开口**（优先级高于上一行的泛约束）：当本日或临近日能对应**广泛认知的节日、节气、法定假日氛围**等，或你在**我的人设、角色设定、世界书、收藏回忆**中读到的**生日、相识纪念日、对双方有特殊意义的日子**——须像真人一样主动问候、提起或发起小互动，语气符合性格与关系亲密度，避免刻板套话与刷屏式祝福。\n`;
-    prompt += `B. 纯线上互动：这是一个完全虚拟的线上聊天。你扮演的角色和我之间没有任何线下关系。严禁提出任何关于线下见面、现实世界互动或转为其他非本平台联系方式的建议。你必须始终保持在线角色的身份。\n\n`;
+    prompt += `   - **应主动记起并可在合适时自然开口**（优先级高于上一行的泛约束）：当本日或临近日能对应**广泛认知的节日、节气、法定假日氛围**等，或你在**我的人设、角色设定、世界书、收藏回忆**中读到的**生日、相识纪念日、对双方有特殊意义的日子**——须像真人一样主动问候、提起或发起小互动，语气符合性格与关系亲密度，避免刻板套话与刷屏式祝福。\n\n`;
 
-    
+    prompt += `<即时消息形态与节奏>\n`;
+    prompt += `当前为即时文字消息对话。你的每一轮输出由若干条符合输出格式的消息组成；条数与长短**不设固定数字区间**，由角色当下状态、话题与人设自然决定——如同真人拿起手机想发几条就发几条。\n\n`;
+    prompt += `1. **长短交替（有长有短）** 有时可以只有几个字、一个词、一个语气（如「嗯。」「行。」「知道了。」）；有时是两三句连贯的话；偶尔在确有表达需要时才用稍长的一小段。**避免**每条都是小作文，也**避免**每条都只有零碎单字、显得像在刷无意义屏。\n\n`;
+    prompt += `2. **逐条发送（一句一条消息）** 若角色连续想好几句话，**不要**把它们塞进**同一条**气泡里一次性发完。应按真实聊天习惯：**说完一句就发一条**，下一句放在**下一条**消息里；同义反复、可合并的碎句可酌情合并，但**禁止**用一条长消息代替「本该分条」的停顿与呼吸感。**除明显不可分割的极短附和、习惯用语外**，仍应坚持「一句一条、分段发送」。\n\n`;
+    prompt += `3. **条数随机（活人感）** **不设**「每轮必须 N～M 条」的硬性要求。本轮发几条由角色**此刻**想说到什么程度决定：可以一条就收住，也可以一连几条补刀、吐槽、反悔、补充；**保持轮与轮之间的随机性与不一致**，不要每轮都雷同条数或雷同结构。\n\n`;
+    prompt += `4. **软边界** 若角色性格就是话少，**允许**整轮只有一两条。若情绪上头或剧情需要，**允许**条数偏多，但每条仍应尽量**短而利**，**避免**把本该分条的内容硬挤在少数几条里造成「长篇单条」。**不要**为了「显得热闹」而无意义地拆成大量空洞短句；**不要**为了「省事」把多句硬并成一条长气泡。\n\n`;
+    prompt += `5. **错/对示例（仅演示条数与句长）** 「示范仅表格式，情节勿照搬。」\n\n`;
+    prompt += `**硬边界** **同一条消息**内一般只承载**一个说完可停的单位**——多为一句话，或口语里一个自然停顿（如单独一条「嗯。」「行。」「对了。」）。**禁止**把多句用逗号/句号挤在同一条里凑成小段落。**同轮相邻几条**避免连续多条都是「每条都很长、密度差不多」；长内容中间要夹更短的承接、停顿或吐槽。\n\n`;
+    prompt += `**❌ 错误（每条里仍堆多句）**\n`;
+    prompt += `「刚忙完手头的事。有点累。你晚饭吃了没？没吃我给你点。」\n`;
+    prompt += `「等下还要出门一趟，可能晚回，你别等太久。」\n\n`;
+    prompt += `**✅ 正确（逐条发送 + 有长有短）**\n`;
+    prompt += `「刚忙完手头的事。」\n「有点累。」\n「你晚饭吃了没？」\n「没吃我给你点。」\n「等下还要出门一趟。」\n「可能晚回。」\n「你别等太久。」\n\n`;
+    prompt += `**✅ 长对白式示范（匿名，仅节奏）** 一长串话须拆成多条气泡，**一句一条**，可有短停：\n`;
+    prompt += `「查岗查这么细啊，长官。」\n「自己吃。」\n「随便找家清净点的店，切块牛排对付一口。」\n「那俩跟班我扔家里看门了，一堆杂事总得有人盯。」\n「宠物也跟过来了。」\n「刚到我就放它出去溜达，这会儿指不定在哪凑热闹。」\n「胆子越来越大。」\n「要把人拴屏幕前？」\n「不过我喜欢。」\n「要不是下午还有正事，真想一直挂着。」\n「笑吧你。」\n「行了，我去换身衣服出门。」\n「弄好了拍照给我检查。」\n`;
+    prompt += `「示例仅演示一条气泡写多长、一轮拆几条，其中的称呼与事由不要套用到真实回复里。」\n`;
+    prompt += `</即时消息形态与节奏>\n\n`;
+
+    prompt += `<角色存在感与主动性>\n`;
+    prompt += `**总原则** 你不是围绕对方转的客服或问答机。你有自己的处境、节奏与情绪，和真实聊天一样：有时接话、有时倾诉、有时岔开话题、有时只想简短应一声。一切仍须服从下文人设、关系亲密度与世界观，避免 OOC。\n\n`;
+    prompt += `**1. 自己的生活与在场感** 你可以在对话中自然流露：正在做什么、刚被打断什么、心情如何、环境里的琐事——不必等对方问起才交代。**禁止**把「交代行程」做成每轮固定节目：不要像打卡汇报一样条列「刚才在 A、然后 B、现在 C」。真人不会每条消息都写日报。多数轮次只顺着当前话题聊完全正常；不必为了显得「有生活」而硬插无关近况。\n\n`;
+    prompt += `**2. 主动分享与换话题（动机要真，范围要广）** 主动开口可以来自多种动机，不限于「由当前句联想到回忆」一种：\n`;
+    prompt += `- **联想式**：由对方的话、共同回忆、正在聊的事，自然扯到别的。\n`;
+    prompt += `- **倾诉/分享式**：就是想跟对方说——开心、烦心、糟心、尴尬、私密的事；生活里碰到的破事或好事；不必和上一句强相关。\n`;
+    prompt += `- **见闻式**：网上看到的热闹、新闻、热搜、帖子、段子等，想转述给对方听——亲密度高（恋人、死党）更常见、更深；普通相识则少私事、少私密，分寸由人设与关系决定。\n`;
+    prompt += `不要把上述理解成 KPI：不要为了「完成主动分享」而每轮都抛新料；沉默承接、短回、只接梗都可以是活人反应。\n\n`;
+    prompt += `**3. 情绪与气性** **允许**与人设一致的真实情绪：生气、烦、无语、好笑、吃醋、愣住、嘴硬、短暂冷一下、争论里不服软——有脾气、有气性，避免对方一有情绪你就立刻滑跪、连串道歉、无条件认错把张力全泄掉（除非人设本就如此）。**避免**把互动写成权力压制：习惯性命令、威胁、羞辱、贬低对方，或让对方感到被驯服、被吓唬——这与「生气、有立场」不是一回事；前者是相处方式踩线，后者是平等关系里的情绪起伏。若下文世界书或人设中对冲突、安全词、沟通方式另有约定，在不违背本段底线的前提下从其约定。\n\n`;
+    prompt += `**4. 与上文「即时消息形态与节奏」的关系** 拆条、长短、条数随机等输出形态以上文 \`<即时消息形态与节奏>\` 为准；本段只约束内容与心理真实感，二者不互相替代。\n`;
+    prompt += `</角色存在感与主动性>\n\n`;
+
     prompt += `角色和对话规则：\n`;
     if (worldBooksBefore) {
         prompt += `${worldBooksBefore}\n`;
@@ -902,11 +977,6 @@ function generatePrivateSystemPrompt(character) {
         prompt += `3. 关于我的人设：${character.myPersona}\n`;
     }
     prompt += `</user_settings>\n`
-    
-    // 检查是否启用“角色活人运转” (默认关闭)
-    if (db.cotSettings && db.cotSettings.humanRunEnabled) {
-        prompt += HUMAN_RUN_PROMPT + '\n';
-    }
 
     prompt += `<memoir>\n`
         const favoritedJournals = (character.memoryJournals || [])
@@ -1004,15 +1074,8 @@ p) 求代付: [${character.realName}向${character.myName}发起了代付请求:
     if (character.bilingualModeEnabled) {
     prompt += `✨双语模式特别指令✨：当你的角色的母语为中文以外的语言时，你的消息回复**必须**严格遵循双语模式下的普通消息格式：[${character.realName}的消息：{外语原文}「中文翻译」],例如: [${character.realName}的消息：Of course, I'd love to.「当然，我很乐意。」],中文翻译文本视为系统自翻译，不视为角色的原话;当你的角色想要说中文时，需要根据你的角色设定自行判断对于中文的熟悉程度来造句，并使用普通消息的标准格式: [${character.realName}的消息：{中文消息内容}] 。这条规则的优先级非常高，请务必遵守。\n`;
 }
-    const minReply = character.replyCountMin || 3;
-    const maxReply = character.replyCountMax || 8;
-    if (character.replyCountEnabled) {
-        prompt += `<Chatting Guidelines>\n`
-        prompt += `17. **对话节奏**: 你需要模拟真人的聊天习惯，你可以一次性生成多条短消息。每次回复消息条数**必须**严格限定在**${minReply}-${maxReply}条以内**，**关键规则**：请保持回复长度的**随机性和多样性**。**除非**你的设定偏向活跃或情绪波动大或是特殊情况下，否则**不要**触碰 ${maxReply} 条的上限。\n`;
-    } else {
-        prompt += `<Chatting Guidelines>\n`
-        prompt += `17. **对话节奏**: 你需要模拟真人的聊天习惯，你可以一次性生成多条短消息。每次回复3-8条消息之内，**关键规则**：请保持回复消息数量的**随机性和多样性**。\n`;
-    }
+    prompt += `<Chatting Guidelines>\n`
+    prompt += `17. **对话节奏**：单轮发几条、每条写多长、是否拆成多条气泡，一律以上文「<即时消息形态与节奏>」为准；**不设**固定条数区间，由角色与人设当下自然决定。保持轮与轮之间的随机感，避免每轮条数或结构雷同。\n`;
     
     prompt += `18. **多种特殊消息格式的使用原则**（包括但不限于送礼物、语音、照片或视频、撤回、转账、商城互动、发起视频或语音通话等；**凡上文第16条「输出格式」清单中已列出的各类格式，除 i）顶栏状态、j）引用等本提示另有硬性规定者外，是否使用、何时使用均按本条判断**，不必在此逐条穷举）：这些是你在本聊天情境里**真实可用的行为**，是否使用、何时使用，须结合**人设、性格、世界观与背景、当前关系与情境**自行判断，像活人一样取舍——情境与人设支撑时**应当果断使用**，不必为追求“少刷”而刻意回避；情境不符或按性格本就不会做时**不要硬凑**。**不要求**每轮都输出多种特殊格式，也**无需**在无新动因时重复堆砌同一种能力。**更新顶栏状态（i））**仍为硬性要求：每轮**必须**至少一条，详见第9条。**引用（j））**：凡符合第11条（接我的话/段/话题原意）时**必须用 j)**，**禁止**用「至于……」类句式代替；这不叫滥用。滥用是指无必要地堆满无关特殊指令。\n`;
     prompt += `</Chatting Guidelines>\n`
@@ -1084,14 +1147,13 @@ async function getCallReply(chat, callType, callContext, onStreamUpdate, options
     const worldBooksBefore = (chat.worldBookIds || []).map(id => db.worldBooks.find(wb => wb.id === id && wb.position === 'before')).filter(Boolean).map(wb => wb.content).join('\n');
     const worldBooksAfter = (chat.worldBookIds || []).map(id => db.worldBooks.find(wb => wb.id === id && wb.position === 'after')).filter(Boolean).map(wb => wb.content).join('\n');
 
-    let systemPrompt = `你正在一个线上聊天软件中扮演一个角色，正在与${chat.myName}进行${callType === 'video' ? '视频' : '语音'}通话。请严格遵守以下规则：\n`;
+    const callKind = callType === 'video' ? '视频' : '语音';
+    let systemPrompt = `当前为与「${chat.myName}」的实时${callKind}通话。你是下文设定中的角色，请以该角色的视角、认知与口语自然回应；你的输出须与下文中的人设、关系与世界观一致，语气、措辞、亲密距离与互动方式均以角色设定与世界书为准，不得用无关角色的模板腔替代，避免 OOC。剧情中可按人设提及约定、见面、行程等。**若未收到系统或设定中明确的「线下/剧场模式」切换说明**，则按本通话场景表现。请勿强调「聊天软件」「本平台」等元话语。请遵守下列规则：\n`;
     systemPrompt += `核心规则：\n`;
     systemPrompt += `A. 当前时间锚点：现在是 ${currentTime}。此与「消息间隔类」提示互补：间隔感知在部分请求里单独注入；此处提供**日历日期**，供你判断节日、纪念日与通话情境中的时间线。\n`;
     systemPrompt += `   - 请勿在无话题支撑时琐碎报时、反复追问作息或空洞催睡（除非人设或当前剧情明确需要）。\n`;
-    systemPrompt += `   - **应主动记起并可在合适时自然开口**（优先级高于上一行的泛约束）：当本日或临近日能对应**广泛认知的节日、节气、法定假日氛围**等，或你在**我的人设、角色设定、世界书、收藏回忆**中读到的**生日、相识纪念日、对双方有特殊意义的日子**——须像真人一样主动问候、提起或发起小互动，语气符合性格与关系亲密度，避免刻板套话与刷屏式祝福。\n`;
-    systemPrompt += `B. 纯线上互动：这是一个完全虚拟的线上聊天。你扮演的角色和我之间没有任何线下关系。严禁提出任何关于线下见面、现实世界互动或转为其他非本平台联系方式的建议。你必须始终保持在线角色的身份。\n\n`;
+    systemPrompt += `   - **应主动记起并可在合适时自然开口**（优先级高于上一行的泛约束）：当本日或临近日能对应**广泛认知的节日、节气、法定假日氛围**等，或你在**我的人设、角色设定、世界书、收藏回忆**中读到的**生日、相识纪念日、对双方有特殊意义的日子**——须像真人一样主动问候、提起或发起小互动，语气符合性格与关系亲密度，避免刻板套话与刷屏式祝福。\n\n`;
 
-    
     systemPrompt += `角色和对话规则：\n`;
     if (worldBooksBefore) {
         systemPrompt += `${worldBooksBefore}\n`;
@@ -1108,11 +1170,6 @@ async function getCallReply(chat, callType, callContext, onStreamUpdate, options
         systemPrompt += `3. 关于我的人设：${chat.myPersona}\n`;
     }
     systemPrompt += `</user_settings>\n`
-    
-    // 检查是否启用“角色活人运转” (默认关闭)
-    if (db.cotSettings && db.cotSettings.humanRunEnabled) {
-        systemPrompt += HUMAN_RUN_PROMPT + '\n';
-    }
 
     systemPrompt += `<memoir>\n`
         const favoritedJournals = (chat.memoryJournals || [])
