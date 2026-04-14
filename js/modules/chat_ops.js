@@ -110,6 +110,7 @@ function startDebugEdit(messageId) {
                 
                 if (currentChatType === 'private') {
                     recalculateChatStatus(chat);
+                    syncInnerStateFromHistory(chat);
                 }
 
                 await saveData(); 
@@ -441,6 +442,7 @@ async function deleteSelectedMessages() {
 
     if (currentChatType === 'private') {
         recalculateChatStatus(chat);
+        syncInnerStateFromHistory(chat);
     }
 
     await saveData();
@@ -720,6 +722,7 @@ function setupDeleteHistoryChunk() {
 
             if (currentChatType === 'private') {
                 recalculateChatStatus(chat);
+                syncInnerStateFromHistory(chat);
             }
 
             await saveData();
@@ -782,6 +785,44 @@ function recalculateChatStatus(chat) {
         const statusTextEl = document.getElementById('chat-room-status-text');
         if (statusTextEl) {
             statusTextEl.textContent = foundStatus;
+            statusTextEl.title = foundStatus.length > 18 ? foundStatus : '';
         }
+    }
+}
+
+/**
+ * 私聊：根据历史中最近一条带 innerStateSnapshot 的 assistant 气泡回写 character.innerState。
+ * 用于删消息 / 重新生成后，避免内在状态与已删回合错位。
+ */
+function syncInnerStateFromHistory(chat) {
+    if (!chat || !chat.history || !chat.realName) return;
+
+    for (let i = chat.history.length - 1; i >= 0; i--) {
+        const msg = chat.history[i];
+        if (msg.role !== 'assistant' || msg.isThinking) continue;
+        const snap = msg.innerStateSnapshot;
+        if (typeof snap === 'string' && snap.length > 0) {
+            chat.innerState = snap;
+            if (typeof refreshInnerStatePanel === 'function' && typeof currentChatType !== 'undefined'
+                && currentChatType === 'private' && typeof currentChatId !== 'undefined' && currentChatId === chat.id) {
+                refreshInnerStatePanel(chat.id, snap);
+            }
+            return;
+        }
+    }
+
+    if (chat.history.length === 0) {
+        chat.innerState = '';
+        if (typeof refreshInnerStatePanel === 'function' && typeof currentChatType !== 'undefined'
+            && currentChatType === 'private' && typeof currentChatId !== 'undefined' && currentChatId === chat.id) {
+            refreshInnerStatePanel(chat.id, '');
+        }
+        return;
+    }
+
+    // 仍有消息但历史上没有任何快照（例如功能上线前的气泡）：不强行清空 innerState，避免一删就全空
+    if (typeof refreshInnerStatePanel === 'function' && typeof currentChatType !== 'undefined'
+        && currentChatType === 'private' && typeof currentChatId !== 'undefined' && currentChatId === chat.id) {
+        refreshInnerStatePanel(chat.id, chat.innerState || '');
     }
 }

@@ -3211,6 +3211,13 @@ const VideoCallModule = {
             const msgIndex = this.state.currentChat.history.findIndex(m => m.callRecordId === recordId);
             if (msgIndex !== -1) {
                 this.state.currentChat.history.splice(msgIndex, 1);
+                const c = this.state.currentChat;
+                if (c.realName && typeof syncInnerStateFromHistory === 'function') {
+                    syncInnerStateFromHistory(c);
+                }
+                if (c.realName && typeof recalculateChatStatus === 'function') {
+                    recalculateChatStatus(c);
+                }
             }
 
             await saveData();

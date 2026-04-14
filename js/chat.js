@@ -53,6 +53,83 @@ function setupChatRoom() {
     const toggleExpansionBtn = document.getElementById('toggle-expansion-btn');
     const charStatusBtn = document.getElementById('char-status-btn');
 
+    // ── 内在状态便利贴面板 ──
+    const innerStateBtn      = document.getElementById('inner-state-btn');
+    const innerStatePanel    = document.getElementById('inner-state-panel');
+    const innerStateContext  = document.getElementById('inner-state-context');
+    const innerStateMood     = document.getElementById('inner-state-mood');
+    const innerStateShare    = document.getElementById('inner-state-share');
+    const innerStateSaveBtn  = document.getElementById('inner-state-save-btn');
+    const innerStateCloseBtn = document.getElementById('inner-state-close-btn');
+
+    // 把 "处境 · 情绪 · 想说" 格式拆成三部分填入字段
+    function fillInnerStateFields(raw) {
+        if (!raw) { innerStateContext.value = ''; innerStateMood.value = ''; innerStateShare.value = ''; return; }
+        const parts = raw.split(/\s*·\s*/);
+        innerStateContext.value = (parts[0] || '').trim();
+        innerStateMood.value    = (parts[1] || '').trim();
+        innerStateShare.value   = (parts[2] || '').trim();
+    }
+
+    // 把三个字段合并回存储格式
+    function readInnerStateFields() {
+        const ctx   = innerStateContext.value.trim();
+        const mood  = innerStateMood.value.trim();
+        const share = innerStateShare.value.trim() || '无';
+        return `${ctx} · ${mood} · ${share}`;
+    }
+
+    function openInnerStatePanel() {
+        const char = db.characters.find(c => c.id === currentChatId);
+        if (!char) return;
+        fillInnerStateFields(char.innerState || '');
+        innerStatePanel.style.display = 'flex';
+        innerStatePanel.style.flexDirection = 'column';
+    }
+
+    function closeInnerStatePanel() {
+        innerStatePanel.style.display = 'none';
+    }
+
+    async function saveInnerState() {
+        const char = db.characters.find(c => c.id === currentChatId);
+        if (!char) return;
+        const merged = readInnerStateFields();
+        char.innerState = merged;
+        if (char.history && char.history.length) {
+            for (let i = char.history.length - 1; i >= 0; i--) {
+                const m = char.history[i];
+                if (m.role === 'assistant' && !m.isThinking) {
+                    m.innerStateSnapshot = merged;
+                    break;
+                }
+            }
+        }
+        await saveData();
+        closeInnerStatePanel();
+    }
+
+    // 全局函数：AI 生成新内在状态时刷新面板
+    window.refreshInnerStatePanel = function(chatId, content) {
+        if (chatId !== currentChatId) return;
+        if (innerStatePanel.style.display !== 'none') {
+            fillInnerStateFields(content);
+        }
+    };
+
+    if (innerStateBtn)      innerStateBtn.addEventListener('click', openInnerStatePanel);
+    if (innerStateCloseBtn) innerStateCloseBtn.addEventListener('click', closeInnerStatePanel);
+    if (innerStateSaveBtn)  innerStateSaveBtn.addEventListener('click', saveInnerState);
+
+    // 点击面板外关闭
+    document.addEventListener('click', (e) => {
+        if (innerStatePanel && innerStatePanel.style.display !== 'none'
+            && !innerStatePanel.contains(e.target)
+            && e.target !== innerStateBtn) {
+            closeInnerStatePanel();
+        }
+    });
+
     const getReplyBtn = document.getElementById('get-reply-btn');
     if (getReplyBtn) {
         getReplyBtn.addEventListener('click', () => {
@@ -628,6 +705,7 @@ function openChatRoom(chatId, type, options = {}) {
     if (type === 'private') {
         subtitle.style.display = (chat.showStatus !== false) ? 'flex' : 'none';
         chatRoomStatusText.textContent = chat.status || '在线';
+        chatRoomStatusText.title = (chat.status && String(chat.status).length > 18) ? chat.status : '';
     } else {
         subtitle.style.display = 'none';
     }
@@ -674,6 +752,12 @@ function openChatRoom(chatId, type, options = {}) {
         } else {
             starBtn.style.display = 'none';
         }
+    }
+
+    // 内在状态按钮：仅私聊时显示
+    const innerStateBtnEl = document.getElementById('inner-state-btn');
+    if (innerStateBtnEl) {
+        innerStateBtnEl.style.display = (type === 'private') ? 'inline-flex' : 'none';
     }
 
     const roomSearchBtn = document.getElementById('chat-room-search-btn');

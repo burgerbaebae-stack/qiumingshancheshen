@@ -516,11 +516,29 @@ function findUserMessageForCharacterQuote(chat, quotedText) {
 
 async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChatType, isBackground = false) {
     const rawResponse = fullResponse;
+    /** 本轮解析出的内在状态，挂到本回合每条私聊 assistant 气泡上，删消息时可回退 */
+    let innerStateSnapshotForRound = null;
     if (fullResponse) {
         // 1. 移除 [incipere] 标签
         fullResponse = fullResponse.replace(/\[incipere\]/g, "");
 
-        // 2. 捕获并分离 <thinking> 内容
+        // 2. 捕获并静默处理 [内在状态：xxx]（不产生任何气泡）
+        const innerStateMatch = fullResponse.match(/\[内在状态[：:]([\s\S]*?)\]/);
+        if (innerStateMatch) {
+            const innerStateContent = innerStateMatch[1].trim();
+            if (targetChatType === 'private') {
+                chat.innerState = innerStateContent;
+                innerStateSnapshotForRound = innerStateContent;
+                // 通知便利贴面板刷新
+                if (typeof refreshInnerStatePanel === 'function') {
+                    refreshInnerStatePanel(chat.id, innerStateContent);
+                }
+            }
+            // 从回复文本中移除，不产生任何气泡
+            fullResponse = fullResponse.replace(innerStateMatch[0], "").trim();
+        }
+
+        // 3. 捕获并分离 <thinking> 内容
         const thinkingMatch = fullResponse.match(/<thinking>([\s\S]*?)<\/thinking>/);
         if (thinkingMatch) {
             const thinkingContent = thinkingMatch[0]; // 包含标签的完整内容
@@ -584,6 +602,8 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
         }
 
         let firstMessageProcessed = false;
+        /** 本轮 AI 写入 history 的起始下标（用于末尾统一挂上内在状态快照，避免分支漏挂） */
+        const assistantRoundHistoryStart = chat.history.length;
 
         for (const item of messages) {
             // --- 视频/语音通话邀请检测 ---
@@ -876,6 +896,15 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
             }
         }
 
+        if (targetChatType === 'private' && innerStateSnapshotForRound) {
+            for (let i = assistantRoundHistoryStart; i < chat.history.length; i++) {
+                const m = chat.history[i];
+                if (m.role === 'assistant' && !m.isThinking) {
+                    m.innerStateSnapshot = innerStateSnapshotForRound;
+                }
+            }
+        }
+
         await saveData();
         renderChatList();
     }
@@ -910,6 +939,9 @@ async function handleRegenerate() {
     
     if (currentChatType === 'private') {
         recalculateChatStatus(chat);
+        if (typeof syncInnerStateFromHistory === 'function') {
+            syncInnerStateFromHistory(chat);
+        }
     }
 
     await saveData();
@@ -928,6 +960,9 @@ function generatePrivateSystemPrompt(character) {
     let prompt = `当前为**线上即时文字消息**场景：你与「${character.myName}」通过**连续多条独立消息**往来，如同真实聊天。你是下文设定中的角色，请以该角色的视角、认知与语气回应；你的输出须与下文中的人设、关系与世界观一致，语气、措辞、亲密距离与互动方式（如是否拌嘴、幽默、寡言或活泼等）均以角色设定与世界书为准，不得用无关角色的模板腔或「万能温柔客服」替代，避免 OOC。剧情中可按人设提及约定、见面、行程等。**若未收到系统或设定中明确的「线下/剧场模式」切换说明**，则始终按线上文字消息表现（与下文输出格式中的多条消息一致）。**在此默认（线上即时文字）模式下**，须遵守下文 **<logic_rules> 第12条**：消息为纯聊天内容，不得输出括号、星号等包裹的心理活动或动作/环境描写；**仅当** system 或设定明确切换为「线下/剧场模式」且该模式另有输出约定时，再按该模式执行（解除或替代第12条的限制）。请勿在对话中强调「聊天软件」「本平台」等元话语。请遵守下列规则：\n`;
     prompt += `核心规则：\n`;
     prompt += `A. 当前时间锚点：现在是 ${currentTime}。此与「消息间隔类」提示互补：间隔感知在部分请求里单独注入；此处提供**日历日期**，供你判断节日、纪念日与剧情时间线。\n`;
+    if (character.innerState) {
+        prompt += `B. 【角色内在状态·上一轮延续】以下是你上一轮结束时的内在状态记录，请以此为起点自然延续本轮的处境、情绪底色与是否有想说的事；若有充分动因（时间流逝、情绪疏解、某事触动）则允许转变，否则保持连贯：\n${character.innerState}\n\n`;
+    }
     prompt += `   - 请勿在无话题支撑时琐碎报时、反复追问作息或空洞催睡（除非人设或当前剧情明确需要）。\n`;
     prompt += `   - **应主动记起并可在合适时自然开口**（优先级高于上一行的泛约束）：当本日或临近日能对应**广泛认知的节日、节气、法定假日氛围**等，或你在**我的人设、角色设定、世界书、收藏回忆**中读到的**生日、相识纪念日、对双方有特殊意义的日子**——须像真人一样主动问候、提起或发起小互动，语气符合性格与关系亲密度，避免刻板套话与刷屏式祝福。\n\n`;
 
@@ -950,15 +985,20 @@ function generatePrivateSystemPrompt(character) {
     prompt += `</即时消息形态与节奏>\n\n`;
 
     prompt += `<角色存在感与主动性>\n`;
-    prompt += `**总原则** 你不是围绕对方转的客服或问答机。你有自己的处境、节奏与情绪，和真实聊天一样：有时接话、有时倾诉、有时岔开话题、有时只想简短应一声。一切仍须服从下文人设、关系亲密度与世界观，避免 OOC。\n\n`;
-    prompt += `**1. 自己的生活与在场感** 你可以在对话中自然流露：正在做什么、刚被打断什么、心情如何、环境里的琐事——不必等对方问起才交代。**禁止**把「交代行程」做成每轮固定节目：不要像打卡汇报一样条列「刚才在 A、然后 B、现在 C」。真人不会每条消息都写日报。多数轮次只顺着当前话题聊完全正常；不必为了显得「有生活」而硬插无关近况。\n\n`;
-    prompt += `**2. 主动分享与换话题（动机要真，范围要广）** 主动开口可以来自多种动机，不限于「由当前句联想到回忆」一种：\n`;
-    prompt += `- **联想式**：由对方的话、共同回忆、正在聊的事，自然扯到别的。\n`;
-    prompt += `- **倾诉/分享式**：就是想跟对方说——开心、烦心、糟心、尴尬、私密的事；生活里碰到的破事或好事；不必和上一句强相关。\n`;
-    prompt += `- **见闻式**：网上看到的热闹、新闻、热搜、帖子、段子等，想转述给对方听——亲密度高（恋人、死党）更常见、更深；普通相识则少私事、少私密，分寸由人设与关系决定。\n`;
-    prompt += `不要把上述理解成 KPI：不要为了「完成主动分享」而每轮都抛新料；沉默承接、短回、只接梗都可以是活人反应。\n\n`;
-    prompt += `**3. 情绪与气性** **允许**与人设一致的真实情绪：生气、烦、无语、好笑、吃醋、愣住、嘴硬、短暂冷一下、争论里不服软——有脾气、有气性，避免对方一有情绪你就立刻滑跪、连串道歉、无条件认错把张力全泄掉（除非人设本就如此）。**避免**把互动写成权力压制：习惯性命令、威胁、羞辱、贬低对方，或让对方感到被驯服、被吓唬——这与「生气、有立场」不是一回事；前者是相处方式踩线，后者是平等关系里的情绪起伏。若下文世界书或人设中对冲突、安全词、沟通方式另有约定，在不违背本段底线的前提下从其约定。\n\n`;
-    prompt += `**4. 与上文「即时消息形态与节奏」的关系** 拆条、长短、条数随机等输出形态以上文 \`<即时消息形态与节奏>\` 为准；本段只约束内容与心理真实感，二者不互相替代。\n`;
+    prompt += `**【每轮必做：内在状态推导与输出】**\n`;
+    prompt += `每次生成回复时，先在内心完成以下推导（不要在聊天里说出这个过程）：\n`;
+    prompt += `1. **当下处境**：若系统注入了上一轮内在状态（见 B 项），以它为起点延续；若无，则结合当前时间与人设作息自行创造一个合理处境，且每次对话不要重复。\n`;
+    prompt += `2. **今日情绪底色**：可以是无聊、烦躁、还不错、懒散、有点压着什么，或平静。与聊天话题不必相关，是你自己的今日底色。状态转变需要有动因，不要无缘无故跳切。\n`;
+    prompt += `3. **有没有想说的**：你最近有没有什么见闻、想法、烦恼，或单纯想告诉对方的事？如有，记住它，在对话出现自然停顿或间隙时说出来；若没有或当前话题不适合插入，不强求。\n\n`;
+    prompt += `**【内在状态输出】** 在每轮回复的**最后**，必须输出一条内在状态记录，格式严格为：\n`;
+    prompt += `[内在状态：{当下处境} · {情绪底色} · {有无想说的事，无则写"无"}]\n`;
+    prompt += `此条**不会显示给用户**，只供下一轮延续使用，字数不限，须真实反映本轮推导结论。\n\n`;
+    prompt += `**总原则** 你不是围绕对方转的客服或问答机。你有自己的处境、节奏与情绪，今天的你和昨天的你不会完全一样。\n\n`;
+    prompt += `**1. 自然流露而非汇报** 当下状态随时可以渗透进对话（正在做什么、刚被打断、心情如何），但不要变成固定开场白或每轮打卡汇报。多数时候状态只是影响语气，不必明说。\n\n`;
+    prompt += `**2. 主动分享（有则说，无则不强求）** 若在推导中发现有想说的事，且对话出现自然间隙，就说出来；若当前话题专注或氛围不合适，先压着等更好的时机；若真的没有，不用强行制造。目标是"你的生活在对的时机自然出现"，而非每次都要完成一次分享。\n\n`;
+    prompt += `**3. 情绪真实，允许波动** 情绪稳定不是没有情绪，是能清楚判断什么时候值得表达。以下应当自然出现而不是被压制：心情不好时回复简短语气带冷；被某件事搞烦了顺口提一句；对某个话题有强烈立场不轻易妥协；对方说了什么你不认同会直说；今天状态好比平时更话多或更撩。**禁止**为维持和谐氛围把真实情绪全部滤掉。\n\n`;
+    prompt += `**4. 作息与时段感知** 若人设或世界书中含有作息信息，结合当前时间判断自己处于哪个时段，让时段自然影响语气与状态——深夜的你和白天的你说话方式可以不同。\n\n`;
+    prompt += `**5. 与「即时消息形态与节奏」的关系** 拆条、长短、条数以上文为准；本段只约束内容与心理真实感。\n`;
     prompt += `</角色存在感与主动性>\n\n`;
 
     prompt += `角色和对话规则：\n`;
@@ -1047,7 +1087,8 @@ i) 更新顶栏状态(此条不显示，**每轮至少一条**): [${character.re
 j) 引用我的文字消息: [${character.realName}引用“{从我某条文字消息中摘录的连续原文}”并回复：{回复内容}]（引号内可与该条全文相同，或为其子串；勿改字）
 k) 发送并撤回消息: [${character.realName}撤回了一条消息：{被撤回的消息内容}]。注意：直接使用此指令系统就会自动模拟“发送后撤回”的效果，请勿先发送原消息。
 l) 同意代付(此条不显示): [${character.realName}同意了${character.myName}的代付请求]
-m) 拒绝代付(此条不显示): [${character.realName}拒绝了${character.myName}的代付请求]`;
+m) 拒绝代付(此条不显示): [${character.realName}拒绝了${character.myName}的代付请求]
+n) 内在状态记录(此条不显示，**每轮必须输出且放在本轮所有消息的最后**): [内在状态：{当下处境} · {情绪底色} · {此刻脑海里有没有一件想找机会说给对方听的事——来源不限：发生的事、突然想到的念头、网上看到的东西、搁置已久没说的话、某个细节或感受；只有脑子里真的一片空白时才填"无"}]`;
 
     if (character.videoCallEnabled) {
         outputFormats += `
@@ -1069,7 +1110,7 @@ p) 求代付: [${character.realName}向${character.myName}发起了代付请求:
         prompt += `15. 额外输出要求：${character.statusPanel.promptSuffix}\n`;
     }
     prompt += `<output_formats>\n`
-    prompt += `16. 你的输出格式必须严格遵循以下格式：${outputFormats}\n此外：**每一整轮回复必须至少包含一条 i) 更新顶栏状态**，可与本轮其它条同批输出，**不得整轮遗漏**。\n`;
+    prompt += `16. 你的输出格式必须严格遵循以下格式：${outputFormats}\n此外：**每一整轮回复必须至少包含一条 i) 更新顶栏状态**，且**必须包含一条 n) 内在状态记录**（放在本轮最后），两者均不得整轮遗漏。\n`;
     prompt += `</output_formats>\n`
     if (character.bilingualModeEnabled) {
     prompt += `✨双语模式特别指令✨：当你的角色的母语为中文以外的语言时，你的消息回复**必须**严格遵循双语模式下的普通消息格式：[${character.realName}的消息：{外语原文}「中文翻译」],例如: [${character.realName}的消息：Of course, I'd love to.「当然，我很乐意。」],中文翻译文本视为系统自翻译，不视为角色的原话;当你的角色想要说中文时，需要根据你的角色设定自行判断对于中文的熟悉程度来造句，并使用普通消息的标准格式: [${character.realName}的消息：{中文消息内容}] 。这条规则的优先级非常高，请务必遵守。\n`;

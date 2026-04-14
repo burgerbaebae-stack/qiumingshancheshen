@@ -1043,6 +1043,7 @@ function addMessageBubble(message, targetChatId, targetChatType) {
         if (message.content.match(updateStatusRegex)) {
             character.status = message.content.match(updateStatusRegex)[1];
             chatRoomStatusText.textContent = character.status;
+            chatRoomStatusText.title = character.status.length > 18 ? character.status : '';
             if (!character.showStatusUpdateMsg) {
                 return;
             }

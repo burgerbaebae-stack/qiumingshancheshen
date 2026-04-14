@@ -2000,6 +2000,7 @@ function recalculateChatStatus(chat) {
         const statusTextEl = document.getElementById('chat-room-status-text');
         if (statusTextEl) {
             statusTextEl.textContent = foundStatus;
+            statusTextEl.title = foundStatus.length > 18 ? foundStatus : '';
         }
     }
 }
