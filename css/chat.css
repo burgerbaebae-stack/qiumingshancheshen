@@ -356,6 +356,10 @@
     border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
     padding: 15px 20px !important;
     padding-top: max(15px, env(safe-area-inset-top)) !important;
+    /* 内在状态便利贴用 absolute 挂在顶栏下，勿裁剪 */
+    overflow: visible !important;
+    position: relative;
+    z-index: 20;
 }
 
 #chat-room-header-select {
@@ -384,9 +388,18 @@
 }
 
 #chat-room-header-default .title {
-    font-size: 16px !important;
-    font-weight: 600 !important;
+    font-size: clamp(17px, 4.6vw, 20px) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.02em;
     color: var(--global-title-color) !important;
+}
+
+#chat-room-header-default #chat-room-title.inner-state-entry {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+#chat-room-header-default #chat-room-title.inner-state-entry:active {
+    opacity: 0.82;
 }
 
 /* 顶栏「状态」：防长文占满半屏（与便利贴内在状态区分；日后可改为仅在线/离线短标签） */
@@ -1940,7 +1953,9 @@
     -ms-overflow-style: none;
     height: 100%;
     width: 100%;
-    scroll-behavior: smooth;
+    /* smooth 在部分 WebView 上与点击判定叠在一起，易体感「点完停一下」；横向滑动不依赖 CSS 动画 */
+    scroll-behavior: auto;
+    touch-action: pan-x;
 }
 
 .function-swiper-wrapper::-webkit-scrollbar {
@@ -1958,6 +1973,11 @@
     scroll-snap-align: start;
     box-sizing: border-box;
     align-content: flex-start;
+}
+
+/* 功能格：去掉双击缩放等待区，减轻「在横向滚动容器里点第二页图标」的迟滞 */
+#panel-function-area .expansion-item {
+    touch-action: manipulation;
 }
 
 .function-pagination {
@@ -2308,13 +2328,16 @@
     right: auto;
 }
 
-/* ───── 内在状态便利贴面板 ───── */
+/* ───── 内在状态便利贴面板 ─────
+   挂在 #chat-room-header-default 内、position:absolute，避免 iOS Safari 上
+   position:fixed 受层叠/视口与地址栏伸缩影响与顶栏错位。 */
 .inner-state-panel {
-    position: fixed;
-    top: 62px;
-    right: 12px;
-    width: 260px;
-    max-height: calc(100vh - 120px);
+    position: absolute;
+    top: calc(100% + 6px);
+    right: max(10px, env(safe-area-inset-right, 0px));
+    left: auto;
+    width: min(260px, calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+    max-height: min(420px, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 96px));
     background: #fff9c4;
     border-radius: 4px 16px 16px 16px;
     box-shadow:
@@ -2457,4 +2480,607 @@
     object-fit: cover;
     display: inline-block;
     vertical-align: middle;
+}
+
+/* ── 私聊「一日日程」全屏 · 粉色手账风 ──
+   禁止在此写 display:flex：ID 特异性高于 .screen，会盖掉 display:none，导致与主屏同屏叠出半屏。 */
+#schedule-day-screen {
+    position: relative;
+    flex-direction: column;
+    height: 100%;
+    --sd-rose: #ff8fab;
+    --sd-rose-deep: #e85d8c;
+    --sd-blush: #ffc2d4;
+    --sd-cream: #fff8fb;
+    --sd-paper: #fffefb;
+    --sd-ink: #5c3d4a;
+    --sd-ink-soft: #8b6675;
+    --sd-lavender: #e8d4f0;
+    --sd-shadow: rgba(200, 80, 120, 0.18);
+    background:
+        radial-gradient(ellipse 120% 80% at 100% 0%, rgba(255, 182, 210, 0.45) 0%, transparent 55%),
+        radial-gradient(ellipse 90% 60% at 0% 100%, rgba(255, 218, 185, 0.35) 0%, transparent 50%),
+        repeating-linear-gradient(
+            125deg,
+            transparent,
+            transparent 11px,
+            rgba(255, 255, 255, 0.06) 11px,
+            rgba(255, 255, 255, 0.06) 12px
+        ),
+        linear-gradient(168deg, #fff5f9 0%, #ffe8f0 42%, #ffd6e8 100%);
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* 与私聊同一张聊天背景 + 粉罩（无 chatBg 时图层透明，仅见上方渐变） */
+.schedule-day-wallpaper-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-size: cover;
+    background-position: center;
+}
+
+/* 手账角落贴纸（不挡操作） */
+#schedule-day-screen::after {
+    content: '💗';
+    position: absolute;
+    bottom: 12%;
+    left: 10px;
+    font-size: 24px;
+    line-height: 1;
+    opacity: 0.3;
+    z-index: 6;
+    pointer-events: none;
+}
+
+#schedule-day-screen.screen {
+    animation: none;
+}
+
+#schedule-day-screen .schedule-day-app-header {
+    position: relative;
+    z-index: 7;
+    background: linear-gradient(100deg, #ff9ec8 0%, #ffb7d9 45%, #ffc8e4 100%) !important;
+    border-bottom: none !important;
+    box-shadow: 0 4px 18px var(--sd-shadow);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+#schedule-day-screen .schedule-day-app-header .title {
+    color: #fff !important;
+    font-weight: 800 !important;
+    font-size: clamp(17px, 4.5vw, 20px) !important;
+    text-shadow: 0 1px 0 rgba(180, 60, 100, 0.25);
+    letter-spacing: 0.04em;
+}
+
+#schedule-day-screen .schedule-day-app-header .back-btn {
+    color: #fff !important;
+    opacity: 0.95;
+}
+
+#schedule-day-screen .schedule-day-app-header .action-btn-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 32px;
+}
+
+#schedule-day-screen .schedule-day-settings-chip {
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 11px;
+    color: #fff !important;
+    background: linear-gradient(165deg, #ff9ec8 0%, #ff7eb0 45%, #ff6b9d 100%) !important;
+    box-shadow:
+        0 2px 0 rgba(200, 70, 110, 0.24),
+        0 4px 12px rgba(255, 110, 160, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+#schedule-day-screen .schedule-day-settings-chip-glyph {
+    font-size: 15px;
+    line-height: 1;
+    filter: drop-shadow(0 1px 0 rgba(160, 40, 80, 0.2));
+}
+
+#schedule-day-screen .schedule-day-app-header .back-btn:active {
+    opacity: 0.75;
+}
+
+#schedule-day-screen .schedule-day-main {
+    position: relative;
+    z-index: 5;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 14px 16px 28px;
+    padding-bottom: max(28px, env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    gap: 14px;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+#schedule-day-screen .schedule-day-editor,
+#schedule-day-screen .schedule-day-version-preview,
+#schedule-day-screen .schedule-day-version-item,
+#schedule-day-screen .schedule-day-meta,
+#schedule-day-screen .schedule-day-versions-wrap .schedule-day-hint,
+#schedule-day-screen .schedule-day-settings-body .schedule-day-hint,
+#schedule-day-screen .schedule-day-subtitle,
+#schedule-day-screen .schedule-day-versions-list,
+#schedule-day-screen .schedule-day-settings-body {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-touch-callout: default;
+}
+
+#schedule-day-screen .schedule-day-editor {
+    touch-action: auto;
+}
+
+#schedule-day-screen .schedule-day-app-header,
+#schedule-day-screen .schedule-day-app-header .title,
+#schedule-day-screen .schedule-day-app-header .title-container {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#schedule-day-screen .back-btn,
+#schedule-day-screen .action-btn,
+#schedule-day-screen .btn,
+#schedule-day-screen .schedule-day-settings-close-pill {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* 日期小标签：手账贴纸感 */
+.schedule-day-meta {
+    margin: 0;
+    align-self: flex-start;
+    max-width: calc(100% - 58px);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--sd-ink-soft);
+    background: linear-gradient(180deg, #fff 0%, #fff5f8 100%);
+    border: 1.5px dashed var(--sd-blush);
+    border-radius: 999px;
+    padding: 6px 14px;
+    box-shadow: 2px 3px 0 rgba(255, 140, 170, 0.2);
+}
+
+/* 便签纸外框 + 和纸胶带装饰 */
+.schedule-day-editor-shell {
+    position: relative;
+    flex: 1;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 8px 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 248, 252, 0.9) 100%);
+    border: 2px solid rgba(255, 160, 190, 0.55);
+    border-radius: 18px 22px 16px 20px;
+    box-shadow:
+        0 2px 0 rgba(255, 255, 255, 0.9) inset,
+        3px 4px 0 rgba(255, 150, 180, 0.12),
+        8px 12px 28px var(--sd-shadow);
+}
+
+.schedule-day-editor-shell::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(52%, 180px);
+    height: 14px;
+    border-radius: 3px;
+    background: repeating-linear-gradient(
+        90deg,
+        #ffb8d0,
+        #ffb8d0 8px,
+        #ffd0e0 8px,
+        #ffd0e0 16px
+    );
+    opacity: 0.92;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    pointer-events: none;
+}
+
+.schedule-day-editor {
+    flex: 1;
+    min-height: 120px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 16px;
+    border: none;
+    border-radius: 12px;
+    font-size: calc(14px * var(--app-font-scale, 1));
+    line-height: 1.65;
+    font-family: inherit;
+    resize: none;
+    background: var(--sd-paper);
+    color: var(--sd-ink);
+    box-shadow: 0 0 0 1px rgba(255, 170, 195, 0.35) inset;
+}
+
+.schedule-day-editor::placeholder {
+    color: #c9a0ad;
+}
+
+.schedule-day-editor:focus {
+    outline: none;
+    box-shadow:
+        0 0 0 2px rgba(255, 143, 171, 0.45),
+        0 0 0 1px rgba(255, 170, 195, 0.35) inset;
+}
+
+.schedule-day-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#schedule-day-screen .schedule-day-actions .btn {
+    width: 100%;
+    flex: none;
+    min-width: 0;
+    margin-bottom: 0 !important;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    border: none;
+    box-shadow: 0 3px 0 rgba(200, 70, 110, 0.12);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+#schedule-day-screen .schedule-day-actions .btn:active {
+    transform: scale(0.98);
+}
+
+#schedule-day-screen .schedule-day-actions .btn-primary {
+    background: linear-gradient(180deg, #ff8fab 0%, #ff6b9d 100%) !important;
+    color: #fff !important;
+    padding: 14px 18px !important;
+    box-shadow: 0 4px 14px rgba(255, 105, 150, 0.45);
+}
+
+#schedule-day-screen .schedule-day-actions .btn-primary:hover {
+    filter: brightness(1.05);
+    box-shadow: 0 5px 18px rgba(255, 105, 150, 0.5);
+}
+
+#schedule-day-screen .schedule-day-actions .btn-secondary {
+    background: rgba(255, 255, 255, 0.92) !important;
+    color: var(--sd-rose-deep) !important;
+    border: 2px solid rgba(255, 160, 190, 0.85) !important;
+    padding: 11px 16px !important;
+    box-shadow: 0 2px 0 rgba(255, 180, 200, 0.25);
+}
+
+#schedule-day-screen .schedule-day-actions .btn-secondary:hover {
+    background: #fff !important;
+    box-shadow: 0 3px 12px rgba(255, 140, 170, 0.2);
+}
+
+.schedule-day-versions-wrap {
+    flex-shrink: 0;
+    max-height: 38vh;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin-top: 4px;
+    padding: 14px 14px 12px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 2px dashed rgba(255, 150, 180, 0.65);
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(255, 120, 160, 0.1);
+}
+
+.schedule-day-subtitle {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--sd-rose-deep);
+    letter-spacing: 0.06em;
+}
+
+.schedule-day-subtitle::before {
+    content: '📒 ';
+    font-weight: normal;
+}
+
+#schedule-day-screen .schedule-day-versions-wrap .schedule-day-hint {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: var(--sd-ink-soft);
+    line-height: 1.55;
+    padding: 8px 10px;
+    background: rgba(255, 240, 248, 0.85);
+    border-radius: 12px;
+    border-left: 4px solid var(--sd-blush);
+}
+
+#schedule-day-screen .schedule-day-settings-body .schedule-day-hint {
+    margin: 0 0 12px;
+    font-size: 12px;
+    color: #7a5565;
+    line-height: 1.5;
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+
+.schedule-day-versions-list {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0 0;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    border-top: none;
+}
+
+.schedule-day-version-item {
+    position: relative;
+    padding: 12px 12px 12px 14px;
+    margin-bottom: 12px;
+    background: var(--sd-paper);
+    border-radius: 14px 16px 14px 18px;
+    border: 1.5px solid rgba(255, 185, 205, 0.7);
+    box-shadow: 3px 4px 0 rgba(255, 160, 185, 0.15);
+}
+
+.schedule-day-version-item:nth-child(odd) {
+    transform: rotate(-0.35deg);
+}
+
+.schedule-day-version-item:nth-child(even) {
+    transform: rotate(0.35deg);
+}
+
+.schedule-day-version-item:last-child {
+    margin-bottom: 4px;
+}
+
+.schedule-day-version-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.schedule-day-version-tag {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #ffe0ec 0%, #ffd0e4 100%);
+    color: #b84570;
+    border: 1px solid rgba(255, 150, 180, 0.5);
+}
+
+.schedule-day-version-time {
+    font-size: 12px;
+    color: #a8788a;
+    font-variant-numeric: tabular-nums;
+}
+
+.schedule-day-version-active {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 8px;
+    color: #fff;
+    background: linear-gradient(90deg, #c084fc 0%, #a78bfa 100%);
+    box-shadow: 0 2px 6px rgba(167, 139, 250, 0.35);
+}
+
+.schedule-day-version-preview {
+    font-size: 12.5px;
+    color: var(--sd-ink);
+    line-height: 1.5;
+    margin-bottom: 10px;
+    word-break: break-word;
+    opacity: 0.92;
+}
+
+#schedule-day-screen .schedule-day-adopt-btn {
+    background: #fff !important;
+    color: var(--sd-rose-deep) !important;
+    border: 2px solid var(--sd-blush) !important;
+    border-radius: 999px !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 0 rgba(255, 170, 190, 0.35);
+}
+
+#schedule-day-screen .schedule-day-adopt-btn:hover {
+    background: linear-gradient(180deg, #fff5fa 0%, #ffe8f2 100%) !important;
+}
+
+.schedule-day-settings-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    background: rgba(90, 40, 60, 0.38);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.schedule-day-settings-panel {
+    width: 100%;
+    max-width: 100%;
+    max-height: 88vh;
+    background: linear-gradient(180deg, #fffafd 0%, #fff5f8 100%);
+    border-radius: 22px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 2px solid rgba(255, 170, 195, 0.65);
+    box-shadow: 0 12px 40px rgba(180, 60, 100, 0.22);
+}
+
+.schedule-day-settings-header {
+    display: grid;
+    grid-template-columns: 48px 1fr 48px;
+    align-items: center;
+    padding: 12px 14px;
+    background: linear-gradient(100deg, #ffc4dc 0%, #ffd6e8 100%);
+    border-bottom: 2px dashed rgba(255, 140, 170, 0.35);
+    flex-shrink: 0;
+}
+
+.schedule-day-settings-close-pill {
+    grid-column: 1;
+    justify-self: start;
+    width: 42px;
+    height: 42px;
+    margin: 0;
+    padding: 0;
+    border-radius: 14px;
+    border: 2.5px solid rgba(255, 130, 165, 0.9);
+    background: linear-gradient(165deg, #ffffff 0%, #fff5f9 55%, #ffe8f2 100%);
+    color: #c43d6b;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow:
+        0 3px 0 rgba(255, 160, 185, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.schedule-day-settings-close-pill:hover {
+    filter: brightness(1.03);
+}
+
+.schedule-day-settings-close-pill:active {
+    transform: scale(0.93);
+    box-shadow: 0 1px 0 rgba(255, 160, 185, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.schedule-day-settings-title {
+    grid-column: 2;
+    margin: 0;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 800;
+    color: #7a2d4d;
+    letter-spacing: 0.04em;
+}
+
+.schedule-day-settings-body {
+    padding: 16px 18px 22px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+.schedule-day-settings-body .form-group {
+    margin-bottom: 14px;
+}
+
+.schedule-day-settings-body label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6d4555;
+}
+
+/* 参考条数、纳入日记：字号加大 */
+#schedule-day-screen .schedule-day-settings-body .form-group:first-of-type > label {
+    font-size: 16px !important;
+    line-height: 1.45;
+    color: #5a3545 !important;
+}
+
+#schedule-day-screen .schedule-day-settings-body .schedule-day-inline-check-label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 0;
+    font-size: 16px !important;
+    font-weight: 700;
+    cursor: pointer;
+    color: #5a3545 !important;
+}
+
+/* 「纳入已收藏日记」专用大号勾选框 */
+#schedule-day-screen #schedule-day-include-journals {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    margin: 0 !important;
+    border-radius: 8px !important;
+    accent-color: #ff4d8d;
+    cursor: pointer;
+}
+
+.schedule-day-settings-body .schedule-day-inline-check-label input[type="checkbox"]:not(#schedule-day-include-journals) {
+    width: auto;
+    min-width: 1.125rem;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    accent-color: #ff6b9d;
+}
+
+.schedule-day-settings-body .schedule-day-inline-check-label span {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.45;
+}
+
+.schedule-day-settings-body .form-group input[type="number"] {
+    border-radius: 12px !important;
+    border: 1.5px solid rgba(255, 170, 190, 0.6) !important;
+    padding: 10px 12px !important;
+    background: #fff !important;
+}
+
+.schedule-day-settings-body #schedule-day-settings-save-btn {
+    margin-top: 8px;
+    border-radius: 999px !important;
+    background: linear-gradient(180deg, #ff8fab 0%, #ff6b9d 100%) !important;
+    color: #fff !important;
+    border: none !important;
+    box-shadow: 0 4px 14px rgba(255, 105, 150, 0.4);
+}
+
+.schedule-day-wb-list {
+    max-height: 36vh;
+    overflow-y: auto;
+    margin-bottom: 14px;
+    border: 2px dashed rgba(255, 170, 190, 0.55);
+    border-radius: 14px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.75);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #schedule-day-screen .schedule-day-version-item:nth-child(odd),
+    #schedule-day-screen .schedule-day-version-item:nth-child(even) {
+        transform: none;
+    }
 }

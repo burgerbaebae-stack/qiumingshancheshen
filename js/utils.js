@@ -593,9 +593,19 @@ function filterHistoryForAI(chat, historySlice, ignoreContextDisabled = false) {
 }
 
 // 通用 AI 响应获取函数 (支持流式和非流式自动切换)
-async function fetchAiResponse(settings, requestBody, headers, endpoint, forceStream = false) {
+// 第 5 参：传 true 等价于 { forceStream: true }；传 { forceNonStream: true } 可忽略全局「流式」设置（避免长 SSE 在 HTTP/2 上触发 ERR_HTTP2_PROTOCOL_ERROR）
+async function fetchAiResponse(settings, requestBody, headers, endpoint, streamOpts = false) {
+    let forceStream = false;
+    let forceNonStream = false;
+    if (streamOpts === true) {
+        forceStream = true;
+    } else if (streamOpts && typeof streamOpts === 'object') {
+        forceStream = !!streamOpts.forceStream;
+        forceNonStream = !!streamOpts.forceNonStream;
+    }
+
     const { provider } = settings;
-    const streamEnabled = forceStream || settings.streamEnabled;
+    const streamEnabled = !forceNonStream && (forceStream || settings.streamEnabled);
 
     // 1. 针对流式传输调整 Request Body 和 Endpoint
     if (streamEnabled) {
@@ -625,7 +635,7 @@ async function fetchAiResponse(settings, requestBody, headers, endpoint, forceSt
     // 3. 处理响应
     // 优先检查响应头是否指示流式，或者我们是否显式请求了流式
     const contentType = response.headers.get('content-type') || '';
-    const isStreamResponse = streamEnabled || contentType.includes('text/event-stream');
+    const isStreamResponse = !forceNonStream && (streamEnabled || contentType.includes('text/event-stream'));
 
     if (isStreamResponse) {
         return await readStreamResponse(response, provider);

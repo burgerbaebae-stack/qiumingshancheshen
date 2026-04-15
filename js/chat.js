@@ -53,8 +53,8 @@ function setupChatRoom() {
     const toggleExpansionBtn = document.getElementById('toggle-expansion-btn');
     const charStatusBtn = document.getElementById('char-status-btn');
 
-    // ── 内在状态便利贴面板 ──
-    const innerStateBtn      = document.getElementById('inner-state-btn');
+    // ── 内在状态便利贴面板 ──（私聊：点击顶栏角色名打开）
+    const innerStateTitleEl  = document.getElementById('chat-room-title');
     const innerStatePanel    = document.getElementById('inner-state-panel');
     const innerStateContext  = document.getElementById('inner-state-context');
     const innerStateMood     = document.getElementById('inner-state-mood');
@@ -117,17 +117,36 @@ function setupChatRoom() {
         }
     };
 
-    if (innerStateBtn)      innerStateBtn.addEventListener('click', openInnerStatePanel);
+    if (innerStateTitleEl) {
+        innerStateTitleEl.addEventListener('click', (ev) => {
+            if (typeof currentChatType === 'undefined' || currentChatType !== 'private') return;
+            if (!innerStateTitleEl.classList.contains('inner-state-entry')) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (innerStatePanel && innerStatePanel.style.display !== 'none') {
+                closeInnerStatePanel();
+            } else {
+                openInnerStatePanel();
+            }
+        });
+    }
     if (innerStateCloseBtn) innerStateCloseBtn.addEventListener('click', closeInnerStatePanel);
     if (innerStateSaveBtn)  innerStateSaveBtn.addEventListener('click', saveInnerState);
 
-    // 点击面板外关闭
+    const scheduleDayBtn = document.getElementById('schedule-day-btn');
+    if (scheduleDayBtn && typeof scheduleDayOpenScreen === 'function') {
+        // 与商城一致：先进入日程页（switch 在 scheduleDayOpenScreen 内尽早执行），再收起功能面板
+        scheduleDayBtn.addEventListener('click', () => {
+            scheduleDayOpenScreen();
+            showPanel('none');
+        });
+    }
+
+    // 点击面板外关闭（标题点击在标题监听里 stopPropagation，不会误关）
     document.addEventListener('click', (e) => {
-        if (innerStatePanel && innerStatePanel.style.display !== 'none'
-            && !innerStatePanel.contains(e.target)
-            && e.target !== innerStateBtn) {
-            closeInnerStatePanel();
-        }
+        if (!innerStatePanel || innerStatePanel.style.display === 'none') return;
+        if (innerStatePanel.contains(e.target)) return;
+        closeInnerStatePanel();
     });
 
     const getReplyBtn = document.getElementById('get-reply-btn');
@@ -754,10 +773,21 @@ function openChatRoom(chatId, type, options = {}) {
         }
     }
 
-    // 内在状态按钮：仅私聊时显示
-    const innerStateBtnEl = document.getElementById('inner-state-btn');
-    if (innerStateBtnEl) {
-        innerStateBtnEl.style.display = (type === 'private') ? 'inline-flex' : 'none';
+    // 私聊：顶栏角色名可点打开内在状态
+    const innerStateTitleToggle = document.getElementById('chat-room-title');
+    if (innerStateTitleToggle) {
+        if (type === 'private') {
+            innerStateTitleToggle.classList.add('inner-state-entry');
+            innerStateTitleToggle.title = '点击查看角色内在状态';
+        } else {
+            innerStateTitleToggle.classList.remove('inner-state-entry');
+            innerStateTitleToggle.removeAttribute('title');
+        }
+    }
+
+    const scheduleDayBtnEl = document.getElementById('schedule-day-btn');
+    if (scheduleDayBtnEl) {
+        scheduleDayBtnEl.style.display = (type === 'private') ? '' : 'none';
     }
 
     const roomSearchBtn = document.getElementById('chat-room-search-btn');

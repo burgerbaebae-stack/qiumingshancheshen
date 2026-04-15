@@ -1,7 +1,6 @@
 // --- 界面交互逻辑 (js/ui.js) ---
 
 // DOM 元素缓存 (将在脚本加载时初始化)
-const screens = document.querySelectorAll('.screen');
 const homeScreen = document.getElementById('home-screen');
 const chatRoomScreen = document.getElementById('chat-room-screen');
 const chatExpansionPanel = document.getElementById('chat-expansion-panel');
@@ -23,6 +22,11 @@ const regenerateBtn = document.getElementById('regenerate-btn');
 
 // 屏幕切换
 const switchScreen = (targetId) => {
+    // main.js 对 .back-btn 会 switchScreen(data-target)；缺少属性时勿清空所有 .screen.active，否则白屏（见 journal.js 注释）
+    if (!targetId) return;
+    const targetScreen = document.getElementById(targetId);
+    if (!targetScreen) return;
+
     // 离开聊天室时清理自定义样式
     if (targetId !== 'chat-room-screen') {
         const customStyles = document.querySelectorAll('style[id^="custom-bubble-style-for-"]');
@@ -37,9 +41,9 @@ const switchScreen = (targetId) => {
         }
     }
     
-    screens.forEach(screen => screen.classList.remove('active'));
-    const targetScreen = document.getElementById(targetId);
-    if (targetScreen) targetScreen.classList.add('active');
+    // 只去掉当前带 .active 的屏（通常 1 个）。勿对全部 .screen 扫一遍，DOM 多时切到靠后的屏会徒增卡顿。
+    document.querySelectorAll('.screen.active').forEach(screen => screen.classList.remove('active'));
+    targetScreen.classList.add('active');
     
     // 关闭所有覆盖层和侧边栏
     const overlays = document.querySelectorAll('.modal-overlay, .action-sheet-overlay, .settings-sidebar');

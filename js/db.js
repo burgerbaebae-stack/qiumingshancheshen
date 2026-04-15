@@ -548,6 +548,25 @@ const loadData = async () => {
         if (!c.gallery) c.gallery = [];
         if (c.useRealGallery === undefined) c.useRealGallery = false;
         if (!c.callHistory) c.callHistory = [];
+        if (!c.schedule) {
+            c.schedule = {
+                dateKey: '',
+                versions: [],
+                activeVersionId: null,
+                archive: [],
+                settings: {
+                    worldBookIds: [],
+                    maxContextMessages: 20,
+                    includeFavoritedJournals: false
+                }
+            };
+        } else {
+            if (!c.schedule.settings) {
+                c.schedule.settings = { worldBookIds: [], maxContextMessages: 20, includeFavoritedJournals: false };
+            }
+            if (!Array.isArray(c.schedule.versions)) c.schedule.versions = [];
+            if (!Array.isArray(c.schedule.archive)) c.schedule.archive = [];
+        }
     });
     db.groups.forEach(g => {
         if (g.isPinned === undefined) g.isPinned = false;

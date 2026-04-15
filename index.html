@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
@@ -251,10 +251,6 @@
             <div class="title-container">
                 <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
                     <h1 class="title" id="chat-room-title">...</h1>
-                    <!-- 内在状态按钮：角色名右侧，仅私聊显示 -->
-                    <button id="inner-state-btn" title="角色内在状态" style="display: none; background: none; border: none; padding: 2px; cursor: pointer; color: #f5a623; font-size: 16px; line-height: 1; flex-shrink: 0;">
-                        ✦
-                    </button>
                 </div>
                 <!-- 在线状态暂时隐藏或移到标题旁，根据KKT风格通常只显示名字 -->
                 <div class="subtitle" id="chat-room-subtitle" style="display:none;">
@@ -280,6 +276,32 @@
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                 </button>
             </div>
+            <!-- 锚在顶栏下：避免 iOS Safari 上 fixed + 地址栏/安全区导致的错位 -->
+            <div id="inner-state-panel" class="inner-state-panel" style="display: none;">
+                <div class="inner-state-panel-header">
+                    <span class="inner-state-pin">📌</span>
+                    <span class="inner-state-title">此刻内在状态</span>
+                    <button class="inner-state-close" id="inner-state-close-btn">×</button>
+                </div>
+                <div class="inner-state-body">
+                    <div class="inner-state-field">
+                        <span class="inner-state-field-label">📍 当下处境</span>
+                        <textarea id="inner-state-context" class="inner-state-field-input field-context" placeholder="AI 会自动生成，也可手动填写…" rows="2"></textarea>
+                    </div>
+                    <div class="inner-state-field">
+                        <span class="inner-state-field-label">🌊 情绪底色</span>
+                        <textarea id="inner-state-mood" class="inner-state-field-input field-mood" placeholder="平静 / 有点烦 / 还不错…" rows="1"></textarea>
+                    </div>
+                    <div class="inner-state-field">
+                        <span class="inner-state-field-label">💬 想说的事</span>
+                        <textarea id="inner-state-share" class="inner-state-field-input field-share" placeholder="无" rows="1"></textarea>
+                    </div>
+                </div>
+                <div class="inner-state-footer">
+                    <span class="inner-state-hint">AI 每轮自动更新 · 可手动修改</span>
+                    <button class="inner-state-save-btn" id="inner-state-save-btn">保存</button>
+                </div>
+            </div>
         </header>
         <header class="app-header" id="chat-room-header-select" style="display: none;">
             <button class="action-btn" id="cancel-multi-select-btn">取消</button>
@@ -299,33 +321,6 @@
                 <!-- JS 动态注入 -->
             </div>
             <button class="close-status-panel" id="close-status-panel-btn">×</button>
-        </div>
-
-        <!-- 内在状态便利贴面板 -->
-        <div id="inner-state-panel" class="inner-state-panel" style="display: none;">
-            <div class="inner-state-panel-header">
-                <span class="inner-state-pin">📌</span>
-                <span class="inner-state-title">此刻内在状态</span>
-                <button class="inner-state-close" id="inner-state-close-btn">×</button>
-            </div>
-            <div class="inner-state-body">
-                <div class="inner-state-field">
-                    <span class="inner-state-field-label">📍 当下处境</span>
-                    <textarea id="inner-state-context" class="inner-state-field-input field-context" placeholder="AI 会自动生成，也可手动填写…" rows="2"></textarea>
-                </div>
-                <div class="inner-state-field">
-                    <span class="inner-state-field-label">🌊 情绪底色</span>
-                    <textarea id="inner-state-mood" class="inner-state-field-input field-mood" placeholder="平静 / 有点烦 / 还不错…" rows="1"></textarea>
-                </div>
-                <div class="inner-state-field">
-                    <span class="inner-state-field-label">💬 想说的事</span>
-                    <textarea id="inner-state-share" class="inner-state-field-input field-share" placeholder="无" rows="1"></textarea>
-                </div>
-            </div>
-            <div class="inner-state-footer">
-                <span class="inner-state-hint">AI 每轮自动更新 · 可手动修改</span>
-                <button class="inner-state-save-btn" id="inner-state-save-btn">保存</button>
-            </div>
         </div>
 
         <div class="chat-input-wrapper">
@@ -401,11 +396,11 @@
                         </div>
                         <span class="expansion-item-name">重回</span>
                     </div>
-                    <div class="expansion-item" id="photo-video-btn">
+                    <div class="expansion-item" id="schedule-day-btn" style="display: none;">
                         <div class="expansion-item-icon">
-                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z"/></svg>
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19,4H18V2H16V4H8V2H6V4H5A2,2 0 0,0 3,6V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V6A2,2 0 0,0 19,4M19,20H5V10H19V20M5,8V6H19V8H5Z"/></svg>
                         </div>
-                        <span class="expansion-item-name">相册</span>
+                        <span class="expansion-item-name">日程</span>
                     </div>
                     <div class="expansion-item" id="image-recognition-btn">
                         <div class="expansion-item-icon">
@@ -444,6 +439,12 @@
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M12,13.09C11.67,13.03 11.34,13 11,13A3,3 0 0,0 8,16A3,3 0 0,0 11,19C12.36,19 13.5,18.15 13.91,17H16V15H13.91C13.5,13.85 12.36,13.09 12,13.09M11,17A1,1 0 0,1 10,16A1,1 0 0,1 11,15A1,1 0 0,1 12,16A1,1 0 0,1 11,17Z" /></svg>
                         </div>
                         <span class="expansion-item-name">日记</span>
+                    </div>
+                    <div class="expansion-item" id="photo-video-btn">
+                        <div class="expansion-item-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z"/></svg>
+                        </div>
+                        <span class="expansion-item-name">相册</span>
                     </div>
                     <div class="expansion-item" id="delete-history-btn">
                         <div class="expansion-item-icon">
@@ -2189,6 +2190,58 @@
         </main>
     </div>
 
+    <!-- 角色一日日程（私聊） -->
+    <div id="schedule-day-screen" class="screen">
+        <div id="schedule-day-wallpaper-layer" class="schedule-day-wallpaper-layer" aria-hidden="true"></div>
+        <header class="app-header schedule-day-app-header">
+            <button type="button" class="back-btn" id="schedule-day-back-btn" data-target="chat-room-screen" aria-label="返回">‹</button>
+            <div class="title-container">
+                <h1 class="title" id="schedule-day-title">日程</h1>
+            </div>
+            <div class="action-btn-group">
+                <button type="button" class="action-btn schedule-day-settings-chip" id="schedule-day-settings-btn" title="日程生成设置" aria-label="设置">
+                    <span class="schedule-day-settings-chip-glyph" aria-hidden="true">✿</span>
+                </button>
+            </div>
+        </header>
+        <main class="content schedule-day-main">
+            <p class="schedule-day-meta" id="schedule-day-date-label"></p>
+            <div class="schedule-day-editor-shell">
+                <textarea id="schedule-day-editor" class="schedule-day-editor" placeholder="✏️ 点下面「生成今日行程」让 AI 写便签，或自己手写一页～"></textarea>
+            </div>
+            <div class="schedule-day-actions">
+                <button type="button" class="btn btn-primary" id="schedule-day-generate-btn">生成今日行程</button>
+                <button type="button" class="btn btn-secondary" id="schedule-day-regenerate-btn">重新生成</button>
+                <button type="button" class="btn btn-secondary" id="schedule-day-save-manual-btn">保存为手动版本</button>
+            </div>
+            <div class="schedule-day-versions-wrap">
+                <h3 class="schedule-day-subtitle">本日版本</h3>
+                <p class="schedule-day-hint">点「采用」会换进对话里的那一页；重新生成会留下旧页可以翻回去选。</p>
+                <ul id="schedule-day-versions-list" class="schedule-day-versions-list"></ul>
+            </div>
+        </main>
+        <div id="schedule-day-settings-overlay" class="schedule-day-settings-overlay" style="display: none;">
+            <div class="schedule-day-settings-panel">
+                <div class="schedule-day-settings-header">
+                    <button type="button" class="schedule-day-settings-close-pill" id="schedule-day-settings-close-btn" aria-label="关闭">✕</button>
+                    <h2 class="schedule-day-settings-title">日程生成设置</h2>
+                </div>
+                <div class="schedule-day-settings-body">
+                    <div class="form-group">
+                        <label for="schedule-day-max-msgs">参考最近聊天记录条数（0 表示不参考）</label>
+                        <input type="number" id="schedule-day-max-msgs" min="0" max="500" value="20" style="width: 100%;">
+                    </div>
+                    <div class="form-group schedule-day-inline-check">
+                        <label class="schedule-day-inline-check-label"><input type="checkbox" id="schedule-day-include-journals"><span>纳入已收藏日记全文</span></label>
+                    </div>
+                    <p class="schedule-day-hint">勾选参与生成的世界书（未勾选则使用角色聊天设置里已绑定的世界书）：</p>
+                    <div id="schedule-day-wb-list" class="schedule-day-wb-list"></div>
+                    <button type="button" class="btn btn-primary" id="schedule-day-settings-save-btn">保存设置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Peek Steps App Screen -->
     <div id="peek-steps-screen" class="screen">
         <header class="app-header">
@@ -3437,6 +3490,7 @@
 <script src="js/modules/worldbook.js"></script> <!-- 世界书设定集 -->
 <script src="js/modules/peek.js"></script>      <!-- 偷看手机(相册/短信等) -->
 <script src="js/modules/journal.js"></script>   <!-- 回忆日记生成 -->
+<script src="js/modules/schedule_day.js"></script> <!-- 私聊日程（按日预生成、注入 system） -->
 <script src="js/modules/storage.js"></script>   <!-- 存储空间分析图表 -->
 <script src="js/modules/widgets.js"></script>   <!-- 桌面小组件设置 -->
 <script src="js/modules/tutorial.js"></script>  <!-- 教程、更新日志、GitHub备份 -->
