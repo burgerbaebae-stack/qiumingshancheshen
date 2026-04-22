@@ -20,12 +20,7 @@ function handleMessageLongPress(messageWrapper, x, y) {
     const isTransferMessage = /\[.*?给你转账：.*?\]|\[.*?的转账：.*?\]|\[.*?向.*?转账：.*?\]/.test(message.content);
     const isGiftMessage = /\[.*?送来的礼物：.*?\]|\[.*?向.*?送来了礼物：.*?\]/.test(message.content);
     
-    let invisibleRegex;
-    if (chat.showStatusUpdateMsg) {
-        invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]/;
-    } else {
-        invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]/;
-    }
+    const invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]/;
     const isInvisibleMessage = invisibleRegex.test(message.content);
     const isWithdrawn = message.isWithdrawn; 
 
@@ -109,7 +104,6 @@ function startDebugEdit(messageId) {
                 chat.history = chat.history.filter(m => m.id !== messageId);
                 
                 if (currentChatType === 'private') {
-                    recalculateChatStatus(chat);
                     syncInnerStateFromHistory(chat);
                 }
 
@@ -304,8 +298,6 @@ async function saveMessageEdit() {
     }
     
     if (currentChatType === 'private') {
-        recalculateChatStatus(chat);
-
         if (chat.statusPanel && chat.statusPanel.enabled && chat.statusPanel.regexPattern) {
             try {
                 let pattern = chat.statusPanel.regexPattern;
@@ -441,7 +433,6 @@ async function deleteSelectedMessages() {
     chat.history = chat.history.filter(m => !selectedMessageIds.has(m.id));
 
     if (currentChatType === 'private') {
-        recalculateChatStatus(chat);
         syncInnerStateFromHistory(chat);
     }
 
@@ -478,10 +469,6 @@ async function withdrawMessage(messageId) {
     const myName = (currentChatType === 'private') ? chat.myName : chat.me.nickname;
 
     message.content = `[${myName} 撤回了一条消息：${cleanOriginalContent}]`;
-
-    if (currentChatType === 'private') {
-        recalculateChatStatus(chat);
-    }
 
     await saveData();
 
@@ -721,7 +708,6 @@ function setupDeleteHistoryChunk() {
             chat.history.splice(startIndex, count);
 
             if (currentChatType === 'private') {
-                recalculateChatStatus(chat);
                 syncInnerStateFromHistory(chat);
             }
 
@@ -748,46 +734,6 @@ function setupDeleteHistoryChunk() {
     document.getElementById('close-delete-modal-btn').addEventListener('click', () => {
         deleteChunkModal.classList.remove('visible');
     });
-}
-
-// 重新计算并更新角色状态
-function recalculateChatStatus(chat) {
-    if (!chat || !chat.history) return;
-    
-    // 仅针对私聊且非群聊
-    // 注意：虽然函数参数叫 chat，但在调用处需确保是 private 类型或者在这里判断
-    // 由于群聊没有状态栏，这里主要针对 private
-    // 但为了通用性，我们可以检查 chat.realName 是否存在
-    
-    if (!chat.realName) return; // 简单判断，群聊通常没有单人的 realName 用于状态更新（群聊逻辑不同）
-
-    const updateStatusRegex = new RegExp(`\\[${chat.realName}更新状态为：(.*?)\\]`);
-    let foundStatus = '在线'; // 默认状态
-
-    // 倒序遍历历史记录
-    for (let i = chat.history.length - 1; i >= 0; i--) {
-        const msg = chat.history[i];
-        // 忽略被撤回的消息
-        if (msg.isWithdrawn) continue;
-
-        const match = msg.content.match(updateStatusRegex);
-        if (match) {
-            foundStatus = match[1];
-            break; // 找到最近的一个状态，停止遍历
-        }
-    }
-
-    // 更新状态
-    chat.status = foundStatus;
-    
-    // 如果当前正在该聊天室，实时更新 UI
-    if (currentChatId === chat.id) {
-        const statusTextEl = document.getElementById('chat-room-status-text');
-        if (statusTextEl) {
-            statusTextEl.textContent = foundStatus;
-            statusTextEl.title = foundStatus.length > 18 ? foundStatus : '';
-        }
-    }
 }
 
 /**

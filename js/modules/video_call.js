@@ -3215,9 +3215,6 @@ const VideoCallModule = {
                 if (c.realName && typeof syncInnerStateFromHistory === 'function') {
                     syncInnerStateFromHistory(c);
                 }
-                if (c.realName && typeof recalculateChatStatus === 'function') {
-                    recalculateChatStatus(c);
-                }
             }
 
             await saveData();

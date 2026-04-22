@@ -14,7 +14,6 @@ const multiSelectTitle = document.getElementById('multi-select-title');
 const selectCount = document.getElementById('select-count');
 const deleteSelectedBtn = document.getElementById('delete-selected-btn');
 const chatRoomTitle = document.getElementById('chat-room-title');
-const chatRoomStatusText = document.getElementById('chat-room-status-text');
 const typingIndicator = document.getElementById('typing-indicator');
 const messageInput = document.getElementById('message-input');
 const getReplyBtn = document.getElementById('get-reply-btn');

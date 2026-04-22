@@ -718,8 +718,6 @@ function setupMemoryJournalScreen() {
             }
 
             await saveData();
-            if (currentChatType === 'private' && typeof recalculateChatStatus === 'function')
-                recalculateChatStatus(chat);
             if (typeof renderMessages === 'function' && chat.id === currentChatId)
                 renderMessages(false, false);
             if (typeof renderChatList === 'function') renderChatList();

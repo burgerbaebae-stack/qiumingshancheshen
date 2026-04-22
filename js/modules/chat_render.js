@@ -125,14 +125,8 @@ function renderMessages(isLoadMore = false, forceScrollToBottom = false) {
 
         let isContinuous = false;
         
-        let invisibleRegex;
-        if (chat.showStatusUpdateMsg) {
-            // 在末尾添加 |<thinking>[\s\S]*?<\/thinking>
-            invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
-        } else {
-            // 在末尾添加 |<thinking>[\s\S]*?<\/thinking>
-            invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
-        }
+        // 在末尾添加 |<thinking>[\s\S]*?<\/thinking>
+        const invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
 
         const isSystemMsg = /\[system:.*?\]|\[system-display:.*?\]/.test(msg.content);
         
@@ -384,14 +378,12 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
     const timeSkipRegex = /\[system-display:([\s\S]+?)\]/;
     const inviteRegex = /\[(.*?)邀请(.*?)加入了群聊\]/;
     const renameRegex = /\[(.*?)修改群名为[：:](.*?)\]/;
-    const updateStatusRegex = /\[(.*?)更新状态为[：:](.*?)\]/;
     const callInviteRegex = /\[(.*?)向(.*?)发起了(视频|语音)通话\]/;
     const callRejectRegex = /\[(.*?)拒绝了(.*?)的(视频|语音)通话\]/;
 
     const timeSkipMatch = content.match(timeSkipRegex);
     const inviteMatch = content.match(inviteRegex);
     const renameMatch = content.match(renameRegex);
-    const updateStatusMatch = content.match(updateStatusRegex);
     const callInviteMatch = content.match(callInviteRegex);
     const callRejectMatch = content.match(callRejectRegex);
 
@@ -399,14 +391,8 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
     const privateRegex = /^\[Private: (.*?) -> (.*?): ([\s\S]+?)\]$/;
     const privateEndRegex = /^\[Private-End: (.*?) -> (.*?)\]$/;
 
-    let invisibleRegex;
-    if (chat.showStatusUpdateMsg) {
-        // 在末尾添加 |<thinking>[\s\S]*?<\/thinking>
-        invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?已接收礼物\]|\[system:.*?\]|\[系统情景通知：.*?\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
-    } else {
-        // 在末尾添加 |<thinking>[\s\S]*?<\/thinking>
-        invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[system:.*?\]|\[系统情景通知：.*?\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
-    }
+    // 在末尾添加 |<thinking>[\s\S]*?<\/thinking>
+    const invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[system:.*?\]|\[系统情景通知：.*?\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
 
     let isDebugHiddenMsg = false;
     // 在这里增加 || isThinking，只要标记为思考中，就强制走隐形消息逻辑
@@ -447,14 +433,13 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
         return wrapper;
     }
     // 【新增】 && !isThinking —— 只有当不是思考过程时，才允许渲染成系统通知气泡
-    if ((timeSkipMatch || inviteMatch || renameMatch || (updateStatusMatch && chat.showStatusUpdateMsg) || callInviteMatch || callRejectMatch) && !isThinking) {
+    if ((timeSkipMatch || inviteMatch || renameMatch || callInviteMatch || callRejectMatch) && !isThinking) {
         wrapper.className = 'message-wrapper system-notification';
         if (message.isContextDisabled) wrapper.classList.add('context-disabled');
         let bubbleText = '';
         if (timeSkipMatch) bubbleText = timeSkipMatch[1];
         if (inviteMatch) bubbleText = `${inviteMatch[1]}邀请${inviteMatch[2]}加入了群聊`;
         if (renameMatch) bubbleText = `${renameMatch[1]}修改群名为“${renameMatch[2]}”`;
-        if (updateStatusMatch) bubbleText = `${updateStatusMatch[1]} 更新状态为：${updateStatusMatch[2]}`;
         if (callInviteMatch) bubbleText = `${callInviteMatch[1]}向${callInviteMatch[2]}发起了${callInviteMatch[3]}通话`;
         if (callRejectMatch) bubbleText = `${callRejectMatch[1]}拒绝了${callRejectMatch[2]}的${callRejectMatch[3]}通话`;
         wrapper.innerHTML = `<div class="system-notification-bubble">${bubbleText}</div>`;
@@ -1009,14 +994,7 @@ function addMessageBubble(message, targetChatId, targetChatType) {
             : db.groups.find(g => g.id === targetChatId);
         
         if (senderChat) {
-            let invisibleRegex;
-            if (senderChat.showStatusUpdateMsg) {
-                // 在末尾添加 |<thinking>[\s\S]*?<\/thinking>
-                invisibleRegex = /\[system:.*?\]|\[.*?已接收礼物\]|\[.*?(?:接收|退回).*?的转账\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
-            } else {
-                // 在末尾添加 |<thinking>[\s\S]*?<\/thinking>
-                invisibleRegex = /\[system:.*?\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[.*?(?:接收|退回).*?的转账\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
-            }
+            const invisibleRegex = /\[system:.*?\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[.*?(?:接收|退回).*?的转账\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
             if (!invisibleRegex.test(message.content)) {
                 senderChat.unreadCount = (senderChat.unreadCount || 0) + 1;
                 saveData(); 
@@ -1028,7 +1006,6 @@ function addMessageBubble(message, targetChatId, targetChatType) {
 
     if (currentChatType === 'private') {
         const character = db.characters.find(c => c.id === currentChatId);
-        const updateStatusRegex = new RegExp(`\\[${character.realName}更新状态为[：:](.*?)\\]`);
         const transferActionRegex = new RegExp(`\\[${character.realName}(接收|退回)${character.myName}的转账\\]`);
         const giftReceivedRegex = new RegExp(`\\[${character.realName}已接收礼物\\]`);
         
@@ -1040,14 +1017,6 @@ function addMessageBubble(message, targetChatId, targetChatType) {
         const userPayAgreedRegex = new RegExp(`\\[${character.myName}同意了${character.realName}的代付请求\\]`);
         const userPayRejectedRegex = new RegExp(`\\[${character.myName}拒绝了${character.realName}的代付请求\\]`);
 
-        if (message.content.match(updateStatusRegex)) {
-            character.status = message.content.match(updateStatusRegex)[1];
-            chatRoomStatusText.textContent = character.status;
-            chatRoomStatusText.title = character.status.length > 18 ? character.status : '';
-            if (!character.showStatusUpdateMsg) {
-                return;
-            }
-        }
         if (message.content.match(giftReceivedRegex) && message.role === 'assistant') {
             const lastPendingGiftIndex = character.history.slice().reverse().findIndex(m => m.role === 'user' && /送来的礼物[：:]/.test(m.content) && m.giftStatus !== 'received');
             if (lastPendingGiftIndex !== -1) {
@@ -1143,14 +1112,7 @@ function addMessageBubble(message, targetChatId, targetChatType) {
             }
         } else {
             let isContinuous = false;
-            let invisibleRegex;
-            if (character.showStatusUpdateMsg) {
-                // 修改：正则末尾增加了 |<thinking>[\s\S]*?<\/thinking>
-                invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?已接收礼物\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
-            } else {
-                // 修改：正则末尾增加了 |<thinking>[\s\S]*?<\/thinking>
-                invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
-            }
+            const invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[.*?同意了.*?的代付请求\]|\[.*?拒绝了.*?的代付请求\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
             const isSystemMsg = /\[system:.*?\]|\[system-display:.*?\]/.test(message.content);
 
             if (!isSystemMsg && character.history.length > 1) {
@@ -1206,14 +1168,7 @@ function addMessageBubble(message, targetChatId, targetChatType) {
     } else { 
         const group = db.groups.find(g => g.id === currentChatId);
         let isContinuous = false;
-        let invisibleRegex;
-        if (group.showStatusUpdateMsg) {
-            // 修改：正则末尾增加了 |<thinking>[\s\S]*?<\/thinking>
-            invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
-        } else {
-            // 修改：正则末尾增加了 |<thinking>[\s\S]*?<\/thinking>
-            invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
-        }
+        const invisibleRegex = /\[.*?(?:接收|退回).*?的转账\]|\[.*?更新状态为：.*?\]|\[.*?已接收礼物\]|\[system:.*?\]|\[.*?邀请.*?加入了群聊\]|\[.*?修改群名为：.*?\]|\[system-display:.*?\]|\[.*?拒绝了.*?的(?:视频|语音)通话\]|<thinking>[\s\S]*?<\/thinking>|^<thinking>[\s\S]*/;
         const isSystemMsg = /\[system:.*?\]|\[system-display:.*?\]/.test(message.content);
 
         if (!isSystemMsg && group.history.length > 1) {

@@ -286,20 +286,20 @@
                 <div class="inner-state-body">
                     <div class="inner-state-field">
                         <span class="inner-state-field-label">📍 当下处境</span>
-                        <textarea id="inner-state-context" class="inner-state-field-input field-context" placeholder="AI 会自动生成，也可手动填写…" rows="2"></textarea>
+                        <textarea id="inner-state-context" class="inner-state-field-input field-context" placeholder="AI 会自动生成，也可手动填写…" rows="3" readonly></textarea>
                     </div>
                     <div class="inner-state-field">
                         <span class="inner-state-field-label">🌊 情绪底色</span>
-                        <textarea id="inner-state-mood" class="inner-state-field-input field-mood" placeholder="平静 / 有点烦 / 还不错…" rows="1"></textarea>
+                        <textarea id="inner-state-mood" class="inner-state-field-input field-mood" placeholder="平静 / 有点烦 / 还不错…" rows="2" readonly></textarea>
                     </div>
                     <div class="inner-state-field">
                         <span class="inner-state-field-label">💬 想说的事</span>
-                        <textarea id="inner-state-share" class="inner-state-field-input field-share" placeholder="无" rows="1"></textarea>
+                        <textarea id="inner-state-share" class="inner-state-field-input field-share" placeholder="无" rows="2" readonly></textarea>
                     </div>
                 </div>
                 <div class="inner-state-footer">
-                    <span class="inner-state-hint">AI 每轮自动更新 · 可手动修改</span>
-                    <button class="inner-state-save-btn" id="inner-state-save-btn">保存</button>
+                    <span class="inner-state-hint">AI 每轮自动更新 · 点「编辑」后再改</span>
+                    <button type="button" class="inner-state-save-btn" id="inner-state-save-btn">编辑</button>
                 </div>
             </div>
         </header>
@@ -1687,24 +1687,6 @@
                                         <option value="avatar">头像下方</option>
                                     </select>
                                     <span class="kkt-arrow">›</span>
-                                </div>
-                            </div>
-                            <div class="kkt-item">
-                                <div class="kkt-item-label">顶部显示在线状态</div>
-                                <div class="kkt-item-control">
-                                    <label class="kkt-switch">
-                                        <input type="checkbox" id="setting-show-status">
-                                        <span class="kkt-slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="kkt-item">
-                                <div class="kkt-item-label">聊天内显示状态更新消息</div>
-                                <div class="kkt-item-control">
-                                    <label class="kkt-switch">
-                                        <input type="checkbox" id="setting-show-status-update-msg">
-                                        <span class="kkt-slider"></span>
-                                    </label>
                                 </div>
                             </div>
                             <div class="kkt-item" style="flex-direction: column; align-items: stretch; padding-bottom: 15px;">

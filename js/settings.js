@@ -158,13 +158,10 @@ function setupChatSettings() {
         if (!character) return;
         if (confirm(`你确定要清空与“${character.remarkName}”的所有聊天记录吗？这个操作是不可恢复的！`)) {
             character.history = [];
-            character.status = '在线'; 
+            character.status = '在线';
             await saveData();
             renderMessages(false, true);
             renderChatList();
-            if (currentChatId === character.id) {
-                document.getElementById('chat-room-status-text').textContent = '在线';
-            }
             showToast('聊天记录已清空');
         }
     });
@@ -263,8 +260,6 @@ function loadSettingsToSidebar() {
         document.getElementById('setting-title-layout').value = e.titleLayout || 'left';
         document.getElementById('setting-show-timestamp').checked = e.showTimestamp || false;
         document.getElementById('setting-timestamp-style').value = e.timestampStyle || 'bubble';
-        document.getElementById('setting-show-status').checked = e.showStatus !== false;
-        document.getElementById('setting-show-status-update-msg').checked = e.showStatusUpdateMsg || false;
 
         const sp = e.statusPanel || {};
         document.getElementById('setting-status-panel-enabled').checked = sp.enabled || false;
@@ -363,14 +358,6 @@ async function saveSettingsFromSidebar() {
         e.timestampStyle = document.getElementById('setting-timestamp-style').value;
         chatScreen.classList.remove('timestamp-style-bubble', 'timestamp-style-avatar');
         chatScreen.classList.add(`timestamp-style-${e.timestampStyle || 'bubble'}`);
-
-        e.showStatus = document.getElementById('setting-show-status').checked;
-        const subtitle = document.getElementById('chat-room-subtitle');
-        if (subtitle) {
-            subtitle.style.display = e.showStatus ? 'flex' : 'none';
-        }
-
-        e.showStatusUpdateMsg = document.getElementById('setting-show-status-update-msg').checked;
 
         if (!e.statusPanel) e.statusPanel = {};
         e.statusPanel.enabled = document.getElementById('setting-status-panel-enabled').checked;
@@ -1962,45 +1949,5 @@ margin-left: auto !important;
 function promptForBackupIfNeeded(triggerType) {
     if (triggerType === 'history_milestone') {
         showToast('uwu提醒您：记得备份噢');
-    }
-}
-
-// 重新计算并更新角色状态
-function recalculateChatStatus(chat) {
-    if (!chat || !chat.history) return;
-    
-    // 仅针对私聊且非群聊
-    // 注意：虽然函数参数叫 chat，但在调用处需确保是 private 类型或者在这里判断
-    // 由于群聊没有状态栏，这里主要针对 private
-    // 但为了通用性，我们可以检查 chat.realName 是否存在
-    
-    if (!chat.realName) return; // 简单判断，群聊通常没有单人的 realName 用于状态更新（群聊逻辑不同）
-
-    const updateStatusRegex = new RegExp(`\\[${chat.realName}更新状态为：(.*?)\\]`);
-    let foundStatus = '在线'; // 默认状态
-
-    // 倒序遍历历史记录
-    for (let i = chat.history.length - 1; i >= 0; i--) {
-        const msg = chat.history[i];
-        // 忽略被撤回的消息
-        if (msg.isWithdrawn) continue;
-
-        const match = msg.content.match(updateStatusRegex);
-        if (match) {
-            foundStatus = match[1];
-            break; // 找到最近的一个状态，停止遍历
-        }
-    }
-
-    // 更新状态
-    chat.status = foundStatus;
-    
-    // 如果当前正在该聊天室，实时更新 UI
-    if (currentChatId === chat.id) {
-        const statusTextEl = document.getElementById('chat-room-status-text');
-        if (statusTextEl) {
-            statusTextEl.textContent = foundStatus;
-            statusTextEl.title = foundStatus.length > 18 ? foundStatus : '';
-        }
     }
 }

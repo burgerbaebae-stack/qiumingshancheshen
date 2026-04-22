@@ -2337,7 +2337,7 @@
     right: max(10px, env(safe-area-inset-right, 0px));
     left: auto;
     width: min(260px, calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
-    max-height: min(420px, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 96px));
+    max-height: min(580px, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 72px));
     background: #fff9c4;
     border-radius: 4px 16px 16px 16px;
     box-shadow:
@@ -2431,6 +2431,17 @@
     overflow-y: auto;
 }
 
+.inner-state-field-input[readonly] {
+    cursor: default;
+    caret-color: transparent;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.inner-state-panel--editing .inner-state-field-input {
+    caret-color: auto;
+}
+
 .inner-state-field-input:focus {
     border-bottom-color: #a09020;
     background: transparent;
@@ -2441,9 +2452,9 @@
     font-style: italic;
 }
 
-.inner-state-field-input.field-context  { min-height: 44px; }
-.inner-state-field-input.field-mood     { min-height: 28px; }
-.inner-state-field-input.field-share    { min-height: 28px; }
+.inner-state-field-input.field-context  { min-height: 76px; max-height: 168px; }
+.inner-state-field-input.field-mood     { min-height: 52px; max-height: 132px; }
+.inner-state-field-input.field-share    { min-height: 52px; max-height: 132px; }
 
 .inner-state-footer {
     display: flex;

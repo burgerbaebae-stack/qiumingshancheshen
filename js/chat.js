@@ -61,6 +61,18 @@ function setupChatRoom() {
     const innerStateShare    = document.getElementById('inner-state-share');
     const innerStateSaveBtn  = document.getElementById('inner-state-save-btn');
     const innerStateCloseBtn = document.getElementById('inner-state-close-btn');
+    let innerStatePanelEditing = false;
+
+    function setInnerStatePanelLocked(locked) {
+        const fields = [innerStateContext, innerStateMood, innerStateShare].filter(Boolean);
+        if (locked && innerStatePanel && document.activeElement && innerStatePanel.contains(document.activeElement)) {
+            try { document.activeElement.blur(); } catch (e) { /* ignore */ }
+        }
+        fields.forEach((el) => { el.readOnly = locked; });
+        innerStatePanelEditing = !locked;
+        if (innerStateSaveBtn) innerStateSaveBtn.textContent = locked ? '编辑' : '保存';
+        if (innerStatePanel) innerStatePanel.classList.toggle('inner-state-panel--editing', !locked);
+    }
 
     // 把 "处境 · 情绪 · 想说" 格式拆成三部分填入字段
     function fillInnerStateFields(raw) {
@@ -83,12 +95,14 @@ function setupChatRoom() {
         const char = db.characters.find(c => c.id === currentChatId);
         if (!char) return;
         fillInnerStateFields(char.innerState || '');
+        setInnerStatePanelLocked(true);
         innerStatePanel.style.display = 'flex';
         innerStatePanel.style.flexDirection = 'column';
     }
 
     function closeInnerStatePanel() {
         innerStatePanel.style.display = 'none';
+        setInnerStatePanelLocked(true);
     }
 
     async function saveInnerState() {
@@ -106,7 +120,24 @@ function setupChatRoom() {
             }
         }
         await saveData();
-        closeInnerStatePanel();
+        setInnerStatePanelLocked(true);
+        if (typeof showToast === 'function') showToast('已保存');
+    }
+
+    function onInnerStateFooterButtonClick() {
+        if (!innerStateSaveBtn || !innerStatePanel || innerStatePanel.style.display === 'none') return;
+        if (!innerStatePanelEditing) {
+            setInnerStatePanelLocked(false);
+            if (innerStateContext) {
+                innerStateContext.focus();
+                try {
+                    const n = innerStateContext.value.length;
+                    innerStateContext.setSelectionRange(n, n);
+                } catch (e) { /* ignore */ }
+            }
+            return;
+        }
+        saveInnerState();
     }
 
     // 全局函数：AI 生成新内在状态时刷新面板
@@ -114,6 +145,7 @@ function setupChatRoom() {
         if (chatId !== currentChatId) return;
         if (innerStatePanel.style.display !== 'none') {
             fillInnerStateFields(content);
+            setInnerStatePanelLocked(true);
         }
     };
 
@@ -131,7 +163,7 @@ function setupChatRoom() {
         });
     }
     if (innerStateCloseBtn) innerStateCloseBtn.addEventListener('click', closeInnerStatePanel);
-    if (innerStateSaveBtn)  innerStateSaveBtn.addEventListener('click', saveInnerState);
+    if (innerStateSaveBtn)  innerStateSaveBtn.addEventListener('click', onInnerStateFooterButtonClick);
 
     const scheduleDayBtn = document.getElementById('schedule-day-btn');
     if (scheduleDayBtn && typeof scheduleDayOpenScreen === 'function') {
@@ -721,13 +753,7 @@ function openChatRoom(chatId, type, options = {}) {
     cancelMessageEdit();
     chatRoomTitle.textContent = (type === 'private') ? chat.remarkName : chat.name;
     const subtitle = document.getElementById('chat-room-subtitle');
-    if (type === 'private') {
-        subtitle.style.display = (chat.showStatus !== false) ? 'flex' : 'none';
-        chatRoomStatusText.textContent = chat.status || '在线';
-        chatRoomStatusText.title = (chat.status && String(chat.status).length > 18) ? chat.status : '';
-    } else {
-        subtitle.style.display = 'none';
-    }
+    if (subtitle) subtitle.style.display = 'none';
     getReplyBtn.style.display = 'inline-flex';
     if (typeof resetVoiceComposeMode === 'function') {
         resetVoiceComposeMode();
