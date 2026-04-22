@@ -488,35 +488,6 @@ function scheduleDayPendingDateSyncDisplay() {
     }
 }
 
-/** 仅应由日历按钮触发（用户手势），与桌面「点图标出选择器」一致 */
-function scheduleDayPendingDateOpenPicker() {
-    const el = document.getElementById('schedule-day-pending-date');
-    if (!el) return;
-    const tryShowPicker = () => {
-        if (typeof el.showPicker === 'function') {
-            el.showPicker();
-            return true;
-        }
-        return false;
-    };
-    try {
-        if (tryShowPicker()) return;
-    } catch (_) {
-        /* 继续 */
-    }
-    try {
-        el.focus({ preventScroll: true });
-        if (tryShowPicker()) return;
-    } catch (_) {
-        /* 继续 */
-    }
-    try {
-        el.click();
-    } catch (_) {
-        /* 忽略 */
-    }
-}
-
 function scheduleDayRenderPendingList(char) {
     const ul = document.getElementById('schedule-day-pending-list');
     if (!ul) return;
@@ -656,18 +627,10 @@ function scheduleDayInitUI() {
             showToast('已添加');
         });
     }
-    const datePickerBtn = document.getElementById('schedule-day-pending-date-picker-btn');
     const dateNative = document.getElementById('schedule-day-pending-date');
     if (dateNative) {
         dateNative.addEventListener('change', scheduleDayPendingDateSyncDisplay);
         dateNative.addEventListener('input', scheduleDayPendingDateSyncDisplay);
-    }
-    if (datePickerBtn) {
-        datePickerBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            scheduleDayPendingDateOpenPicker();
-        });
     }
     const setBtn = document.getElementById('schedule-day-settings-btn');
     if (setBtn) setBtn.addEventListener('click', () => scheduleDayOpenSettings());
