@@ -2577,7 +2577,28 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    width: 32px;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+#schedule-day-screen .schedule-day-pending-chip {
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 11px;
+    color: #fff !important;
+    background: linear-gradient(165deg, #c4b5fd 0%, #a78bfa 45%, #8b5cf6 100%) !important;
+    box-shadow:
+        0 2px 0 rgba(120, 80, 200, 0.22),
+        0 4px 12px rgba(139, 92, 246, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+#schedule-day-screen .schedule-day-pending-chip-glyph {
+    font-size: 15px;
+    line-height: 1;
+    filter: drop-shadow(0 1px 0 rgba(80, 40, 140, 0.2));
 }
 
 #schedule-day-screen .schedule-day-settings-chip {
@@ -2617,6 +2638,8 @@
     gap: 14px;
     -webkit-user-select: text;
     user-select: text;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 #schedule-day-screen .schedule-day-editor,
@@ -2625,7 +2648,7 @@
 #schedule-day-screen .schedule-day-meta,
 #schedule-day-screen .schedule-day-versions-wrap .schedule-day-hint,
 #schedule-day-screen .schedule-day-settings-body .schedule-day-hint,
-#schedule-day-screen .schedule-day-subtitle,
+#schedule-day-screen .schedule-day-versions-summary,
 #schedule-day-screen .schedule-day-versions-list,
 #schedule-day-screen .schedule-day-settings-body {
     -webkit-user-select: text !important;
@@ -2671,8 +2694,7 @@
 /* 便签纸外框 + 和纸胶带装饰 */
 .schedule-day-editor-shell {
     position: relative;
-    flex: 1;
-    min-height: 150px;
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
     padding: 10px 8px 12px;
@@ -2707,8 +2729,7 @@
 }
 
 .schedule-day-editor {
-    flex: 1;
-    min-height: 120px;
+    flex-shrink: 0;
     width: 100%;
     box-sizing: border-box;
     padding: 14px 16px;
@@ -2718,6 +2739,9 @@
     line-height: 1.65;
     font-family: inherit;
     resize: none;
+    min-height: 160px;
+    height: auto;
+    overflow-y: hidden;
     background: var(--sd-paper);
     color: var(--sd-ink);
     box-shadow: 0 0 0 1px rgba(255, 170, 195, 0.35) inset;
@@ -2782,31 +2806,43 @@
     box-shadow: 0 3px 12px rgba(255, 140, 170, 0.2);
 }
 
-.schedule-day-versions-wrap {
+.schedule-day-versions-wrap.schedule-day-versions-details {
     flex-shrink: 0;
-    max-height: 38vh;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
+    display: block;
     margin-top: 4px;
-    padding: 14px 14px 12px;
+    padding: 10px 12px 12px;
     background: rgba(255, 255, 255, 0.55);
     border: 2px dashed rgba(255, 150, 180, 0.65);
     border-radius: 20px;
     box-shadow: 0 4px 20px rgba(255, 120, 160, 0.1);
 }
 
-.schedule-day-subtitle {
-    margin: 0 0 6px;
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--sd-rose-deep);
-    letter-spacing: 0.06em;
+.schedule-day-versions-details[open] {
+    padding: 14px 14px 12px;
 }
 
-.schedule-day-subtitle::before {
-    content: '📒 ';
-    font-weight: normal;
+.schedule-day-versions-summary {
+    list-style: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--sd-rose-deep);
+    letter-spacing: 0.04em;
+    padding: 6px 4px 8px;
+    margin: 0;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.schedule-day-versions-summary::-webkit-details-marker,
+.schedule-day-versions-summary::marker {
+    display: none;
+}
+
+.schedule-day-versions-details[open] .schedule-day-versions-summary {
+    border-bottom: 1.5px dashed rgba(255, 170, 190, 0.45);
+    margin-bottom: 10px;
+    padding-bottom: 10px;
 }
 
 #schedule-day-screen .schedule-day-versions-wrap .schedule-day-hint {
@@ -2834,9 +2870,8 @@
     list-style: none;
     margin: 0;
     padding: 4px 0 0;
-    overflow-y: auto;
-    flex: 1;
-    min-height: 0;
+    overflow: visible;
+    flex: none;
     border-top: none;
 }
 
@@ -3087,6 +3122,209 @@
     border-radius: 14px;
     padding: 10px;
     background: rgba(255, 255, 255, 0.75);
+}
+
+/* 日程设置内世界书列表：勾选颜色与「纳入日记」一致（不用系统绿） */
+#schedule-day-wb-list .world-book-select-item input[type='checkbox'],
+#schedule-day-wb-list .world-book-category-header .category-checkbox {
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    margin-right: 12px !important;
+    border-radius: 6px !important;
+    accent-color: #ff4d8d !important;
+    cursor: pointer;
+}
+
+#schedule-day-wb-list .world-book-select-item label {
+    color: #5a3545 !important;
+    font-weight: 600 !important;
+}
+
+#schedule-day-wb-list .world-book-category-header .category-name {
+    color: #5a3545 !important;
+}
+
+/* 待办行程弹层：视觉与「日程生成设置」对齐 */
+.schedule-day-pending-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 55;
+    background: rgba(90, 40, 60, 0.38);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.schedule-day-pending-panel {
+    width: 100%;
+    max-width: 100%;
+    max-height: 88vh;
+    background: linear-gradient(180deg, #faf5ff 0%, #fff5f8 100%);
+    border-radius: 22px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 2px solid rgba(196, 181, 253, 0.75);
+    box-shadow: 0 12px 40px rgba(120, 60, 160, 0.2);
+}
+
+.schedule-day-pending-header {
+    display: grid;
+    grid-template-columns: 48px 1fr 48px;
+    align-items: center;
+    padding: 12px 14px;
+    background: linear-gradient(100deg, #ddd6fe 0%, #ffc4dc 100%);
+    border-bottom: 2px dashed rgba(167, 139, 250, 0.4);
+    flex-shrink: 0;
+}
+
+.schedule-day-pending-body {
+    padding: 16px 18px 22px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    flex: 1;
+    min-height: 0;
+}
+
+/* 说明文案：同设置页标签色系，非纯黑 */
+.schedule-day-pending-intro {
+    margin: 0 0 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6d4555;
+    line-height: 1.55;
+    padding: 10px 12px;
+    background: rgba(255, 248, 252, 0.95);
+    border-radius: 12px;
+    border-left: 4px solid var(--sd-blush);
+}
+
+.schedule-day-pending-list {
+    list-style: none;
+    margin: 0 0 14px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.schedule-day-pending-item {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #fff;
+    border: 1.5px solid rgba(255, 170, 195, 0.55);
+    border-radius: 14px;
+    box-shadow: 0 2px 0 rgba(255, 180, 200, 0.12);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.schedule-day-pending-item-meta {
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #c43d6b;
+    background: linear-gradient(180deg, #fff0f6 0%, #ffe4ec 100%);
+    padding: 4px 9px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 170, 195, 0.45);
+    white-space: nowrap;
+}
+
+.schedule-day-pending-item-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    word-break: break-word;
+    font-weight: 600;
+    color: #5a3545;
+}
+
+.schedule-day-pending-del {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    border-radius: 999px;
+    border: 2px solid rgba(255, 160, 190, 0.9);
+    background: rgba(255, 255, 255, 0.98);
+    color: var(--sd-rose-deep);
+    box-shadow: 0 2px 0 rgba(255, 180, 200, 0.25);
+    cursor: pointer;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s ease, filter 0.12s ease;
+}
+
+.schedule-day-pending-del:hover {
+    filter: brightness(1.02);
+}
+
+.schedule-day-pending-del:active {
+    transform: scale(0.96);
+}
+
+.schedule-day-pending-add {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 2px dashed rgba(255, 170, 190, 0.45);
+}
+
+.schedule-day-pending-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #5a3545;
+}
+
+.schedule-day-pending-date-input,
+.schedule-day-pending-summary-input {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 12px !important;
+    border: 1.5px solid rgba(255, 170, 190, 0.6) !important;
+    padding: 10px 12px !important;
+    font-family: inherit;
+    font-size: 14px;
+    background: #fff !important;
+    color: #5a3545 !important;
+}
+
+.schedule-day-pending-summary-input {
+    min-height: 72px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.schedule-day-pending-summary-input::placeholder {
+    color: #b895a5;
+}
+
+/* 与「保存设置」同款主按钮 */
+#schedule-day-pending-add-btn {
+    margin-top: 4px;
+    width: 100%;
+    border-radius: 999px !important;
+    background: linear-gradient(180deg, #ff8fab 0%, #ff6b9d 100%) !important;
+    color: #fff !important;
+    border: none !important;
+    box-shadow: 0 4px 14px rgba(255, 105, 150, 0.4);
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    padding: 12px 18px !important;
+    letter-spacing: 0.04em;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -554,6 +554,7 @@ const loadData = async () => {
                 versions: [],
                 activeVersionId: null,
                 archive: [],
+                pendingTrips: [],
                 settings: {
                     worldBookIds: [],
                     maxContextMessages: 20,
@@ -566,6 +567,7 @@ const loadData = async () => {
             }
             if (!Array.isArray(c.schedule.versions)) c.schedule.versions = [];
             if (!Array.isArray(c.schedule.archive)) c.schedule.archive = [];
+            if (!Array.isArray(c.schedule.pendingTrips)) c.schedule.pendingTrips = [];
         }
     });
     db.groups.forEach(g => {
