@@ -468,6 +468,55 @@ function scheduleDayClosePendingOverlay() {
     if (ov) ov.style.display = 'none';
 }
 
+/** 待办日期：左侧为展示用占位/已选值，真实 value 在隐藏的原生 date 上 */
+function scheduleDayPendingDateSyncDisplay() {
+    const input = document.getElementById('schedule-day-pending-date');
+    const disp = document.getElementById('schedule-day-pending-date-display');
+    if (!disp) return;
+    const v = input && input.value ? String(input.value).trim() : '';
+    if (!v) {
+        disp.textContent = 'yyyy/mm/日';
+        disp.classList.add('is-placeholder');
+        return;
+    }
+    disp.classList.remove('is-placeholder');
+    const parts = v.split('-');
+    if (parts.length === 3) {
+        disp.textContent = `${parts[0]}/${parts[1]}/${parts[2]}`;
+    } else {
+        disp.textContent = v;
+    }
+}
+
+/** 仅应由日历按钮触发（用户手势），与桌面「点图标出选择器」一致 */
+function scheduleDayPendingDateOpenPicker() {
+    const el = document.getElementById('schedule-day-pending-date');
+    if (!el) return;
+    const tryShowPicker = () => {
+        if (typeof el.showPicker === 'function') {
+            el.showPicker();
+            return true;
+        }
+        return false;
+    };
+    try {
+        if (tryShowPicker()) return;
+    } catch (_) {
+        /* 继续 */
+    }
+    try {
+        el.focus({ preventScroll: true });
+        if (tryShowPicker()) return;
+    } catch (_) {
+        /* 继续 */
+    }
+    try {
+        el.click();
+    } catch (_) {
+        /* 忽略 */
+    }
+}
+
 function scheduleDayRenderPendingList(char) {
     const ul = document.getElementById('schedule-day-pending-list');
     if (!ul) return;
@@ -516,6 +565,7 @@ function scheduleDayOpenPendingOverlay() {
     const sumIn = document.getElementById('schedule-day-pending-summary');
     if (dateIn) dateIn.value = '';
     if (sumIn) sumIn.value = '';
+    scheduleDayPendingDateSyncDisplay();
     if (ov) ov.style.display = 'flex';
 }
 
@@ -601,8 +651,22 @@ function scheduleDayInitUI() {
             await saveData();
             if (dateIn) dateIn.value = '';
             if (sumIn) sumIn.value = '';
+            scheduleDayPendingDateSyncDisplay();
             scheduleDayRenderPendingList(char);
             showToast('已添加');
+        });
+    }
+    const datePickerBtn = document.getElementById('schedule-day-pending-date-picker-btn');
+    const dateNative = document.getElementById('schedule-day-pending-date');
+    if (dateNative) {
+        dateNative.addEventListener('change', scheduleDayPendingDateSyncDisplay);
+        dateNative.addEventListener('input', scheduleDayPendingDateSyncDisplay);
+    }
+    if (datePickerBtn) {
+        datePickerBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            scheduleDayPendingDateOpenPicker();
         });
     }
     const setBtn = document.getElementById('schedule-day-settings-btn');
