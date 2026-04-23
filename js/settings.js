@@ -307,6 +307,10 @@ function loadSettingsToSidebar() {
             TTSModule.loadCharVoiceToUI(e);
             TTSModule.initCharVoiceTab();
         }
+        if (typeof ImageGenModule !== 'undefined') {
+            ImageGenModule.loadCharImageGenToUI(e);
+            ImageGenModule.initCharImageGenTab();
+        }
     }
 }
 
@@ -381,6 +385,9 @@ async function saveSettingsFromSidebar() {
         // 保存角色专属语音参数（任务二）
         if (typeof TTSModule !== 'undefined') {
             TTSModule.saveCharVoiceFromUI(e);
+        }
+        if (typeof ImageGenModule !== 'undefined') {
+            ImageGenModule.saveCharImageGenFromUI(e);
         }
 
         await saveData();
@@ -522,6 +529,10 @@ function setupApiSettingsApp() {
     // TTS 全局配置区初始化（任务一）
     if (typeof TTSModule !== 'undefined') {
         TTSModule.initApiSection();
+    }
+    // 生图全局配置区初始化
+    if (typeof ImageGenModule !== 'undefined') {
+        ImageGenModule.initApiSection();
     }
 }
 

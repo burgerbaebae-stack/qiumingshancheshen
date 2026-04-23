@@ -76,6 +76,16 @@ const switchScreen = (targetId) => {
     if (targetId === 'more-screen') {
         renderMoreScreen();
     }
+
+    // 进入 API 设置页时从 db 同步表单（刷新/重进后仍显示已保存项）
+    if (targetId === 'api-settings-screen') {
+        if (typeof ImageGenModule !== 'undefined' && typeof ImageGenModule.loadToUI === 'function') {
+            ImageGenModule.loadToUI();
+        }
+        if (typeof TTSModule !== 'undefined' && typeof TTSModule.loadToUI === 'function') {
+            TTSModule.loadToUI();
+        }
+    }
 };
 
 function renderMoreScreen() {

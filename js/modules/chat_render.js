@@ -86,6 +86,53 @@ function wrapBubbleQuoteStackWithDecorShell(bubbleEl, quoteDiv, isSent) {
     return stack;
 }
 
+/**
+ * 生图成功 + 接收方：仅将装饰壳左上小猫设为可点，用于展开/收起图下说明（他类消息同壳上小猫仍为纯装饰、不可点）
+ */
+function bindIgGeneratedDecorCat(mount, bubbleElement, isSent) {
+    if (isSent || !bubbleElement || !bubbleElement.classList.contains('ig-generated')) return;
+    let shell = null;
+    if (mount && mount.classList && mount.classList.contains('bubble-quote-stack')) {
+        shell = mount.querySelector('.received-bubble-decor-shell');
+    } else if (mount && mount.classList && mount.classList.contains('received-bubble-decor-shell')) {
+        shell = mount;
+    }
+    if (!shell) return;
+    const cat = shell.querySelector('.received-bubble-decor-cat');
+    const caption = bubbleElement.querySelector('.ig-caption-panel');
+    if (!cat || !caption) return;
+
+    shell.classList.add('received-bubble-decor-shell--ig-caption');
+    cat.removeAttribute('aria-hidden');
+    cat.setAttribute('role', 'button');
+    cat.setAttribute('tabindex', '0');
+    cat.setAttribute('aria-label', '查看或收起画面文字描述');
+    cat.setAttribute('aria-expanded', 'false');
+    cat.setAttribute('title', '点按展开或收起画面说明');
+
+    const sync = () => {
+        const open = !caption.hidden;
+        cat.setAttribute('aria-expanded', open ? 'true' : 'false');
+        shell.classList.toggle('received-bubble-decor-shell--ig-caption-open', open);
+    };
+
+    const toggle = (e) => {
+        if (e) e.stopPropagation();
+        caption.hidden = !caption.hidden;
+        sync();
+    };
+
+    cat.addEventListener('click', (e) => { e.stopPropagation(); toggle(e); });
+    cat.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            toggle(e);
+        }
+    });
+    sync();
+}
+
 function renderMessages(isLoadMore = false, forceScrollToBottom = false) {
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
     if (!chat || !chat.history) return;
@@ -774,9 +821,76 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
         wrapper.appendChild(transcriptDiv);
     } else if (photoVideoMatch) {
         const pvContent = photoVideoMatch[1].trim();
-        bubbleElement = document.createElement('div');
-        bubbleElement.className = 'pv-card';
-        bubbleElement.innerHTML = `<div class="pv-card-content">${pvContent}</div><div class="pv-card-image-overlay" style="background-image: url('${isSent ? 'https://i.postimg.cc/L8NFrBrW/1752307494497.jpg' : 'https://i.postimg.cc/1tH6ds9g/1752301200490.jpg'}');"></div><div class="pv-card-footer"><svg viewBox="0 0 24 24"><path d="M4,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M4,6V18H20V6H4M10,9A1,1 0 0,1 11,10A1,1 0 0,1 10,11A1,1 0 0,1 9,10A1,1 0 0,1 10,9M8,17L11,13L13,15L17,10L20,14V17H8Z"></path></svg><span>照片/视频・点击查看</span></div>`;
+
+        // 检查是否有生图结果/状态
+        const igStatus = message && message.imageGenStatus;
+        const igDataUrl = message && message.parts && message.parts.find(p => p.type === 'image' && p.data);
+
+        if (igStatus === 'done' && igDataUrl) {
+            // ── 已生图：点图全屏；说明默认隐藏，仅接收方装饰壳「左上角小猫」可点展开/收起（见 bindIgGeneratedDecorCat）──
+            bubbleElement = document.createElement('div');
+            bubbleElement.className = 'image-bubble ig-generated';
+            const img = document.createElement('img');
+            img.src = igDataUrl.data;
+            img.alt = pvContent || '生成的图片';
+            img.style.cssText = 'max-width:100%; border-radius:10px; cursor:pointer; display:block;';
+            img.addEventListener('click', () => {
+                if (typeof openImageViewer === 'function') openImageViewer(igDataUrl.data);
+            });
+            bubbleElement.appendChild(img);
+
+            const caption = document.createElement('div');
+            caption.className = 'ig-caption-panel';
+            caption.textContent = pvContent;
+            caption.hidden = true;
+            bubbleElement.appendChild(caption);
+
+        } else if (igStatus === 'loading') {
+            // ── 生图中：骨架 loading ──
+            bubbleElement = document.createElement('div');
+            bubbleElement.className = 'pv-card ig-loading-card';
+            bubbleElement.innerHTML = `
+                <div class="ig-loading-inner">
+                    <div class="ig-spinner"></div>
+                    <span class="ig-loading-text">正在生成图片…</span>
+                </div>
+                <div class="pv-card-footer"><span>${pvContent}</span></div>`;
+
+        } else if (igStatus === 'error') {
+            // ── 生图失败：显示原 pv-card 样式 + 重试按钮 ──
+            bubbleElement = document.createElement('div');
+            bubbleElement.className = 'pv-card ig-error-card';
+            const errMsg = (message && message.imageGenError) ? message.imageGenError : '生图失败';
+            bubbleElement.innerHTML = `
+                <div class="pv-card-content" style="color:#ff6b6b; font-size:12px;">⚠ ${errMsg}</div>
+                <div class="pv-card-footer">
+                    <span style="flex:1">${pvContent}</span>
+                    <button class="ig-retry-btn" style="background:var(--primary-color,#8b6bbf); color:#fff; border:none; border-radius:6px; padding:3px 10px; font-size:12px; cursor:pointer;">重试</button>
+                </div>`;
+            // 绑定重试
+            setTimeout(() => {
+                const retryBtn = bubbleElement.querySelector('.ig-retry-btn');
+                if (retryBtn && message && typeof _triggerImageGen === 'function') {
+                    retryBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const chatObj = (currentChatType === 'private')
+                            ? db.characters.find(c => c.id === currentChatId)
+                            : db.groups.find(g => g.id === currentChatId);
+                        if (chatObj) {
+                            message.imageGenStatus = 'loading';
+                            delete message.imageGenError;
+                            await _triggerImageGen(message, chatObj, currentChatId, currentChatType);
+                        }
+                    });
+                }
+            }, 0);
+
+        } else {
+            // ── 未开生图或尚无状态：原始 pv-card ──
+            bubbleElement = document.createElement('div');
+            bubbleElement.className = 'pv-card';
+            bubbleElement.innerHTML = `<div class="pv-card-content">${pvContent}</div><div class="pv-card-image-overlay" style="background-image: url('${isSent ? 'https://i.postimg.cc/L8NFrBrW/1752307494497.jpg' : 'https://i.postimg.cc/1tH6ds9g/1752301200490.jpg'}');"></div><div class="pv-card-footer"><svg viewBox="0 0 24 24"><path d="M4,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M4,6V18H20V6H4M10,9A1,1 0 0,1 11,10A1,1 0 0,1 10,11A1,1 0 0,1 9,10A1,1 0 0,1 10,9M8,17L11,13L13,15L17,10L20,14V17H8Z"></path></svg><span>照片/视频・点击查看</span></div>`;
+        }
     } else if (privateSentTransferMatch || privateReceivedTransferMatch || groupTransferMatch) {
         const isSentTransfer = !!privateSentTransferMatch || (groupTransferMatch && isSent);
         const match = privateSentTransferMatch || privateReceivedTransferMatch || groupTransferMatch;
@@ -922,6 +1036,7 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
                 ? wrapBubbleQuoteStackWithDecorShell(bubbleElement, createQuoteReplyElement(quote, chat), false)
                 : wrapReceivedBubbleDecorShell(bubbleElement);
             contentContainer.appendChild(mount);
+            bindIgGeneratedDecorCat(mount, bubbleElement, isSent);
         }
         
         bubbleRow.appendChild(messageInfo);
@@ -935,6 +1050,7 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
                 ? wrapBubbleQuoteStackWithDecorShell(bubbleElement, createQuoteReplyElement(quote, chat), isSent)
                 : (!isSent ? wrapReceivedBubbleDecorShell(bubbleElement) : wrapSentBubbleDecorShell(bubbleElement));
             bubbleRow.appendChild(mount);
+            bindIgGeneratedDecorCat(mount, bubbleElement, isSent);
         }
     }
     wrapper.prepend(bubbleRow);

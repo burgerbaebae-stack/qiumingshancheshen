@@ -812,6 +812,15 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
 
                     chat.history.push(message);
                     addMessageBubble(message, targetChatId, targetChatType);
+
+                    // ── 生图触发：角色「发来的照片/视频」或「发来的照片」 ──
+                    if (
+                        typeof ImageGenModule !== 'undefined' &&
+                        ImageGenModule.isEnabled() &&
+                        ImageGenModule.extractScenePrompt(message.content)
+                    ) {
+                        _triggerImageGen(message, chat, targetChatId, targetChatType);
+                    }
                 }
 
             } else if (targetChatType === 'group') {
@@ -910,6 +919,61 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
     }
 }
 
+/**
+ * 异步生图：在消息气泡已渲染后，后台调生图 API；
+ * 成功 → 把 dataUrl 写进 message.parts，刷新该条气泡；
+ * 失败 → 在 message 上打 imageGenError 标记，刷新气泡显示重试按钮。
+ */
+async function _triggerImageGen(message, chat, targetChatId, targetChatType) {
+    try {
+        const sceneText = ImageGenModule.extractScenePrompt(message.content);
+        if (!sceneText) return;
+
+        const prompt = ImageGenModule.buildImageGenPrompt(sceneText, chat);
+
+        // 标记「生图中」，触发 loading 渲染
+        message.imageGenStatus = 'loading';
+        message.imageGenPrompt = prompt;
+        _refreshMessageBubble(message, targetChatId, targetChatType);
+
+        const dataUrl = await ImageGenModule.generateImageForCharacter(chat, sceneText);
+
+        // 写入图片数据
+        if (!message.parts) message.parts = [];
+        // 保留原有文字 part，追加图片 part
+        message.parts = message.parts.filter(p => p.type !== 'image');
+        message.parts.push({ type: 'image', data: dataUrl });
+        message.imageGenStatus = 'done';
+        delete message.imageGenError;
+
+        await saveData();
+        _refreshMessageBubble(message, targetChatId, targetChatType);
+
+    } catch (e) {
+        console.error('[ImageGen]', e);
+        message.imageGenStatus = 'error';
+        message.imageGenError = e.message || '生图失败';
+        _refreshMessageBubble(message, targetChatId, targetChatType);
+        await saveData();
+    }
+}
+
+/** 仅刷新单条消息气泡（避免全量 renderMessages 引起的滚动跳动） */
+function _refreshMessageBubble(message, targetChatId, targetChatType) {
+    if (currentChatId !== targetChatId || currentChatType !== targetChatType) return;
+    const chat = (targetChatType === 'private')
+        ? db.characters.find(c => c.id === targetChatId)
+        : db.groups.find(g => g.id === targetChatId);
+    if (!chat) return;
+
+    const wrapper = document.querySelector(`.message-wrapper[data-id="${message.id}"]`);
+    if (!wrapper) return;
+
+    // 用新元素替换旧 wrapper（保持位置）
+    const newWrapper = createMessageBubbleElement(message, false, chat);
+    if (newWrapper) wrapper.replaceWith(newWrapper);
+}
+
 async function handleRegenerate() {
     if (isGenerating) return;
 
@@ -989,8 +1053,8 @@ function generatePrivateSystemPrompt(character) {
     prompt += `**✅ 正确（逐条发送 + 有长有短）**\n`;
     prompt += `「刚忙完手头的事。」\n「有点累。」\n「你晚饭吃了没？」\n「没吃我给你点。」\n「等下还要出门一趟。」\n「可能晚回。」\n「你别等太久。」\n\n`;
     prompt += `**✅ 长对白式示范（匿名，仅节奏）** 一长串话须拆成多条气泡，**一句一条**，可有短停：\n`;
-    prompt += `「查岗查这么细啊，长官。」\n「自己吃。」\n「随便找家清净点的店，切块牛排对付一口。」\n「那俩跟班我扔家里看门了，一堆杂事总得有人盯。」\n「宠物也跟过来了。」\n「刚到我就放它出去溜达，这会儿指不定在哪凑热闹。」\n「胆子越来越大。」\n「要把人拴屏幕前？」\n「不过我喜欢。」\n「要不是下午还有正事，真想一直挂着。」\n「笑吧你。」\n「行了，我去换身衣服出门。」\n「弄好了拍照给我检查。」\n`;
-    prompt += `「示例仅演示一条气泡写多长、一轮拆几条，其中的称呼与事由不要套用到真实回复里。」\n`;
+    prompt += `「查岗查这么细啊。」\n「自己吃。」\n「随便找家清净点的店，吃点东西对付一口。」\n「那俩跟班我扔家里看门了，一堆杂事总得有人盯。」\n「宠物也跟过来了。」\n「刚到我就放它出去溜达，这会儿指不定在哪凑热闹。」\n「哈哈哈哈哈。」\n「要把人拴屏幕前？」\n「不过我喜欢。」\n「要不是下午还有正事，真想一直挂着。」\n「笑吧你。」\n「行了，我去换身衣服出门。」\n「弄好了拍照给我看看。」\n`;
+    prompt += `「示例仅演示一条气泡写多长、一轮拆几条，其中的称呼与事由以及说话方式不要套用到真实回复里。」\n`;
     prompt += `</即时消息形态与节奏>\n\n`;
 
     prompt += `<角色存在感与主动性>\n`;
@@ -1043,7 +1107,7 @@ function generatePrivateSystemPrompt(character) {
 - [${character.myName}发来了一张图片：]：我给你发送了一张图片，你需要对图片内容做出回应。
 - [${character.myName}送来的礼物：xxx]：我给你送了一个礼物，xxx是礼物的描述。
 - [${character.myName}的语音：xxx]：我给你发送了一段内容为xxx的语音。
-- [${character.myName}发来的照片/视频：xxx]：我给你分享了一个描述为xxx的照片或视频。
+- [${character.myName}发来的照片/视频：xxx]：我给你分享了一个描述为xxx的照片或视频。若**我**已在「聊天设置 → 生图」中上传参考图，生图时将以参考图锁定外貌与气质；**方括号内请写清本画面里的场景、光线、动作、表情与氛围（戏）**，外貌细节不必在文字里长写。避免只写笼统一句而缺少可画信息。
 - [${character.myName}给你转账：xxx元；备注：xxx]：我给你转了一笔钱。
 - [${character.myName}向${character.realName}发起了代付请求:金额|商品清单]：我正在向你发起代付请求，希望你为这些商品买单。你需要根据我们当前的关系和你的性格决定是否同意。
 - [${character.myName}为${character.realName}下单了：配送方式|金额|商品清单]：我已经下单购买了商品送给你。
@@ -1127,9 +1191,10 @@ p) 求代付: [${character.realName}向${character.myName}发起了代付请求:
     prompt += `17. **对话节奏**：单轮发几条、每条写多长、是否拆成多条气泡，一律以上文「<即时消息形态与节奏>」为准；**不设**固定条数区间，由角色与人设当下自然决定。保持轮与轮之间的随机感，避免每轮条数或结构雷同。\n`;
     
     prompt += `18. **多种特殊消息格式的使用原则**（包括但不限于送礼物、语音、照片或视频、撤回、转账、商城互动、发起视频或语音通话等；**凡上文第16条「输出格式」清单中已列出的各类格式，除 i）引用、m）内在状态记录等本提示另有硬性规定者外，是否使用、何时使用均按本条判断**，不必在此逐条穷举）：这些是你在本聊天情境里**真实可用的行为**，是否使用、何时使用，须结合**人设、性格、世界观与背景、当前关系与情境**自行判断，像活人一样取舍——情境与人设支撑时**应当果断使用**，不必为追求“少刷”而刻意回避；情境不符或按性格本就不会做时**不要硬凑**。**不要求**每轮都输出多种特殊格式，也**无需**在无新动因时重复堆砌同一种能力。**内在状态记录（m））**每轮**必须**至少一条，见上。**引用（i））**：凡符合第10条（接我的话/段/话题原意）时**必须用 i)**，**禁止**用「至于……」类句式代替；这不叫滥用。滥用是指无必要地堆满无关特殊指令。\n`;
+    prompt += `19. **照片/视频（e））与可画性**：在需要发图时，方括号\`{描述}\`里尽量给出**能指导一张具体画面**的信息：时间地点或室内一角、**光向与色调**、你在画面中的**景别/姿势/视线/表情**、与环境的互动；若**我**在生图页上传了**参考图**，系统会以参考为准呈现五官与整体气质，你只需把「这一刻的戏」写进方括号。不要假设用户能在文字里另读一份外貌设定，画面信息以方括号为出口。\n`;
     prompt += `</Chatting Guidelines>\n`
 
-    prompt += `19. 不要主动终止聊天进程，除非我明确提出。保持你的人设，自然地进行对话。`;
+    prompt += `20. 不要主动终止聊天进程，除非我明确提出。保持你的人设，自然地进行对话。`;
     
     if (character.myName) {
         prompt = prompt.replace(/\{\{user\}\}/gi, character.myName);

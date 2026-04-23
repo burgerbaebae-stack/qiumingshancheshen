@@ -45,6 +45,7 @@
     <link rel="stylesheet" href="css/modules/cot_settings.css">
     <link rel="stylesheet" href="css/modules/video_call.css">
     <link rel="stylesheet" href="css/modules/tts.css">
+    <link rel="stylesheet" href="css/modules/image_gen.css">
 
     <!-- Other Styles -->
     <link rel="stylesheet" href="contacts.css">
@@ -647,6 +648,79 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- ══ 生图全局配置区 ══ -->
+                <div id="ig-global-config">
+                    <p class="tts-section-title" style="padding: 18px 0 0 0; font-size:13px; font-weight:600; color:var(--primary-color);">生图全局配置</p>
+                    <p class="tts-section-desc" style="font-size:12px; color:#aaa; margin:0 0 10px 0;">配置 AI 生图服务，开启后角色「发来的照片/视频」将自动生成真实图片。</p>
+                    <div class="kkt-group">
+                        <div class="kkt-item">
+                            <div class="kkt-item-label">全局总开关</div>
+                            <div class="kkt-item-control">
+                                <label class="kkt-switch">
+                                    <input type="checkbox" id="ig-global-switch">
+                                    <span class="kkt-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="kkt-item">
+                            <div class="kkt-item-label">接口类型</div>
+                            <div class="kkt-item-control">
+                                <select id="ig-api-provider" style="text-align:right; border:none; background:transparent; width:100%;">
+                                    <option value="openai">OpenAI 兼容（/v1/images/generations）</option>
+                                    <option value="gemini">Gemini（generateContent）</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="kkt-item">
+                            <div class="kkt-item-label">接口地址（Base URL）</div>
+                            <div class="kkt-item-control">
+                                <input type="text" id="ig-api-url" autocomplete="off" placeholder="如 https://api2.gemai.cc" style="text-align:right; border:none; background:transparent; width:100%;">
+                            </div>
+                        </div>
+                        <div class="kkt-item">
+                            <div class="kkt-item-label">API 密钥</div>
+                            <div class="kkt-item-control">
+                                <input type="password" id="ig-api-key" autocomplete="new-password" placeholder="sk-..." style="text-align:right; border:none; background:transparent; width:100%;">
+                            </div>
+                        </div>
+                        <div class="kkt-item">
+                            <div class="kkt-item-label">生图模型列表</div>
+                            <div class="kkt-item-control">
+                                <button type="button" class="btn btn-small btn-secondary" id="ig-fetch-models-btn" style="margin:0; padding: 4px 8px;">
+                                    <span class="btn-text">拉取</span>
+                                    <div class="spinner"></div>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="kkt-item">
+                            <div class="kkt-item-label">选择生图模型</div>
+                            <div class="kkt-item-control">
+                                <select id="ig-api-model" style="border:none; background:transparent; text-align:right; direction: rtl; max-width: 200px; appearance: none; -webkit-appearance: none; padding-right: 12px; width: 100%;">
+                                    <option value="">请先拉取</option>
+                                </select>
+                                <span class="kkt-arrow">›</span>
+                            </div>
+                        </div>
+                        <p style="font-size:11px; color:#999; margin: -4px 0 0 0; line-height:1.4;">与主聊天相同：先填好 Base URL 与 Key，点「拉取」加载模型；列表中名称含 image / imagen 等会排在相对靠前。</p>
+                        <div class="kkt-item">
+                            <div class="kkt-item-label">图片尺寸</div>
+                            <div class="kkt-item-control">
+                                <select id="ig-image-size" style="text-align:right; border:none; background:transparent; width:100%;">
+                                    <option value="1024x1024">1024×1024（方图）</option>
+                                    <option value="1024x1792">1024×1792（竖图）</option>
+                                    <option value="1792x1024">1792×1024（横图）</option>
+                                    <option value="512x512">512×512（省钱小图）</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" id="ig-save-btn" class="btn btn-primary" style="margin-top:14px; width:100%;">保存生图设置</button>
+                    <button type="button" id="ig-test-btn" class="tts-test-btn" style="margin-top:8px;">测试生图</button>
+                    <input type="file" id="ig-test-ref-file" accept="image/jpeg,image/png,image/webp" style="display:none" />
+                    <button type="button" id="ig-test-ref-btn" class="tts-test-btn" style="margin-top:4px;">测试参考图（垫图）</button>
+                    <p style="font-size:11px; color:#999; margin:6px 0 0 0; line-height:1.4;">将「接口类型」选为 <b>Gemini</b>（与模型详情的 generateContent 一致）。选一张正脸/半身参考图，检测接口是否支持「图片+文字」多模态出图。纯 OpenAI 的 <code>images</code> 接口无法垫图。</p>
                 </div>
 
                 <!-- ══ TTS 全局配置区 ══ -->
@@ -1399,6 +1473,7 @@
                     <div class="settings-tab-item" data-tab="setting-tab-func">功能</div>
                     <div class="settings-tab-item" data-tab="setting-tab-style">美化</div>
                     <div class="settings-tab-item" data-tab="setting-tab-voice">语音</div>
+                    <div class="settings-tab-item" data-tab="setting-tab-imagegen">生图</div>
                 </div>
 
                 <form id="chat-settings-form">
@@ -1755,6 +1830,34 @@
                                 </div>
                                 <input type="range" class="tts-slider" id="setting-tts-speed" min="0.25" max="4.0" step="0.05" value="1.0" style="width:100%; accent-color:var(--primary-color);">
                                 <p style="font-size:11px; color:#bbb; margin:4px 0 0 0;">0.25（最慢）～ 4.0（最快），默认 1.0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 【生图】Tab 内容：参考图 + 无参考时短关键词 -->
+                    <div id="setting-tab-imagegen" class="settings-tab-content">
+                        <p style="font-size:12px; color:#aaa; margin:8px 0 12px; line-height:1.7;">
+                            在「更多设置 → API 设置」中配置生图接口后，你发送的「照片/视频」类消息会触发生成真实配图。此页设置<strong>本角色</strong>的参考图与无参考时的外貌提示。
+                        </p>
+                        <p class="tts-section-title" style="font-size:13px; font-weight:600; color:var(--primary-color);">参考图（垫图锁脸）</p>
+                        <p class="tts-section-desc" style="font-size:12px; color:#aaa; margin:0 0 10px 0;">上传后，生图以参考人物为准；<strong>方括号里请写本帧的场景、光、动作与神态</strong>（戏），不必在长文里重复五官设定。多模态生图需使用 Gemini 类接口。无参考图时本项不生效。</p>
+                        <div class="kkt-group">
+                            <div class="ig-char-ref-row" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; padding-bottom:8px;">
+                                <img id="setting-ig-ref-preview" class="ig-char-ref-preview" alt="参考图预览" width="120" height="120" style="max-width:120px; max-height:120px; border-radius:8px; object-fit:cover; background:#f2f0f7; display:none; border:1px solid #e8e4f0;" />
+                                <div style="display:flex; flex-direction:column; gap:8px;">
+                                    <input type="file" id="setting-ig-ref-file" accept="image/*" style="display:none;" />
+                                    <button type="button" class="btn btn-secondary" id="setting-ig-ref-choose">选择参考图</button>
+                                    <button type="button" class="btn" id="setting-ig-ref-clear" style="font-size:12px; padding:4px 10px; background:transparent; border:1px solid #ddd; border-radius:6px; color:#888;">清除参考图</button>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="tts-section-title" style="margin-top:12px; font-size:13px; font-weight:600; color:var(--primary-color);">无参考图时的短外貌关键词</p>
+                        <p class="tts-section-desc" style="font-size:12px; color:#aaa; margin:0 0 10px 0;">仅当<strong>未上传</strong>参考图时，会拼到生图提示前（发色、瞳色、画风等短词即可）。<strong>有参考图时以图为主，本框不参与拼接。</strong></p>
+                        <div class="kkt-group">
+                            <div class="kkt-item" style="display:block; padding-bottom:12px;">
+                                <textarea id="setting-ig-no-ref-hint" rows="2"
+                                    placeholder="如：白短发红瞳，偏写实3D成男"
+                                    style="width:100%; border:1px solid #eee; border-radius:8px; padding:8px; font-size:13px; resize:vertical;"></textarea>
                             </div>
                         </div>
                     </div>
@@ -3520,6 +3623,7 @@
 <script src="js/modules/cot_settings.js"></script> <!-- 思维链设置模块 -->
 <script src="js/modules/video_call.js"></script> <!-- 视频通话模块 -->
 <script src="js/modules/tts.js"></script>       <!-- TTS 语音合成引擎（发电机，禁止在其他核心文件放音频逻辑） -->
+<script src="js/modules/image_gen.js"></script> <!-- 生图模块 -->
 <script src="js/modules/background_keep_alive.js"></script> <!-- 后台保活：静音音频循环阻止进程被挂起 -->
 <script src="js/modules/push_notification.js"></script> <!-- 后台弹窗通知：系统 Notification 权限管理与触发 -->
 

@@ -618,6 +618,19 @@
     transform: translate(-22%, -44%);
 }
 
+/* 生图成功：仅此类消息壳上小猫可点，用于展开图下说明；其它消息仍为 pointer-events:none */
+.received-bubble-decor-shell--ig-caption .received-bubble-decor-cat {
+    pointer-events: auto;
+    cursor: pointer;
+    z-index: 5;
+    -webkit-tap-highlight-color: transparent;
+}
+.received-bubble-decor-shell--ig-caption .received-bubble-decor-cat:focus-visible {
+    outline: 2px solid var(--primary-color, #c9a8e8);
+    outline-offset: 3px;
+    border-radius: 6px;
+}
+
 .received-bubble-decor-signal {
     position: absolute;
     right: 0;

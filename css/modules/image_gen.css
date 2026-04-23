@@ -1,0 +1,77 @@
+/* ── 生图模块样式 (css/modules/image_gen.css) ── */
+
+/* ── 已生成真图气泡 ── */
+.image-bubble.ig-generated {
+    background: transparent;
+    padding: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 240px;
+}
+.image-bubble.ig-generated img {
+    width: 100%;
+    display: block;
+    border-radius: 10px;
+}
+/* 生图：方括号原文默认隐藏，由接收壳「左上小猫」展开；展开块轻量糖果风 */
+.ig-caption-panel {
+    margin-top: 8px;
+    max-width: 240px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.55;
+    color: #5c3d4a;
+    word-break: break-word;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #fff5f8 0%, #ffe8f0 45%, #fff9e6 100%);
+    border: 2px dashed rgba(255, 140, 180, 0.45);
+    box-shadow: 0 4px 14px rgba(255, 120, 160, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    animation: ig-caption-pop 0.28s ease;
+}
+@keyframes ig-caption-pop {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+.ig-caption-panel[hidden] {
+    display: none !important;
+}
+
+/* ── 生图 loading 气泡 ── */
+.ig-loading-card {
+    min-width: 160px;
+}
+.ig-loading-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 8px;
+    gap: 8px;
+}
+.ig-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid #e0d6f5;
+    border-top-color: var(--primary-color, #8b6bbf);
+    border-radius: 50%;
+    animation: ig-spin 0.8s linear infinite;
+}
+@keyframes ig-spin {
+    to { transform: rotate(360deg); }
+}
+.ig-loading-text {
+    font-size: 12px;
+    color: #aaa;
+}
+
+/* ── 生图失败气泡 ── */
+.ig-error-card .pv-card-footer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}

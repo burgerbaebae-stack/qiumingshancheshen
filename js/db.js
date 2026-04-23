@@ -95,7 +95,8 @@ const globalSettingKeys = [
     'globalCssPresets', 'fontPresets', 'homeSignature', 'forumPosts', 'forumBindings', 'pomodoroTasks', 'pomodoroSettings', 'insWidgetSettings', 'homeWidgetSettings',
     'chatFolders', 'fontSizeScale', 'activePersonaId', 'moreProfileCardBg', 'statusBarPresets', 'themeSettings', 'themePresets', 'savedKeyboardHeight',
     'globalSendSound', 'globalReceiveSound', 'multiMsgSoundEnabled', 'soundPresets', 'galleryPresets',
-    'cotSettings', 'cotPresets', 'hasSeenVideoCallDisclaimer', 'hasSeenVideoCallAvatarHint'
+    'cotSettings', 'cotPresets', 'hasSeenVideoCallDisclaimer', 'hasSeenVideoCallAvatarHint',
+    'imageGenSettings'
 ];
 
 const appVersion = "1.8.5";
@@ -511,7 +512,8 @@ const loadData = async () => {
             cotSettings: { enabled: false, activePresetId: 'default' },
             cotPresets: JSON.parse(JSON.stringify(DEFAULT_COT_PRESETS)),
             hasSeenVideoCallDisclaimer: false,
-            hasSeenVideoCallAvatarHint: false
+            hasSeenVideoCallAvatarHint: false,
+            imageGenSettings: {}
         };
         db[key] = settings[key] !== undefined ? settings[key] : (defaultValue[key] !== undefined ? JSON.parse(JSON.stringify(defaultValue[key])) : undefined);
     });
