@@ -948,6 +948,14 @@ const contentMatch = content.match(/^\[.*?(?:消息|回复)[：:]([\s\S]+)\]$/);
         bubbleElement = document.createElement('div');
         bubbleElement.className = 'image-bubble';
         bubbleElement.innerHTML = `<img src="${content}" alt="图片消息">`;
+        const urlImg = bubbleElement.querySelector('img');
+        if (urlImg) {
+            urlImg.style.cursor = 'pointer';
+            urlImg.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof openImageViewer === 'function') openImageViewer(content);
+            });
+        }
     } else if (textMatch) {
         bubbleElement = document.createElement('div');
         bubbleElement.className = `message-bubble ${isSent ? 'sent' : 'received'}`;

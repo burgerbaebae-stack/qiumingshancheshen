@@ -734,26 +734,20 @@ async function readStreamResponse(response, provider) {
 function openImageViewer(src) {
     const modal = document.getElementById('full-image-modal');
     const img = document.getElementById('full-image-view');
-    const closeBtn = document.getElementById('close-full-image-btn');
     
     if (!modal || !img) return;
     
     img.src = src;
     modal.classList.add('visible');
     
-    // 简单的关闭逻辑
     const closeModal = () => {
         modal.classList.remove('visible');
         setTimeout(() => { img.src = ''; }, 300); // 动画结束后清空
     };
     
-    if (closeBtn) closeBtn.onclick = closeModal;
     modal.onclick = (e) => {
         if (e.target === modal || e.target.closest('.modal-window')) {
-            // 点击图片本身不关闭，点击背景关闭
-            if (e.target !== img) {
-                closeModal();
-            }
+            closeModal();
         }
     };
 }
