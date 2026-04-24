@@ -1,0 +1,1217 @@
+/* --- Dark Y2K / Cyber-Kawaii Style for Chat Settings --- */
+
+:root {
+    --y2k-pink: #ff8da1; /* Soft strawberry pink from the gun */
+    --y2k-dark-pink: #e06c84;
+    --y2k-black: #121212;
+    --y2k-bg-gradient: linear-gradient(160deg, #050505 0%, #1a0b12 40%, #ff8da1 100%);
+}
+
+/* 1. Background */
+#chat-settings-screen {
+    background: var(--y2k-bg-gradient);
+    background-attachment: fixed;
+}
+
+#chat-settings-screen .app-header {
+    background-color: var(--y2k-black);
+    border-bottom: 2px solid var(--y2k-pink);
+}
+
+#chat-settings-screen .app-header .title {
+    color: var(--y2k-pink);
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-shadow: none;
+}
+
+#chat-settings-screen .back-btn {
+    color: var(--y2k-pink);
+    font-weight: 900;
+}
+
+/* Hide the old tabs */
+#chat-settings-screen .settings-tabs {
+    display: none !important;
+}
+
+/* Tab 显隐：必须用 .active，否则 #setting-tab-basic 的 display:flex 会盖过 .settings-tab-content 的 none */
+#setting-tab-basic.settings-tab-content:not(.active) {
+    display: none !important;
+}
+#setting-tab-basic.settings-tab-content.active {
+    display: flex !important;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    padding: 12px 14px 10px;
+    gap: 12px;
+    box-sizing: border-box;
+}
+
+/* 首页双卡：占满可视区，两卡等高 */
+#chat-settings-screen .kkt-settings-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+}
+#chat-settings-screen #chat-settings-form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+#chat-settings-screen .content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    padding: 0;
+    padding-bottom: 10px;
+}
+.y2k-identity-pair {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 12px;
+    min-height: 0;
+}
+#chat-settings-screen .y2k-char-card,
+#chat-settings-screen .y2k-user-card {
+    flex: 1 1 0;
+    min-height: 34vh;
+    display: flex;
+    flex-direction: column;
+}
+#chat-settings-screen .y2k-card-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Reset group styles */
+#chat-settings-screen .kkt-group {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    margin: 0 !important;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* --- Character ID Card (Black dominant, Pink accent) --- */
+.y2k-char-card {
+    background-color: var(--y2k-black);
+    border: 2px solid var(--y2k-pink);
+    border-radius: 16px;
+    box-shadow: 0 0 20px rgba(255, 141, 161, 0.2), inset 0 0 10px rgba(0,0,0,0.5);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Add a subtle scanline or gradient overlay to the black card */
+.y2k-char-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(180deg, rgba(255,141,161,0.05) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+.y2k-char-card .kkt-profile-section {
+    padding: 0 0 15px 0;
+    flex-direction: row;
+    align-items: center;
+    border-bottom: 1px dashed rgba(255, 141, 161, 0.3);
+    margin-bottom: 15px;
+}
+
+.y2k-char-card .kkt-profile-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 12px;
+    border: 2px solid var(--y2k-pink);
+    padding: 2px;
+    background: #000;
+    box-shadow: none;
+    margin-bottom: 0;
+}
+
+.y2k-name-input-wrap {
+    flex: 1;
+    min-width: 0;
+    padding-left: 12px;
+    display: flex;
+    align-items: center;
+}
+.y2k-name-input {
+    width: 100%;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 141, 161, 0.45) !important;
+    border-radius: 10px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+}
+.y2k-name-input--on-dark {
+    color: #fff !important;
+}
+.y2k-name-input--on-pink {
+    color: var(--y2k-black) !important;
+    background: rgba(0, 0, 0, 0.06) !important;
+    border: 2px solid var(--y2k-black) !important;
+}
+.y2k-inp-dark {
+    text-align: right;
+    min-width: 0;
+    flex: 1;
+}
+
+.y2k-char-card .kkt-item {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 5px 0;
+    color: #ddd;
+}
+
+.y2k-char-card .kkt-item-label {
+    color: var(--y2k-pink);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 800;
+}
+
+.y2k-char-card input, .y2k-char-card textarea {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 141, 161, 0.3) !important;
+    color: #fff !important;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+/* --- User ID Card (Pink dominant, Black accent) --- */
+.y2k-user-card {
+    background: linear-gradient(135deg, var(--y2k-pink) 0%, var(--y2k-dark-pink) 100%);
+    border: 2px solid var(--y2k-black);
+    border-radius: 16px;
+    box-shadow: 6px 6px 0px var(--y2k-black);
+    padding: 20px;
+    position: relative;
+    padding-top: 18px;
+}
+
+.y2k-user-more {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 32px;
+    border: 2px solid var(--y2k-black);
+    border-radius: 8px;
+    background: #000;
+    color: #fff;
+    font-size: 18px;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0 2px 0;
+    z-index: 2;
+    box-shadow: 2px 2px 0 var(--y2k-black);
+}
+.y2k-user-more:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--y2k-black);
+}
+
+.y2k-user-card .kkt-profile-section {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 44px 14px 0;
+    margin-bottom: 10px;
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.3);
+    position: relative;
+    z-index: 1;
+}
+
+#chat-settings-screen .y2k-user-avatar,
+.y2k-user-card .kkt-profile-avatar.y2k-user-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 12px;
+    border: 2px solid var(--y2k-black);
+    object-fit: cover;
+    margin: 0;
+    flex-shrink: 0;
+    box-shadow: 3px 3px 0 var(--y2k-black);
+    background: #fff;
+}
+
+.y2k-user-name-col {
+    flex: 1;
+    min-width: 0;
+}
+.y2k-user-field-label {
+    font-size: 11px;
+    font-weight: 900;
+    color: var(--y2k-black);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    opacity: 0.9;
+}
+.y2k-user-name-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.06) !important;
+    border: 2px solid var(--y2k-black) !important;
+    color: var(--y2k-black) !important;
+    font-weight: 800;
+    font-size: 16px;
+    padding: 8px 10px;
+    border-radius: 8px;
+}
+
+.y2k-user-card .kkt-item {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    border-bottom: none;
+}
+
+.y2k-user-card .kkt-item-label {
+    color: var(--y2k-black);
+    font-weight: 900;
+}
+
+/* 首页人设短框 */
+.y2k-persona-snippet {
+    margin-top: 4px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px dashed rgba(255, 141, 161, 0.5);
+    background: rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.y2k-persona-snippet:active {
+    background: rgba(0, 0, 0, 0.35);
+}
+.y2k-persona-snippet--on-pink {
+    border: 2px dashed var(--y2k-black);
+    background: rgba(0, 0, 0, 0.06);
+}
+.y2k-persona-snippet-label {
+    font-size: 11px;
+    font-weight: 900;
+    color: var(--y2k-pink);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.y2k-persona-snippet--on-pink .y2k-persona-snippet-label {
+    color: var(--y2k-black);
+}
+.y2k-persona-snippet-text {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.9);
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    flex: 1;
+    min-height: 0;
+}
+.y2k-persona-snippet--on-pink .y2k-persona-snippet-text {
+    color: var(--y2k-black);
+}
+.y2k-persona-snippet-hint {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255, 141, 161, 0.9);
+    letter-spacing: 0.3px;
+}
+.y2k-persona-snippet--on-pink .y2k-persona-snippet-hint {
+    color: rgba(0, 0, 0, 0.55);
+}
+
+/* 人设全屏编辑层 */
+.y2k-persona-editor {
+    position: fixed;
+    inset: 0;
+    z-index: 210;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.22s ease;
+}
+.y2k-persona-editor.is-open {
+    pointer-events: auto;
+    opacity: 1;
+}
+.y2k-persona-editor-backdrop {
+    position: absolute;
+    inset: 0;
+    /* 略透明，让背后内容透出来 + 磨砂更明显，避免「死黑」 */
+    background: rgba(4, 2, 8, 0.48);
+    backdrop-filter: blur(20px) saturate(1.18);
+    -webkit-backdrop-filter: blur(20px) saturate(1.18);
+}
+.y2k-persona-editor-sheet {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(92vw, 420px);
+    /* 加高：多给编辑区纵向空间 */
+    max-height: min(92vh, 880px);
+    min-height: min(64vh, 600px);
+    /* 面板本身半透明磨砂，与背板分层 */
+    background: rgba(22, 14, 20, 0.58);
+    backdrop-filter: blur(22px) saturate(1.12);
+    -webkit-backdrop-filter: blur(22px) saturate(1.12);
+    border: 2px solid var(--y2k-pink);
+    border-radius: 18px;
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 141, 161, 0.15) inset;
+    display: flex;
+    flex-direction: column;
+    padding: 0 0 14px;
+    overflow: hidden;
+}
+/* 居中标题 + 右上角关闭（略大、略下移） */
+.y2k-editor-modal-head {
+    position: relative;
+    flex-shrink: 0;
+    padding: 16px 52px 12px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 141, 161, 0.2);
+}
+.y2k-editor-modal-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: var(--y2k-pink);
+    line-height: 1.3;
+}
+.y2k-editor-modal-close {
+    position: absolute;
+    top: 14px;
+    right: 12px;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.28);
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 300;
+    padding: 0 0 4px 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, transform 0.1s;
+}
+.y2k-editor-modal-close:active {
+    transform: scale(0.96);
+    background: rgba(255, 141, 161, 0.15);
+}
+.y2k-persona-editor-text {
+    flex: 1;
+    min-height: 0;
+    margin: 12px 14px 12px;
+    padding: 12px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 141, 161, 0.45) !important;
+    background: rgba(0, 0, 0, 0.22) !important;
+    color: #f5f5f5 !important;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: none;
+    width: auto;
+    min-height: 240px;
+}
+.y2k-persona-editor-done {
+    margin: 0 14px 0;
+    width: auto;
+    background: var(--y2k-pink) !important;
+    color: var(--y2k-black) !important;
+    border: 2px solid var(--y2k-black) !important;
+    font-weight: 900;
+    padding: 12px 16px;
+    box-shadow: 3px 3px 0 var(--y2k-black);
+}
+.y2k-home-savebar {
+    flex-shrink: 0;
+    padding: 4px 0 8px;
+    display: flex;
+    justify-content: center;
+}
+/* 保存档案：恢复主视觉为草莓粉实心底 + 黑字黑边（与「完成」等主按钮一致） */
+.y2k-btn-save-identity {
+    min-width: 200px;
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    background: var(--y2k-pink) !important;
+    color: var(--y2k-black) !important;
+    border: 2px solid var(--y2k-black) !important;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
+}
+.y2k-btn-save-identity:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* 与「保存档案」同款：黑底粉字粉边（用于世界书确认等） */
+.y2k-btn-save-outline {
+    background: #0a0a0a !important;
+    color: var(--y2k-pink) !important;
+    border: 2px solid var(--y2k-pink) !important;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.35);
+    font-weight: 900;
+    letter-spacing: 2px;
+}
+.y2k-btn-save-outline:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* 聊天设置内 range：统一草莓粉，避免系统蓝 */
+#chat-settings-screen input[type="range"].y2k-range-input,
+#chat-settings-screen input[type="range"].tts-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255, 141, 161, 0.2);
+    accent-color: var(--y2k-pink);
+    outline: none;
+}
+#chat-settings-screen input[type="range"].y2k-range-input::-webkit-slider-thumb,
+#chat-settings-screen input[type="range"].tts-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--y2k-pink);
+    border: 2px solid var(--y2k-black);
+    box-shadow: 0 0 0 1px rgba(255, 141, 161, 0.5);
+    cursor: pointer;
+    margin-top: -5px;
+}
+#chat-settings-screen input[type="range"].y2k-range-input::-webkit-slider-runnable-track,
+#chat-settings-screen input[type="range"].tts-slider::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255, 141, 161, 0.22);
+}
+#chat-settings-screen input[type="range"].y2k-range-input::-moz-range-thumb,
+#chat-settings-screen input[type="range"].tts-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--y2k-pink);
+    border: 2px solid var(--y2k-black);
+    box-shadow: 0 0 0 1px rgba(255, 141, 161, 0.5);
+    cursor: pointer;
+}
+#chat-settings-screen input[type="range"].y2k-range-input::-moz-range-track,
+#chat-settings-screen input[type="range"].tts-slider::-moz-range-track {
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255, 141, 161, 0.2);
+}
+#chat-settings-screen input[type="range"].y2k-range-input::-moz-range-progress,
+#chat-settings-screen input[type="range"].tts-slider::-moz-range-progress {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--y2k-pink);
+}
+#chat-settings-screen .y2k-range-value,
+#chat-settings-screen .tts-slider-value {
+    color: var(--y2k-pink) !important;
+    font-weight: 800;
+}
+#chat-settings-screen[data-settings-view="sub"] .y2k-home-savebar {
+    display: none;
+}
+#chat-settings-screen[data-settings-view="sub"] .y2k-form-save-all {
+    display: block;
+    width: calc(100% - 32px);
+    max-width: 400px;
+    margin: 16px auto 20px;
+}
+#chat-settings-screen[data-settings-view="home"] .y2k-form-save-all {
+    display: none;
+}
+
+/* 二级设置单独占满，不与首页同屏 */
+#chat-settings-screen .settings-tab-content.active:not(#setting-tab-basic) {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 14px 24px;
+}
+
+/* 人设预设：居中弹层，与全屏人设编辑器一致 */
+.y2k-mypersona-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+.y2k-mypersona-overlay.active {
+    pointer-events: auto;
+    opacity: 1;
+}
+.y2k-mypersona-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(4, 2, 6, 0.82);
+    backdrop-filter: blur(14px) saturate(1.1);
+    -webkit-backdrop-filter: blur(14px) saturate(1.1);
+}
+.y2k-mypersona-sheet {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.97);
+    width: min(92vw, 400px);
+    max-height: min(70vh, 520px);
+    background: var(--y2k-black);
+    border: 2px solid var(--y2k-pink);
+    border-radius: 18px;
+    padding: 0 0 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.y2k-mypersona-overlay.active .y2k-mypersona-sheet {
+    transform: translate(-50%, -50%) scale(1);
+}
+.y2k-mypersona-head {
+    border-bottom: 1px solid rgba(255, 141, 161, 0.2);
+}
+.y2k-mypersona-body {
+    padding: 14px 18px 8px;
+    overflow-y: auto;
+}
+.y2k-mypersona-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.y2k-mypersona-label {
+    color: var(--y2k-pink);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+#chat-settings-screen #mypersona-preset-select {
+    width: 100%;
+    padding: 10px 36px 10px 12px;
+    border-radius: 8px;
+    border: 2px solid var(--y2k-pink) !important;
+    color: #eee !important;
+    font-size: 14px;
+    appearance: none;
+    background-color: rgba(0, 0, 0, 0.45) !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23ff8da1' stroke-width='2.2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+.y2k-mypersona-btns {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    width: 100%;
+    margin-top: 4px;
+}
+.y2k-mypersona-btns .y2k-mypersona-action {
+    flex: 1 1 0;
+    min-height: 46px;
+    padding: 10px 8px;
+    font-size: 14px;
+    font-weight: 900;
+    border: 2px solid var(--y2k-black) !important;
+    background: var(--y2k-pink) !important;
+    color: var(--y2k-black) !important;
+    box-shadow: 2px 2px 0 var(--y2k-black);
+    border-radius: 10px;
+}
+.y2k-mypersona-btns .y2k-mypersona-action:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--y2k-black);
+}
+
+/* --- Secondary Pages (Function, Style, etc.) --- */
+.settings-tab-content:not(#setting-tab-basic) {
+    padding: 20px;
+    padding-bottom: 36px;
+}
+
+.settings-tab-content:not(#setting-tab-basic) .kkt-group {
+    background: rgba(18, 18, 18, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 141, 161, 0.2);
+    border-radius: 16px;
+    padding: 10px;
+    margin-bottom: 20px !important;
+}
+
+.settings-tab-content:not(#setting-tab-basic) .kkt-item {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 141, 161, 0.1);
+    box-shadow: none;
+    color: #fff;
+    padding: 15px 5px;
+}
+
+.settings-tab-content:not(#setting-tab-basic) .kkt-item:last-child {
+    border-bottom: none;
+}
+
+.settings-tab-content:not(#setting-tab-basic) .kkt-item-label {
+    color: #ddd;
+    font-weight: normal;
+}
+
+.settings-tab-content:not(#setting-tab-basic) input[type="number"],
+.settings-tab-content:not(#setting-tab-basic) select,
+.settings-tab-content:not(#setting-tab-basic) textarea,
+.settings-tab-content:not(#setting-tab-basic) input[type="text"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 141, 161, 0.3) !important;
+    color: #fff !important;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+/* Switches */
+#chat-settings-screen .kkt-switch {
+    width: 50px;
+    height: 28px;
+}
+#chat-settings-screen .kkt-slider {
+    background-color: #333 !important;
+    border: 2px solid var(--y2k-pink) !important;
+    box-shadow: none;
+}
+#chat-settings-screen .kkt-slider:before {
+    background-color: var(--y2k-pink) !important;
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    box-shadow: none;
+}
+#chat-settings-screen input:checked + .kkt-slider {
+    background-color: var(--y2k-pink) !important;
+}
+#chat-settings-screen input:checked + .kkt-slider:before {
+    background-color: var(--y2k-black) !important;
+    transform: translateX(22px);
+}
+
+/* Buttons */
+#chat-settings-screen .btn {
+    background: var(--y2k-pink);
+    color: var(--y2k-black);
+    border: 2px solid var(--y2k-black);
+    font-weight: bold;
+    box-shadow: 2px 2px 0px var(--y2k-black);
+}
+#chat-settings-screen .btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+}
+
+/* --- 顶栏装备按钮 & 底部装备箱 --- */
+#chat-settings-screen .y2k-fab {
+    position: relative;
+    bottom: auto;
+    right: auto;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    background: linear-gradient(135deg, var(--y2k-pink), var(--y2k-dark-pink));
+    border: 2px solid var(--y2k-pink);
+    border-radius: 50%;
+    box-shadow: 2px 2px 0 var(--y2k-black);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0;
+    transition: transform 0.15s;
+}
+#chat-settings-screen .y2k-fab svg {
+    width: 20px;
+    height: 20px;
+    stroke: var(--y2k-black);
+    fill: none;
+}
+#chat-settings-screen .y2k-fab:active {
+    transform: scale(0.95);
+}
+
+.y2k-bottom-sheet-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(5px);
+    z-index: 101;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+.y2k-bottom-sheet-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.y2k-bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--y2k-black);
+    border-top: 2px solid var(--y2k-pink);
+    border-radius: 24px 24px 0 0;
+    padding: 30px 20px;
+    z-index: 102;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 -10px 30px rgba(255, 141, 161, 0.1);
+}
+.y2k-bottom-sheet.active {
+    transform: translateY(0);
+}
+
+.y2k-bs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.y2k-bs-title {
+    color: var(--y2k-pink);
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 1px;
+}
+.y2k-bs-close {
+    color: #fff;
+    font-size: 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 10px;
+}
+
+.y2k-bs-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+.y2k-bs-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+.y2k-bs-icon {
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 141, 161, 0.1);
+    border: 1px solid var(--y2k-pink);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--y2k-pink);
+    font-size: 20px;
+    transition: all 0.2s;
+}
+.y2k-bs-item:active .y2k-bs-icon {
+    background: var(--y2k-pink);
+    color: var(--y2k-black);
+    transform: scale(0.95);
+}
+.y2k-bs-label {
+    color: #ddd;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Danger：功能页「清空聊天记录」需与粉黑底区分，避免融进背景 */
+#chat-settings-screen .kkt-danger-btn {
+    background-color: rgba(8, 3, 6, 0.92);
+    color: #ffb0bc;
+    border: 2px solid rgba(255, 107, 132, 0.95);
+    box-shadow: 0 0 0 1px rgba(255, 141, 161, 0.25), 0 8px 22px rgba(0, 0, 0, 0.45);
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+#chat-settings-screen .kkt-danger-btn:active {
+    background-color: rgba(40, 8, 18, 0.95);
+    transform: translate(0, 1px);
+}
+
+/* 关联世界书：全屏磨砂遮罩，压住背后聊天设置页 */
+#world-book-selection-modal.y2k-wb-modal-wrap.modal-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    background: rgba(4, 2, 8, 0.88) !important;
+    backdrop-filter: blur(16px) saturate(1.08);
+    -webkit-backdrop-filter: blur(16px) saturate(1.08);
+    z-index: 250;
+}
+
+/* 关联世界书弹窗（与特工页统一） */
+#world-book-selection-modal.y2k-wb-modal-wrap .modal-window.y2k-wb-modal {
+    /* base.css 的 .modal-window h3 会盖掉标题色，本块与 h3 需一并提高优先级 */
+    background: rgba(24, 14, 20, 0.72);
+    backdrop-filter: blur(18px) saturate(1.1);
+    -webkit-backdrop-filter: blur(18px) saturate(1.1);
+    border: 2px solid var(--y2k-pink);
+    border-radius: 16px;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 141, 161, 0.15) inset;
+    padding: 18px 16px 16px;
+    max-width: min(400px, 92vw);
+}
+/* 覆盖 base.css：.modal-window h3 { color: var(--primary-color) } */
+#world-book-selection-modal .modal-window.y2k-wb-modal h3.y2k-wb-modal-title,
+.y2k-wb-modal-title {
+    margin: 0 0 6px;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: var(--y2k-pink) !important;
+    text-align: center;
+    text-shadow: 0 0 24px rgba(255, 141, 161, 0.28);
+}
+.y2k-wb-modal-hint {
+    margin: 0 0 12px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.55);
+    text-align: center;
+}
+#world-book-selection-modal .y2k-wb-list {
+    max-height: 44vh;
+    overflow-y: auto;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 141, 161, 0.25);
+    background: rgba(0, 0, 0, 0.35);
+    padding: 6px 0;
+}
+#world-book-selection-modal .world-book-select-item {
+    border-bottom-color: rgba(255, 141, 161, 0.12);
+    padding: 10px 12px;
+}
+#world-book-selection-modal .world-book-select-item label {
+    color: #eee;
+    font-size: 14px;
+}
+#world-book-selection-modal .y2k-wb-confirm.y2k-btn-save-outline {
+    width: 100%;
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 15px;
+}
+
+/* 世界书弹窗内：分类行、勾选、折叠三角 */
+#world-book-selection-modal .world-book-category-group {
+    border-bottom: 1px solid rgba(255, 141, 161, 0.15);
+    margin-bottom: 0;
+}
+#world-book-selection-modal .world-book-category-header {
+    padding: 10px 10px 10px 8px;
+}
+#world-book-selection-modal .world-book-category-header .category-checkbox {
+    width: 18px;
+    height: 18px;
+    margin-right: 10px;
+    accent-color: var(--y2k-pink);
+    border-radius: 4px;
+    cursor: pointer;
+}
+#world-book-selection-modal .world-book-category-header .category-name {
+    color: var(--y2k-pink) !important;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+#world-book-selection-modal .world-book-category-header .category-arrow {
+    color: var(--y2k-pink) !important;
+    font-size: 11px;
+    opacity: 0.85;
+    text-shadow: 0 0 8px rgba(255, 141, 161, 0.35);
+}
+#world-book-selection-modal .world-book-select-item {
+    border-bottom-color: rgba(255, 141, 161, 0.1);
+    padding: 8px 10px 8px 6px;
+}
+#world-book-selection-modal .world-book-select-item input[type="checkbox"] {
+    accent-color: var(--y2k-pink);
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+#world-book-selection-modal .world-book-select-item label {
+    color: rgba(255, 250, 252, 0.92) !important;
+    font-weight: 600;
+}
+#world-book-selection-modal .world-book-items-list {
+    padding-left: 12px;
+}
+
+/* ── 聊天设置 · 生图 Tab（特工档案 / 粉黑配套） ── */
+/* 重要：不可对 .y2k-ig-tab 写无 .active 的 display:flex，否则特异性会压过 .settings-tab-content{display:none}，导致生图块永远叠在所有 Tab 上 */
+#chat-settings-screen #setting-tab-imagegen.settings-tab-content.active {
+    display: flex !important;
+    flex-direction: column;
+    gap: 14px;
+}
+#chat-settings-screen #setting-tab-imagegen.settings-tab-content:not(.active) {
+    display: none !important;
+}
+#chat-settings-screen .y2k-ig-lead {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.75;
+    color: rgba(255, 250, 252, 0.72);
+    padding: 2px 2px 0;
+}
+#chat-settings-screen .y2k-ig-panel {
+    background: rgba(8, 4, 10, 0.55);
+    border: 1px solid rgba(255, 141, 161, 0.35);
+    border-radius: 14px;
+    padding: 14px 14px 16px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35) inset, 0 8px 28px rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+#chat-settings-screen .y2k-ig-panel-head {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+#chat-settings-screen .y2k-ig-panel-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: var(--y2k-pink);
+    padding: 3px 8px;
+    border: 1px solid rgba(255, 141, 161, 0.55);
+    border-radius: 4px;
+    background: rgba(255, 141, 161, 0.08);
+}
+#chat-settings-screen .y2k-ig-panel-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #fff5f7;
+    line-height: 1.35;
+}
+#chat-settings-screen .y2k-ig-panel-desc {
+    margin: 0 0 12px;
+    font-size: 12px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.58);
+}
+#chat-settings-screen .y2k-ig-panel-desc strong {
+    color: rgba(255, 200, 210, 0.95);
+    font-weight: 800;
+}
+/* 参考图：证件卡 + 等宽操作区 */
+#chat-settings-screen .y2k-ig-ref-dossier {
+    margin-top: 2px;
+}
+#chat-settings-screen .y2k-ig-ref-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+/* 竖屏参考图：2:3 近手机竖拍；contain 全图入框、不裁切（上下左右留边时铺深色底） */
+#chat-settings-screen .y2k-ig-ref-frame {
+    position: relative;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+    aspect-ratio: 2 / 3;
+    max-height: min(58vh, 480px);
+    border-radius: 12px;
+    border: 2px solid var(--y2k-pink);
+    background-color: #0a080a;
+    background-image: linear-gradient(145deg, rgba(0, 0, 0, 0.45) 0%, rgba(40, 12, 24, 0.55) 100%);
+    box-shadow: 0 0 0 1px rgba(255, 141, 161, 0.12) inset, 0 10px 30px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+}
+#chat-settings-screen .y2k-ig-ref-frame::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    border-style: solid;
+    border-width: 0 44px 44px 0;
+    border-color: transparent rgba(255, 141, 161, 0.35) transparent transparent;
+    pointer-events: none;
+    z-index: 1;
+}
+#chat-settings-screen .y2k-ig-ref-preview {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: none;
+    z-index: 2;
+}
+#chat-settings-screen .y2k-ig-ref-frame[data-has-image="true"] .y2k-ig-ref-preview {
+    display: block !important; /* 覆盖 img 上可能残留的内联 display */
+}
+#chat-settings-screen .y2k-ig-ref-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+    text-align: center;
+    color: rgba(255, 200, 210, 0.65);
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 0;
+    pointer-events: none;
+}
+#chat-settings-screen .y2k-ig-ref-frame[data-has-image="true"] .y2k-ig-ref-empty {
+    display: none;
+}
+#chat-settings-screen .y2k-ig-ref-empty-icon {
+    font-size: 28px;
+    line-height: 1;
+    color: rgba(255, 141, 161, 0.45);
+    font-weight: 300;
+}
+#chat-settings-screen .y2k-ig-ref-empty-text small {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.38);
+    letter-spacing: 0.5px;
+}
+#chat-settings-screen .y2k-ig-ref-actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+}
+#chat-settings-screen .y2k-ig-btn-primary,
+#chat-settings-screen .y2k-ig-btn-ghost {
+    flex: 1 1 140px;
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 900;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+#chat-settings-screen .y2k-ig-btn-primary {
+    background: var(--y2k-pink) !important;
+    color: var(--y2k-black) !important;
+    border: 2px solid var(--y2k-black) !important;
+    box-shadow: 3px 3px 0 var(--y2k-black);
+}
+#chat-settings-screen .y2k-ig-btn-primary:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--y2k-black);
+}
+#chat-settings-screen .y2k-ig-btn-ghost {
+    background: rgba(0, 0, 0, 0.35) !important;
+    color: rgba(255, 235, 240, 0.95) !important;
+    border: 2px solid rgba(255, 141, 161, 0.65) !important;
+    font-weight: 800;
+    box-shadow: none;
+}
+#chat-settings-screen .y2k-ig-btn-ghost:active {
+    background: rgba(255, 141, 161, 0.12) !important;
+    transform: translate(0, 1px);
+}
+#chat-settings-screen .y2k-ig-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 100px;
+    margin: 0;
+    padding: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 141, 161, 0.4) !important;
+    background: rgba(0, 0, 0, 0.28) !important;
+    color: #f8f0f2 !important;
+}
+#chat-settings-screen .y2k-ig-textarea::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
+#chat-settings-screen .y2k-ig-textarea:focus {
+    outline: none;
+    border-color: var(--y2k-pink) !important;
+    box-shadow: 0 0 0 1px rgba(255, 141, 161, 0.35);
+}

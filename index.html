@@ -28,6 +28,8 @@
     <!-- CSS Split: Core Features -->
     <link rel="stylesheet" href="css/chat.css">
     <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/settings-y2k.css">
+    <link rel="stylesheet" href="css/api-settings-y2k.css">
 
     <!-- CSS Split: Modules -->
     <link rel="stylesheet" href="css/modules/peek.css">
@@ -536,14 +538,45 @@
             </form>
         </main>
     </div>
-    <div id="api-settings-screen" class="screen">
+    <div id="api-settings-screen" class="screen" data-api-view="hub">
         <header class="app-header">
-            <button class="back-btn" data-target="home-screen">‹</button>
-            <div class="title-container"><h1 class="title">API 设置</h1></div>
+            <button type="button" class="back-btn" id="api-settings-back-btn" aria-label="返回">‹</button>
+            <div class="title-container"><h1 class="title" id="api-settings-title">API 设置</h1></div>
             <div class="placeholder"></div>
         </header>
-        <main class="content">
-            <div class="kkt-settings-container">
+        <main class="content api-settings-content">
+            <div class="kkt-settings-container api-settings-root">
+                <div id="api-view-hub" class="api-view-hub">
+                    <p class="api-hub-lead">点击下方模块进入配置。各模块内表单、按钮与保存逻辑与改版前相同。</p>
+                    <div class="api-hub-cards">
+                        <button type="button" class="api-hub-card" data-api-nav="main">
+                            <span class="api-hub-card-tag">CHAT</span>
+                            <span class="api-hub-card-title">主 API</span>
+                            <span class="api-hub-card-desc">对话模型、流式、温度与 API 预设</span>
+                            <span class="api-hub-card-arrow" aria-hidden="true">›</span>
+                        </button>
+                        <button type="button" class="api-hub-card" data-api-nav="ig">
+                            <span class="api-hub-card-tag">GEN</span>
+                            <span class="api-hub-card-title">生图服务</span>
+                            <span class="api-hub-card-desc">全局生图接口、模型与测试</span>
+                            <span class="api-hub-card-arrow" aria-hidden="true">›</span>
+                        </button>
+                        <button type="button" class="api-hub-card" data-api-nav="tts">
+                            <span class="api-hub-card-tag">TTS</span>
+                            <span class="api-hub-card-title">语音合成</span>
+                            <span class="api-hub-card-desc">MiniMax 与角色语音页联动</span>
+                            <span class="api-hub-card-arrow" aria-hidden="true">›</span>
+                        </button>
+                        <button type="button" class="api-hub-card" data-api-nav="runtime">
+                            <span class="api-hub-card-tag">SYS</span>
+                            <span class="api-hub-card-title">运行环境</span>
+                            <span class="api-hub-card-desc">后台保活、系统消息通知</span>
+                            <span class="api-hub-card-arrow" aria-hidden="true">›</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="api-view-main" class="api-view-sub" hidden>
                 <form id="api-form">
                     <!-- 基础配置 -->
                     <div class="kkt-group">
@@ -609,10 +642,10 @@
                         <div class="kkt-item" style="flex-direction: column; align-items: stretch; padding-bottom: 15px;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                                 <div class="kkt-item-label">回复随机性 (Temperature)</div>
-                                <span id="temperature-value" style="color: var(--primary-color); font-weight: bold;">1.0</span>
+                                <span id="temperature-value">1.0</span>
                             </div>
-                            <input type="range" id="temperature-slider" min="0" max="2" step="0.1" value="1.0" style="width: 100%; accent-color: var(--primary-color);">
-                            <p style="font-size: 12px; color: #999; margin-top: 5px; margin-bottom: 0;">数值越大越随机，数值越小越严谨。</p>
+                            <input type="range" id="temperature-slider" min="0" max="2" step="0.1" value="1.0">
+                            <p class="api-y2k-muted" style="font-size: 12px; margin-top: 5px; margin-bottom: 0;">数值越大越随机，数值越小越严谨。</p>
                         </div>
                     </div>
     
@@ -624,7 +657,7 @@
     
                 <!-- 预设管理 -->
                 <div class="api-presets-embedded" style="margin-top:20px;">
-                    <div id="api-presets-control" style="padding:12px; border-radius:8px; background: #f5f5f5; border: 1px solid #eee;">
+                    <div id="api-presets-control" class="api-y2k-preset-box" style="padding:12px; border-radius:8px;">
                         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
                             <label style="min-width:40px; color:#666; font-size: 14px;">预设</label>
                             <select id="api-preset-select" style="flex:1; padding:6px; border-radius:6px; border:1px solid #ddd;">
@@ -649,11 +682,13 @@
                         </div>
                     </div>
                 </div>
+                </div>
 
+                <div id="api-view-ig" class="api-view-sub" hidden>
                 <!-- ══ 生图全局配置区 ══ -->
                 <div id="ig-global-config">
                     <p class="tts-section-title" style="padding: 18px 0 0 0; font-size:13px; font-weight:600; color:var(--primary-color);">生图全局配置</p>
-                    <p class="tts-section-desc" style="font-size:12px; color:#aaa; margin:0 0 10px 0;">配置 AI 生图服务，开启后角色「发来的照片/视频」将自动生成真实图片。</p>
+                    <p class="tts-section-desc" style="font-size:12px; color:#aaa; margin:0 0 10px 0;">配置 AI 生图服务，开启后角色使用「发来的照片/视频」「发来的照片」或「发来的视频」任一格式将触发生成真实配图。</p>
                     <div class="kkt-group">
                         <div class="kkt-item">
                             <div class="kkt-item-label">全局总开关</div>
@@ -703,7 +738,7 @@
                                 <span class="kkt-arrow">›</span>
                             </div>
                         </div>
-                        <p style="font-size:11px; color:#999; margin: -4px 0 0 0; line-height:1.4;">与主聊天相同：先填好 Base URL 与 Key，点「拉取」加载模型；列表中名称含 image / imagen 等会排在相对靠前。</p>
+                        <p class="api-y2k-muted" style="font-size:11px; margin: -4px 0 0 0; line-height:1.4;">与主聊天相同：先填好 Base URL 与 Key，点「拉取」加载模型；列表中名称含 image / imagen 等会排在相对靠前。</p>
                         <div class="kkt-item">
                             <div class="kkt-item-label">图片尺寸</div>
                             <div class="kkt-item-control">
@@ -720,9 +755,11 @@
                     <button type="button" id="ig-test-btn" class="tts-test-btn" style="margin-top:8px;">测试生图</button>
                     <input type="file" id="ig-test-ref-file" accept="image/jpeg,image/png,image/webp" style="display:none" />
                     <button type="button" id="ig-test-ref-btn" class="tts-test-btn" style="margin-top:4px;">测试参考图（垫图）</button>
-                    <p style="font-size:11px; color:#999; margin:6px 0 0 0; line-height:1.4;">将「接口类型」选为 <b>Gemini</b>（与模型详情的 generateContent 一致）。选一张正脸/半身参考图，检测接口是否支持「图片+文字」多模态出图。纯 OpenAI 的 <code>images</code> 接口无法垫图。</p>
+                    <p class="api-y2k-muted" style="font-size:11px; margin:6px 0 0 0; line-height:1.4;">将「接口类型」选为 <b>Gemini</b>（与模型详情的 generateContent 一致）。选一张正脸/半身参考图，检测接口是否支持「图片+文字」多模态出图。纯 OpenAI 的 <code>images</code> 接口无法垫图。</p>
+                </div>
                 </div>
 
+                <div id="api-view-tts" class="api-view-sub" hidden>
                 <!-- ══ TTS 全局配置区 ══ -->
                 <div id="tts-global-config">
                     <!-- 标题 -->
@@ -790,8 +827,8 @@
                     <button type="button" id="tts-save-btn" class="btn btn-primary" style="margin-top:14px; width:100%;">保存 TTS 设置</button>
 
                     <!-- TTS 预设管理 -->
-                    <div style="margin-top:14px; padding:12px; border-radius:8px; background:#f5f5f5; border:1px solid #eee;">
-                        <p style="font-size:12px; color:#888; margin:0 0 8px 0; font-weight:600;">TTS 预设管理</p>
+                    <div class="api-y2k-tts-preset" style="margin-top:14px; padding:12px; border-radius:8px;">
+                        <p class="api-y2k-tts-preset-title" style="font-size:12px; margin:0 0 8px 0; font-weight:600;">TTS 预设管理</p>
                         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
                             <select id="tts-preset-select" style="flex:1; padding:6px; border-radius:6px; border:1px solid #ddd; font-size:13px;">
                                 <option value="">— 选择 TTS 预设 —</option>
@@ -807,8 +844,6 @@
                     <!-- 测试按钮 -->
                     <button type="button" id="tts-test-btn" class="tts-test-btn">测试 TTS 功能</button>
                 </div>
-
-                <!-- TTS 预设管理弹窗 -->
                 <div id="tts-preset-modal" class="modal-overlay tts-preset-modal">
                     <div class="modal-window tts-preset-window">
                         <div class="tts-preset-header">
@@ -821,7 +856,10 @@
                         <div id="tts-preset-list" class="tts-preset-list"></div>
                     </div>
                 </div>
+                </div>
 
+                <div id="api-view-runtime" class="api-view-sub" hidden>
+                <p class="api-y2k-sub-hint" style="margin:0 0 8px 0; padding:0 2px;">仅包含后台保活与系统消息通知，不含接口地址配置。</p>
                 <!-- ══ 运行环境 ══ -->
                 <p class="tts-section-title" style="padding: 18px 0 0 0; font-size:13px; font-weight:600; color:var(--primary-color);">运行环境</p>
                 <p class="tts-section-desc" style="font-size:12px; color:#aaa; margin:0 0 10px 0;">控制网页在后台的存活行为，防止系统挂起进程导致消息中断。</p>
@@ -836,7 +874,7 @@
                         </div>
                     </div>
                     <div class="kkt-item" style="flex-direction: column; align-items: stretch; padding-bottom: 12px;">
-                        <p style="font-size: 12px; color: #999; margin: 2px 0 0 0; line-height: 1.6;">开启后将在后台静默循环播放一段极短的无声音频，利用系统媒体机制阻止网页进程被挂起，确保切换至其他 App 后 API 轮询依然正常运行。</p>
+                        <p class="api-y2k-muted" style="font-size: 12px; margin: 2px 0 0 0; line-height: 1.6;">开启后将在后台静默循环播放一段极短的无声音频，利用系统媒体机制阻止网页进程被挂起，确保切换至其他 App 后 API 轮询依然正常运行。</p>
                     </div>
                 </div>
 
@@ -851,8 +889,9 @@
                         </div>
                     </div>
                     <div class="kkt-item" style="flex-direction: column; align-items: stretch; padding-bottom: 12px;">
-                        <p style="font-size: 12px; color: #999; margin: 2px 0 0 0; line-height: 1.6;">开启后，当网页处于后台或你不在该角色聊天界面时，收到新消息将通过系统通知弹窗提醒。首次开启需授予浏览器通知权限。</p>
+                        <p class="api-y2k-muted" style="font-size: 12px; margin: 2px 0 0 0; line-height: 1.6;">开启后，当网页处于后台或你不在该角色聊天界面时，收到新消息将通过系统通知弹窗提醒。首次开启需授予浏览器通知权限。</p>
                     </div>
+                </div>
                 </div>
 
             </div>
@@ -1449,25 +1488,22 @@
         </div>
     </div>
     <!-- Private Chat Settings (KKT Style) -->
-    <div id="chat-settings-screen" class="screen">
+    <div id="chat-settings-screen" class="screen" data-settings-view="home">
         <header class="app-header">
             <button class="back-btn" data-target="chat-room-screen">‹</button>
             <div class="title-container">
                 <h1 class="title">聊天设置</h1>
             </div>
-            <div class="placeholder"></div>
+            <button type="button" id="y2k-fab-menu" class="y2k-fab y2k-fab-header" aria-label="快捷设置">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </button>
         </header>
         <main class="content">
             <div class="kkt-settings-container">
-                <!-- 个人资料部分 -->
-                <div class="kkt-profile-section">
-                    <img src="" alt="Avatar" id="setting-char-avatar-preview" class="kkt-profile-avatar" onclick="document.getElementById('setting-char-avatar-upload').click()">
-                    <div class="kkt-profile-name" id="setting-char-name-display"></div>
-                    <!-- 隐藏的文件上传input -->
-                    <input type="file" id="setting-char-avatar-upload" accept="image/*" style="display:none;">
-                </div>
-
-                <!-- Tab 导航栏 -->
+                <!-- Tab 导航栏 (Hidden in Y2K style) -->
                 <div class="settings-tabs">
                     <div class="settings-tab-item active" data-tab="setting-tab-basic">设定</div>
                     <div class="settings-tab-item" data-tab="setting-tab-func">功能</div>
@@ -1477,63 +1513,82 @@
                 </div>
 
                 <form id="chat-settings-form">
+                    <!-- 供装备箱「世界书」项调用，逻辑仍用 link-world-book-btn -->
+                    <button type="button" id="link-world-book-btn" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;"></button>
                     
-                    <!-- 【设定】Tab 内容 -->
+                    <!-- 【设定】Tab 内容：双档案等高 + 人设短框点击全屏编辑 -->
                     <div id="setting-tab-basic" class="settings-tab-content active">
-                        <!-- 角色信息分组 -->
-                        <div class="kkt-group">
-                        <div class="kkt-item">
-                            <div class="kkt-item-label">备注名</div>
-                            <div class="kkt-item-control">
-                                <input type="text" id="setting-char-remark" autocomplete="off" style="text-align:right; border:none; background:transparent;" placeholder="点击修改">
+                        <div class="y2k-identity-pair">
+                        <!-- 角色特工档案卡 -->
+                        <div class="y2k-char-card">
+                            <div class="kkt-profile-section">
+                                <img src="" alt="Avatar" id="setting-char-avatar-preview" class="kkt-profile-avatar" onclick="document.getElementById('setting-char-avatar-upload').click()">
+                                <div class="y2k-name-input-wrap">
+                                    <input type="text" id="setting-char-official-name" class="y2k-name-input y2k-name-input--on-dark" autocomplete="off" placeholder="角色名" title="角色名（可与备注不同）">
+                                </div>
+                                <input type="file" id="setting-char-avatar-upload" accept="image/*" style="display:none;">
                             </div>
-                        </div>
-                            <div class="kkt-item" style="flex-direction:column; align-items:flex-start;">
-                                <div class="kkt-item-label" style="margin-bottom:8px;">角色人设</div>
-                                <textarea id="setting-char-persona" style="width:100%; border:1px solid #eee; border-radius:8px; padding:8px; min-height:80px;" placeholder="详细描述角色的性格..."></textarea>
-                            </div>
-                        </div>
-
-                        <!-- 关联世界书 (移到我的信息前) -->
-                        <div class="kkt-group" style="margin-top:15px;">
-                            <div class="kkt-item">
-                                <div class="kkt-item-label">关联世界书</div>
-                                <div class="kkt-item-control">
-                                    <button type="button" id="link-world-book-btn" class="btn btn-small btn-secondary" style="margin: 0; padding: 4px 8px;">设置</button>
+                            <div class="kkt-group y2k-card-body">
+                                <div class="kkt-item">
+                                    <div class="kkt-item-label">备注名</div>
+                                    <div class="kkt-item-control">
+                                        <input type="text" id="setting-char-remark" autocomplete="off" class="y2k-inp-dark" placeholder="聊天列表显示名">
+                                    </div>
+                                </div>
+                                <div class="y2k-persona-snippet" id="y2k-char-persona-snippet" role="button" tabindex="0" aria-label="打开角色人设编辑">
+                                    <div class="y2k-persona-snippet-label">角色人设</div>
+                                    <p class="y2k-persona-snippet-text" id="y2k-char-persona-preview"></p>
+                                    <span class="y2k-persona-snippet-hint">点击展开完整编辑</span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 我的信息分组 -->
-                        <div class="kkt-group" style="margin-top:15px;">
-                            <div class="kkt-item">
-                                <div class="kkt-item-label">我的头像</div>
-                                <div class="kkt-item-control" onclick="document.getElementById('setting-my-avatar-upload').click()">
-                                    <img src="" id="setting-my-avatar-preview" class="kkt-small-avatar">
-                                    <span class="kkt-arrow">›</span>
+                        <!-- 用户档案卡：布局与角色一致，预制入口 ⋯ -->
+                        <div class="y2k-user-card">
+                            <button type="button" class="y2k-user-more" id="y2k-user-mypersona-menu" aria-label="人设预设">⋯</button>
+                            <div class="kkt-profile-section">
+                                <img src="" alt="" id="setting-my-avatar-preview" class="kkt-profile-avatar y2k-user-avatar" onclick="document.getElementById('setting-my-avatar-upload').click()">
+                                <div class="y2k-name-input-wrap">
+                                    <input type="text" id="setting-my-name" class="y2k-name-input y2k-name-input--on-pink" autocomplete="off" placeholder="我的名字">
                                 </div>
                                 <input type="file" id="setting-my-avatar-upload" accept="image/*" style="display:none;">
                             </div>
-                            <div class="kkt-item">
-                                <div class="kkt-item-label">我的名字</div>
-                                <div class="kkt-item-control">
-                                    <input type="text" id="setting-my-name" autocomplete="off" style="text-align:right; border:none; background:transparent;" placeholder="点击修改">
+                            <div class="kkt-group y2k-card-body">
+                                <div class="y2k-persona-snippet y2k-persona-snippet--on-pink" id="y2k-user-persona-snippet" role="button" tabindex="0" aria-label="打开我的人设编辑">
+                                    <div class="y2k-persona-snippet-label">我的人设</div>
+                                    <p class="y2k-persona-snippet-text" id="y2k-user-persona-preview"></p>
+                                    <span class="y2k-persona-snippet-hint">点击展开完整编辑</span>
                                 </div>
                             </div>
-                            <div class="kkt-item" style="flex-direction:column; align-items:flex-start;">
-                                <div class="kkt-item-label" style="margin-bottom:8px;">我的人设</div>
-                                <textarea id="setting-my-persona" style="width:100%; border:1px solid #eee; border-radius:8px; padding:8px; min-height:60px;" placeholder="描述你的形象..."></textarea>
+                        </div>
+                        </div>
+
+                        <div class="y2k-home-savebar">
+                            <button type="submit" form="chat-settings-form" class="btn y2k-btn-save-identity" id="y2k-btn-save-identity">保存档案</button>
+                        </div>
+                    </div>
+
+                    <!-- 角色人设全屏编辑（textarea 放此处，与保存逻辑 id 一致） -->
+                    <div id="y2k-persona-editor-char" class="y2k-persona-editor" aria-hidden="true">
+                        <div class="y2k-persona-editor-backdrop" data-persona-editor-close="char"></div>
+                        <div class="y2k-persona-editor-sheet">
+                            <div class="y2k-editor-modal-head">
+                                <button type="button" class="y2k-editor-modal-close" data-persona-editor-close="char" aria-label="关闭">×</button>
+                                <h2 class="y2k-editor-modal-title">角色人设</h2>
                             </div>
-                            <!-- 人设预设 -->
-                            <div class="kkt-item">
-                                 <div class="kkt-item-label">人设预设</div>
-                                 <div class="kkt-item-control">
-                                     <select id="mypersona-preset-select" style="border:none; background:transparent; width:100px;"><option value="">选择</option></select>
-                                     <button type="button" id="mypersona-apply-btn" class="btn btn-small btn-primary" style="padding:4px 8px; margin-left:5px;">应用</button>
-                                     <button type="button" id="mypersona-save-btn" class="btn btn-small" style="padding:4px 8px; margin-left:5px;">存</button>
-                                     <button type="button" id="mypersona-manage-btn" class="btn btn-small" style="padding:4px 8px; margin-left:5px;">管</button>
-                                 </div>
+                            <textarea id="setting-char-persona" class="y2k-persona-editor-text" rows="14" placeholder="详细描述角色性格、背景、说话方式等，保存后点下方「完成」或先保存档案。"></textarea>
+                            <button type="button" class="btn y2k-persona-editor-done" data-persona-editor-close="char">完成</button>
+                        </div>
+                    </div>
+                    <div id="y2k-persona-editor-user" class="y2k-persona-editor" aria-hidden="true">
+                        <div class="y2k-persona-editor-backdrop" data-persona-editor-close="user"></div>
+                        <div class="y2k-persona-editor-sheet">
+                            <div class="y2k-editor-modal-head">
+                                <button type="button" class="y2k-editor-modal-close" data-persona-editor-close="user" aria-label="关闭">×</button>
+                                <h2 class="y2k-editor-modal-title">我的人设</h2>
                             </div>
+                            <textarea id="setting-my-persona" class="y2k-persona-editor-text" rows="14" placeholder="描述你的形象、与角色的关系等。"></textarea>
+                            <button type="button" class="btn y2k-persona-editor-done" data-persona-editor-close="user">完成</button>
                         </div>
                     </div>
 
@@ -1767,9 +1822,9 @@
                             <div class="kkt-item" style="flex-direction: column; align-items: stretch; padding-bottom: 15px;">
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                                     <div class="kkt-item-label">头像圆角</div>
-                                    <span id="setting-avatar-radius-value" style="color: var(--primary-color); font-weight: bold;">50%</span>
-                                </div>
-                                <input type="range" id="setting-avatar-radius" min="0" max="50" step="1" value="50" style="width: 100%; accent-color: var(--primary-color);">
+                                <span id="setting-avatar-radius-value" class="y2k-range-value">50%</span>
+                            </div>
+                            <input type="range" id="setting-avatar-radius" class="y2k-range-input" min="0" max="50" step="1" value="50" style="width: 100%;">
                             </div>
                         </div>
 
@@ -1828,50 +1883,196 @@
                                     <span class="tts-slider-label kkt-item-label">语速</span>
                                     <span class="tts-slider-value" id="setting-tts-speed-value">1.0</span>
                                 </div>
-                                <input type="range" class="tts-slider" id="setting-tts-speed" min="0.25" max="4.0" step="0.05" value="1.0" style="width:100%; accent-color:var(--primary-color);">
+                                <input type="range" class="tts-slider y2k-range-input" id="setting-tts-speed" min="0.25" max="4.0" step="0.05" value="1.0" style="width:100%;">
                                 <p style="font-size:11px; color:#bbb; margin:4px 0 0 0;">0.25（最慢）～ 4.0（最快），默认 1.0</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 【生图】Tab 内容：参考图 + 无参考时短关键词 -->
-                    <div id="setting-tab-imagegen" class="settings-tab-content">
-                        <p style="font-size:12px; color:#aaa; margin:8px 0 12px; line-height:1.7;">
-                            在「更多设置 → API 设置」中配置生图接口后，你发送的「照片/视频」类消息会触发生成真实配图。此页设置<strong>本角色</strong>的参考图与无参考时的外貌提示。
-                        </p>
-                        <p class="tts-section-title" style="font-size:13px; font-weight:600; color:var(--primary-color);">参考图（垫图锁脸）</p>
-                        <p class="tts-section-desc" style="font-size:12px; color:#aaa; margin:0 0 10px 0;">上传后，生图以参考人物为准；<strong>方括号里请写本帧的场景、光、动作与神态</strong>（戏），不必在长文里重复五官设定。多模态生图需使用 Gemini 类接口。无参考图时本项不生效。</p>
-                        <div class="kkt-group">
-                            <div class="ig-char-ref-row" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; padding-bottom:8px;">
-                                <img id="setting-ig-ref-preview" class="ig-char-ref-preview" alt="参考图预览" width="120" height="120" style="max-width:120px; max-height:120px; border-radius:8px; object-fit:cover; background:#f2f0f7; display:none; border:1px solid #e8e4f0;" />
-                                <div style="display:flex; flex-direction:column; gap:8px;">
-                                    <input type="file" id="setting-ig-ref-file" accept="image/*" style="display:none;" />
-                                    <button type="button" class="btn btn-secondary" id="setting-ig-ref-choose">选择参考图</button>
-                                    <button type="button" class="btn" id="setting-ig-ref-clear" style="font-size:12px; padding:4px 10px; background:transparent; border:1px solid #ddd; border-radius:6px; color:#888;">清除参考图</button>
+                    <!-- 【生图】Tab：特工档案风（参考图 + 无参考时关键词） -->
+                    <div id="setting-tab-imagegen" class="settings-tab-content y2k-ig-tab">
+                        <p class="y2k-ig-lead">在「更多设置 → API 设置」中配置生图接口后，角色使用「发来的照片/视频」「发来的照片」或「发来的视频」格式会触发生成真实配图。此页设置<strong>本角色</strong>的参考图与无参考时的外貌提示。</p>
+
+                        <section class="y2k-ig-panel" aria-labelledby="y2k-ig-ref-title">
+                            <div class="y2k-ig-panel-head">
+                                <span class="y2k-ig-panel-tag">ATTACH</span>
+                                <h3 class="y2k-ig-panel-title" id="y2k-ig-ref-title">参考图 · 垫图锁脸</h3>
+                            </div>
+                            <p class="y2k-ig-panel-desc">上传后，生图以参考人物为准；<strong>方括号里请写本帧的场景、光、动作与神态</strong>（戏），不必在长文里重复五官设定。多模态生图需使用 Gemini 类接口。无参考图时本项不生效。</p>
+                            <div class="y2k-ig-ref-dossier">
+                                <div class="y2k-ig-ref-card">
+                                    <div class="y2k-ig-ref-frame" id="y2k-ig-ref-frame" data-has-image="false">
+                                        <img id="setting-ig-ref-preview" class="y2k-ig-ref-preview ig-char-ref-preview" alt="参考图预览" />
+                                        <div class="y2k-ig-ref-empty" id="y2k-ig-ref-empty" aria-hidden="false">
+                                            <span class="y2k-ig-ref-empty-icon" aria-hidden="true">▣</span>
+                                            <span class="y2k-ig-ref-empty-text">未选择参考图<br><small>将用于多模态锁脸</small></span>
+                                        </div>
+                                    </div>
+                                    <div class="y2k-ig-ref-actions">
+                                        <input type="file" id="setting-ig-ref-file" accept="image/*" style="display:none;" />
+                                        <button type="button" class="btn y2k-ig-btn-primary" id="setting-ig-ref-choose">选择参考图</button>
+                                        <button type="button" class="btn y2k-ig-btn-ghost" id="setting-ig-ref-clear">清除参考图</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="y2k-ig-panel" aria-labelledby="y2k-ig-hint-title">
+                            <div class="y2k-ig-panel-head">
+                                <span class="y2k-ig-panel-tag">TEXT</span>
+                                <h3 class="y2k-ig-panel-title" id="y2k-ig-hint-title">无参考图时的短外貌关键词</h3>
+                            </div>
+                            <p class="y2k-ig-panel-desc">仅当<strong>未上传</strong>参考图时，会拼到生图提示前（发色、瞳色、画风等短词即可）。<strong>有参考图时以图为主，本框不参与拼接。</strong></p>
+                            <textarea id="setting-ig-no-ref-hint" class="y2k-ig-textarea" rows="4"
+                                placeholder="如：白短发红瞳，偏写实3D成男"></textarea>
+                        </section>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary y2k-form-save-all" id="y2k-form-save-all">保存所有更改</button>
+                </form>
+
+                <!-- 人设预设半屏：放在 form 外，避免随 Tab 隐藏导致遮罩失效 -->
+                <div id="y2k-mypersona-panel" class="y2k-mypersona-overlay" aria-hidden="true">
+                    <div class="y2k-mypersona-backdrop" id="y2k-mypersona-backdrop"></div>
+                    <div class="y2k-mypersona-sheet" role="dialog" aria-modal="true" aria-labelledby="y2k-mypersona-title">
+                        <div class="y2k-editor-modal-head y2k-mypersona-head">
+                            <button type="button" class="y2k-editor-modal-close" id="y2k-mypersona-close" aria-label="关闭">×</button>
+                            <h2 class="y2k-editor-modal-title" id="y2k-mypersona-title">人设预设</h2>
+                        </div>
+                        <div class="y2k-mypersona-body">
+                            <div class="y2k-mypersona-controls">
+                                <label class="y2k-mypersona-label" for="mypersona-preset-select">选择预设</label>
+                                <select id="mypersona-preset-select" form="chat-settings-form"><option value="">— 选择预设 —</option></select>
+                                <div class="y2k-mypersona-btns">
+                                    <button type="button" id="mypersona-apply-btn" class="btn y2k-mypersona-action" form="chat-settings-form">应用</button>
+                                    <button type="button" id="mypersona-save-btn" class="btn y2k-mypersona-action" form="chat-settings-form">储存</button>
+                                    <button type="button" id="mypersona-manage-btn" class="btn y2k-mypersona-action" form="chat-settings-form">管理</button>
                                 </div>
                             </div>
                         </div>
-                        <p class="tts-section-title" style="margin-top:12px; font-size:13px; font-weight:600; color:var(--primary-color);">无参考图时的短外貌关键词</p>
-                        <p class="tts-section-desc" style="font-size:12px; color:#aaa; margin:0 0 10px 0;">仅当<strong>未上传</strong>参考图时，会拼到生图提示前（发色、瞳色、画风等短词即可）。<strong>有参考图时以图为主，本框不参与拼接。</strong></p>
-                        <div class="kkt-group">
-                            <div class="kkt-item" style="display:block; padding-bottom:12px;">
-                                <textarea id="setting-ig-no-ref-hint" rows="2"
-                                    placeholder="如：白短发红瞳，偏写实3D成男"
-                                    style="width:100%; border:1px solid #eee; border-radius:8px; padding:8px; font-size:13px; resize:vertical;"></textarea>
-                            </div>
-                        </div>
                     </div>
-
-                    <button type="submit" class="btn btn-primary" style="margin-top:20px;">保存所有更改</button>
-                </form>
+                </div>
             </div>
+            
+            <!-- Y2K 底部装备箱（FAB 已移至顶栏右侧） -->
+            <div id="y2k-bottom-sheet-overlay" class="y2k-bottom-sheet-overlay"></div>
+            <div id="y2k-bottom-sheet" class="y2k-bottom-sheet">
+                <div class="y2k-bs-header">
+                    <div class="y2k-bs-title">快捷设置</div>
+                    <button class="y2k-bs-close" id="y2k-bs-close">×</button>
+                </div>
+                <div class="y2k-bs-grid">
+                    <div class="y2k-bs-item" id="y2k-bs-worldbook" data-action="worldbook">
+                        <div class="y2k-bs-icon">📖</div>
+                        <div class="y2k-bs-label">关联世界书</div>
+                    </div>
+                    <div class="y2k-bs-item" data-target-tab="setting-tab-func">
+                        <div class="y2k-bs-icon">⚙️</div>
+                        <div class="y2k-bs-label">功能</div>
+                    </div>
+                    <div class="y2k-bs-item" data-target-tab="setting-tab-style">
+                        <div class="y2k-bs-icon">🎨</div>
+                        <div class="y2k-bs-label">美化</div>
+                    </div>
+                    <div class="y2k-bs-item" data-target-tab="setting-tab-voice">
+                        <div class="y2k-bs-icon">🎙️</div>
+                        <div class="y2k-bs-label">语音</div>
+                    </div>
+                    <div class="y2k-bs-item" data-target-tab="setting-tab-imagegen">
+                        <div class="y2k-bs-icon">🖼️</div>
+                        <div class="y2k-bs-label">生图</div>
+                    </div>
+                    <!-- Future items can be added here easily -->
+                </div>
+            </div>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    const fab = document.getElementById('y2k-fab-menu');
+                    const overlay = document.getElementById('y2k-bottom-sheet-overlay');
+                    const sheet = document.getElementById('y2k-bottom-sheet');
+                    const closeBtn = document.getElementById('y2k-bs-close');
+                    const bsItems = document.querySelectorAll('#y2k-bottom-sheet .y2k-bs-item');
+                    const settingsHeaderTitle = document.querySelector('#chat-settings-screen .title');
+                    const settingsBackBtn = document.querySelector('#chat-settings-screen .back-btn');
+                    const mypersonaPanel = document.getElementById('y2k-mypersona-panel');
+                    const mypersonaOpen = document.getElementById('y2k-user-mypersona-menu');
+                    const mypersonaBackdrop = document.getElementById('y2k-mypersona-backdrop');
+                    const mypersonaClose = document.getElementById('y2k-mypersona-close');
+                    const linkWb = document.getElementById('link-world-book-btn');
+
+                    function openSheet() {
+                        if (overlay) overlay.classList.add('active');
+                        if (sheet) sheet.classList.add('active');
+                    }
+
+                    function closeSheet() {
+                        if (overlay) overlay.classList.remove('active');
+                        if (sheet) sheet.classList.remove('active');
+                    }
+
+                    function openMypersonaPanel() {
+                        if (!mypersonaPanel) return;
+                        mypersonaPanel.classList.add('active');
+                        mypersonaPanel.setAttribute('aria-hidden', 'false');
+                    }
+                    function closeMypersonaPanel() {
+                        if (!mypersonaPanel) return;
+                        mypersonaPanel.classList.remove('active');
+                        mypersonaPanel.setAttribute('aria-hidden', 'true');
+                    }
+
+                    if (fab) fab.addEventListener('click', openSheet);
+                    if (overlay) overlay.addEventListener('click', closeSheet);
+                    if (closeBtn) closeBtn.addEventListener('click', closeSheet);
+                    if (mypersonaOpen) mypersonaOpen.addEventListener('click', (e) => { e.stopPropagation(); openMypersonaPanel(); });
+                    if (mypersonaBackdrop) mypersonaBackdrop.addEventListener('click', closeMypersonaPanel);
+                    if (mypersonaClose) mypersonaClose.addEventListener('click', closeMypersonaPanel);
+
+                    bsItems.forEach(item => {
+                        item.addEventListener('click', () => {
+                            if (item.getAttribute('data-action') === 'worldbook' && linkWb) {
+                                linkWb.click();
+                                closeSheet();
+                                return;
+                            }
+                            const targetTabId = item.getAttribute('data-target-tab');
+                            const labelEl = item.querySelector('.y2k-bs-label');
+                            const label = labelEl ? labelEl.innerText : '设置';
+                            const hiddenTab = targetTabId ? document.querySelector(`#chat-settings-screen .settings-tab-item[data-tab="${targetTabId}"]`) : null;
+                            if (hiddenTab) {
+                                hiddenTab.click();
+                                if (settingsHeaderTitle) settingsHeaderTitle.innerText = label + '设置';
+                                if (fab) fab.style.display = 'none';
+                                closeSheet();
+                            }
+                        });
+                    });
+
+                    if (settingsBackBtn) {
+                        settingsBackBtn.addEventListener('click', (e) => {
+                            const basicTab = document.getElementById('setting-tab-basic');
+                            if (basicTab && !basicTab.classList.contains('active')) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const hiddenBasicTab = document.querySelector('#chat-settings-screen .settings-tab-item[data-tab="setting-tab-basic"]');
+                                if (hiddenBasicTab) hiddenBasicTab.click();
+                                if (settingsHeaderTitle) settingsHeaderTitle.innerText = '聊天设置';
+                                if (fab) fab.style.display = 'flex';
+                            }
+                        }, true);
+                    }
+                });
+            </script>
+
         </main>
     </div>
-    <div id="world-book-selection-modal" class="modal-overlay">
-        <div class="modal-window">
-            <h3>选择要关联的世界书</h3>
-            <ul id="world-book-selection-list"></ul>
-            <button class="btn btn-primary" id="save-world-book-selection-btn" style="margin-top: 20px;">确认</button>
+    <div id="world-book-selection-modal" class="modal-overlay y2k-wb-modal-wrap">
+        <div class="modal-window y2k-wb-modal">
+            <h3 class="y2k-wb-modal-title">关联世界书</h3>
+            <p class="y2k-wb-modal-hint">勾选要注入当前聊天的世界书</p>
+            <ul id="world-book-selection-list" class="y2k-wb-list"></ul>
+            <button type="button" class="btn y2k-wb-confirm y2k-btn-save-outline" id="save-world-book-selection-btn">确认</button>
         </div>
     </div>
     <!-- Global Pomodoro World Book Selection Modal -->

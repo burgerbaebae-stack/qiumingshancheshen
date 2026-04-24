@@ -365,7 +365,7 @@ function renderChatList() {
                 const urlRegex = /^(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)|data:image\/[a-z]+;base64,)/i;
                 const imageRecogRegex = /\[.*?发来了一张图片：\]/
                 const voiceRegex = /\[.*?的语音：.*?\]/;
-                const photoVideoRegex = /\[.*?发来的照片\/视频：.*?\]/;
+                const photoVideoRegex = /\[.*?发来的(?:照片\/视频|照片|视频)[：:][\s\S]*?\]/;
                 const transferRegex = /\[.*?的转账：.*?元.*?\]|\[.*?给你转账：.*?元.*?\]|\[.*?向.*?转账：.*?元.*?\]/;
                 const giftRegex = /\[.*?送来的礼物：.*?\]|\[.*?向.*?送来了礼物：.*?\]/;
 

@@ -16,7 +16,7 @@ function handleMessageLongPress(messageWrapper, x, y) {
 
     const isImageRecognitionMsg = message.parts && message.parts.some(p => p.type === 'image');
     const isVoiceMessage = /\[.*?的语音：.*?\]/.test(message.content);
-    const isPhotoVideoMessage = /\[.*?发来的照片\/视频：.*?\]/.test(message.content);
+    const isPhotoVideoMessage = /\[.*?发来的(?:照片\/视频|照片|视频)[：:][\s\S]*?\]/.test(message.content);
     const isTransferMessage = /\[.*?给你转账：.*?\]|\[.*?的转账：.*?\]|\[.*?向.*?转账：.*?\]/.test(message.content);
     const isGiftMessage = /\[.*?送来的礼物：.*?\]|\[.*?向.*?送来了礼物：.*?\]/.test(message.content);
     
@@ -146,7 +146,7 @@ function startQuoteReply(messageId) {
         previewContent = textMatch[1];
     } else if (/\[.*?的语音：.*?\]/.test(message.content)) {
         previewContent = '[语音]';
-    } else if (/\[.*?发来的照片\/视频：.*?\]/.test(message.content)) {
+    } else if (/\[.*?发来的(?:照片\/视频|照片|视频)[：:][\s\S]*?\]/.test(message.content)) {
         previewContent = '[照片/视频]';
     } else if (message.parts && message.parts.some(p => p.type === 'image')) {
         previewContent = '[图片]';

@@ -1,0 +1,474 @@
+/* API 设置：特工档案 / 粉黑（hub 四卡 + 二级页） */
+:root {
+    --api-y2k-pink: #ff8da1;
+    --api-y2k-black: #121212;
+    --api-y2k-bg-gradient: linear-gradient(160deg, #050505 0%, #1a0b12 40%, #ff8da1 100%);
+}
+
+#api-settings-screen {
+    background: var(--api-y2k-bg-gradient);
+    background-attachment: fixed;
+}
+
+#api-settings-screen .app-header {
+    background-color: var(--api-y2k-black);
+    border-bottom: 2px solid var(--api-y2k-pink);
+}
+#api-settings-screen .app-header .title {
+    color: var(--api-y2k-pink);
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-shadow: none;
+}
+#api-settings-screen .back-btn {
+    color: var(--api-y2k-pink);
+    font-weight: 900;
+}
+#api-settings-screen .api-settings-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    padding-bottom: 8px;
+}
+#api-settings-screen .kkt-settings-container.api-settings-root,
+#api-settings-screen .api-settings-root {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    padding: 12px 14px 20px;
+    box-sizing: border-box;
+    gap: 0;
+    background: transparent;
+}
+
+/* Hub */
+#api-settings-screen .api-view-hub[hidden] {
+    display: none !important;
+}
+#api-settings-screen .api-view-hub {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+}
+#api-settings-screen .api-hub-lead {
+    margin: 0 0 4px 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.55);
+    padding: 0 2px;
+}
+#api-settings-screen .api-hub-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+#api-settings-screen .api-hub-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    width: 100%;
+    padding: 16px 44px 16px 16px;
+    background-color: var(--api-y2k-black);
+    border: 2px solid var(--api-y2k-pink);
+    border-radius: 16px;
+    box-shadow: 0 0 20px rgba(255, 141, 161, 0.2), inset 0 0 10px rgba(0,0,0,0.5);
+    color: #f5f0f2;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s, box-shadow 0.1s;
+    overflow: hidden;
+}
+#api-settings-screen .api-hub-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(180deg, rgba(255,141,161,0.05) 0%, transparent 100%);
+    pointer-events: none;
+}
+#api-settings-screen .api-hub-card:active {
+    transform: scale(0.98);
+    box-shadow: 0 0 10px rgba(255, 141, 161, 0.4), inset 0 0 15px rgba(0,0,0,0.8);
+}
+#api-settings-screen .api-hub-card-tag {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: var(--api-y2k-pink);
+    padding: 2px 8px;
+    border: 1px solid rgba(255, 141, 161, 0.5);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    background: rgba(255, 141, 161, 0.08);
+}
+#api-settings-screen .api-hub-card-title {
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #fff;
+    margin: 0 0 4px 0;
+}
+#api-settings-screen .api-hub-card-desc {
+    font-size: 12px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0;
+    font-weight: 600;
+}
+#api-settings-screen .api-hub-card-arrow {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 24px;
+    color: var(--api-y2k-pink);
+    opacity: 0.8;
+    font-weight: 900;
+}
+
+/* 二级页滚动区 */
+#api-settings-screen .api-view-sub[hidden] {
+    display: none !important;
+}
+#api-settings-screen .api-view-sub {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 12px;
+    padding-bottom: 8px;
+}
+#api-settings-screen .api-y2k-sub-hint {
+    font-size: 12px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0;
+    padding: 0 2px 4px;
+}
+#api-settings-screen .api-y2k-sub-title {
+    margin: 0 0 2px 0;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: var(--api-y2k-pink);
+}
+
+/* 修复子页面的表单样式 */
+#api-settings-screen .kkt-group {
+    background-color: var(--api-y2k-black) !important;
+    border: 2px solid var(--api-y2k-pink) !important;
+    border-radius: 16px;
+    box-shadow: 0 0 20px rgba(255, 141, 161, 0.2), inset 0 0 10px rgba(0,0,0,0.5);
+    overflow: hidden;
+    margin: 0 0 15px 0 !important;
+    position: relative;
+}
+#api-settings-screen .kkt-group::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(180deg, rgba(255,141,161,0.05) 0%, transparent 100%);
+    pointer-events: none;
+}
+#api-settings-screen .kkt-item {
+    background: transparent !important;
+    border-bottom: 1px dashed rgba(255, 141, 161, 0.3) !important;
+    padding: 12px 15px;
+    color: #ddd;
+    position: relative;
+    z-index: 1;
+}
+#api-settings-screen .kkt-item:last-child {
+    border-bottom: none !important;
+}
+#api-settings-screen .kkt-item-label {
+    color: var(--api-y2k-pink) !important;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 800;
+}
+
+/* 修复输入框样式，确保能看清 */
+#api-settings-screen .kkt-item-control input[type="text"],
+#api-settings-screen .kkt-item-control input[type="password"],
+#api-settings-screen .kkt-item-control input[type="number"],
+#api-settings-screen .kkt-item-control select,
+#api-settings-screen .kkt-item-control textarea {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 141, 161, 0.45) !important;
+    color: #fff !important;
+    border-radius: 8px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    font-size: 14px;
+    width: 100%;
+}
+#api-settings-screen .kkt-item-control input:focus,
+#api-settings-screen .kkt-item-control select:focus,
+#api-settings-screen .kkt-item-control textarea:focus {
+    border-color: var(--api-y2k-pink) !important;
+    outline: none;
+    box-shadow: 0 0 8px rgba(255, 141, 161, 0.4);
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* 修复箭头和 range：与功能设置/聊天 Y2K 一致 */
+#api-settings-screen .kkt-arrow {
+    color: var(--api-y2k-pink) !important;
+}
+/* 开关：对齐 #chat-settings-screen — 关时深轨+粉边+粉点，开时粉轨+黑芯（与图4 功能页一致） */
+#api-settings-screen .kkt-switch {
+    width: 50px;
+    height: 28px;
+}
+#api-settings-screen .kkt-switch .kkt-slider,
+#api-settings-screen .kkt-slider {
+    background-color: #333 !important;
+    border: 2px solid var(--api-y2k-pink) !important;
+    box-shadow: none;
+}
+#api-settings-screen .kkt-slider::before,
+#api-settings-screen .kkt-slider:before {
+    background-color: var(--api-y2k-pink) !important;
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    box-shadow: none;
+    transition: transform 0.25s ease, background-color 0.2s ease;
+}
+#api-settings-screen .kkt-switch input:checked + .kkt-slider,
+#api-settings-screen input:checked + .kkt-slider {
+    background-color: var(--api-y2k-pink) !important;
+    border-color: var(--api-y2k-pink) !important;
+}
+#api-settings-screen .kkt-switch input:checked + .kkt-slider::before,
+#api-settings-screen input:checked + .kkt-slider::before,
+#api-settings-screen .kkt-switch input:checked + .kkt-slider:before,
+#api-settings-screen input:checked + .kkt-slider:before {
+    background-color: var(--api-y2k-black) !important;
+    transform: translateX(22px) !important;
+}
+
+/* 按钮样式 */
+#api-settings-screen .btn.btn-primary,
+#api-settings-screen button.btn-primary {
+    background: var(--api-y2k-pink) !important;
+    color: var(--api-y2k-black) !important;
+    border: 2px solid var(--api-y2k-black) !important;
+    font-weight: 900;
+    letter-spacing: 1px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(255, 141, 161, 0.4);
+    text-transform: uppercase;
+    padding: 12px;
+    margin-top: 10px;
+}
+#api-settings-screen .btn.btn-primary:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 8px rgba(255, 141, 161, 0.4);
+}
+
+#api-settings-screen .btn.btn-secondary,
+#api-settings-screen .btn-small.btn-secondary {
+    background: rgba(255, 141, 161, 0.15) !important;
+    color: var(--api-y2k-pink) !important;
+    border: 1px solid var(--api-y2k-pink) !important;
+    font-weight: 800;
+    border-radius: 8px;
+    box-shadow: none;
+}
+#api-settings-screen .btn-small:not(.btn-primary):not(.btn-secondary) {
+    background: rgba(0, 0, 0, 0.3) !important;
+    color: #eee !important;
+    border: 1px solid rgba(255, 141, 161, 0.35) !important;
+    border-radius: 8px;
+}
+
+/* 测试类按钮：黑底 + 粉字 + 粉描边（图1/图2 生图、TTS 测试区） */
+#api-settings-screen .tts-test-btn,
+#api-settings-screen #ig-test-btn,
+#api-settings-screen #ig-test-ref-btn {
+    background: var(--api-y2k-black) !important;
+    color: var(--api-y2k-pink) !important;
+    border: 2px solid var(--api-y2k-pink) !important;
+    width: 100%;
+    font-weight: 800;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 8px;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 10px rgba(255, 141, 161, 0.45);
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.4),
+        0 4px 16px rgba(0, 0, 0, 0.5),
+        0 0 12px rgba(255, 141, 161, 0.25);
+}
+#api-settings-screen .tts-test-btn:active,
+#api-settings-screen #ig-test-btn:active,
+#api-settings-screen #ig-test-ref-btn:active {
+    background: #1a0b12 !important;
+    color: #ffb6c4 !important;
+    transform: scale(0.99);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+/* TTS 预设卡片内：另存为、管理（黑底小按钮 → 粉字） */
+#api-settings-screen .api-y2k-tts-preset .btn.btn-small:not(.btn-primary):not(.btn-secondary) {
+    color: var(--api-y2k-pink) !important;
+    background: var(--api-y2k-black) !important;
+    border: 2px solid var(--api-y2k-pink) !important;
+    font-weight: 800;
+    text-shadow: 0 0 8px rgba(255, 141, 161, 0.35);
+    box-shadow: 0 0 10px rgba(255, 141, 161, 0.15);
+}
+#api-settings-screen .api-y2k-tts-preset .btn.btn-small:not(.btn-primary):not(.btn-secondary):active {
+    color: #ffb6c4 !important;
+    background: #1a0b12 !important;
+}
+
+/* 文本颜色 */
+#api-settings-screen .tts-section-title,
+#api-settings-screen .api-y2k-sub-title {
+    color: var(--api-y2k-pink) !important;
+    font-weight: 900;
+}
+#api-settings-screen .tts-section-desc,
+#api-settings-screen .api-y2k-sub-hint {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+/* 长说明/脚注：在粉渐变底上也保持可读 */
+#api-settings-screen .api-y2k-muted,
+#api-settings-screen .api-y2k-muted code {
+    color: rgba(255, 248, 250, 0.88) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+    font-weight: 500;
+}
+#api-settings-screen .api-y2k-muted code {
+    background: rgba(0, 0, 0, 0.35) !important;
+    padding: 0 2px;
+    border-radius: 3px;
+}
+
+/* 预设管理区域 */
+#api-settings-screen .api-presets-embedded .api-y2k-preset-box,
+#api-settings-screen #api-presets-control,
+#api-settings-screen .api-y2k-tts-preset {
+    background: var(--api-y2k-black) !important;
+    background-color: var(--api-y2k-black) !important;
+    border: 2px solid var(--api-y2k-pink) !important;
+    border-radius: 16px;
+    box-shadow: 0 0 20px rgba(255, 141, 161, 0.2), inset 0 0 10px rgba(0,0,0,0.5);
+    padding: 15px;
+    margin-top: 15px;
+    position: relative;
+    overflow: hidden;
+}
+#api-settings-screen .api-y2k-tts-preset {
+    margin-top: 14px;
+}
+#api-settings-screen .api-y2k-tts-preset-title {
+    color: var(--api-y2k-pink) !important;
+    text-shadow: 0 0 8px rgba(255, 141, 161, 0.35);
+}
+#api-settings-screen .api-y2k-tts-preset .btn.btn-small,
+#api-settings-screen .api-y2k-tts-preset #tts-apply-preset {
+    position: relative;
+    z-index: 1;
+}
+#api-settings-screen .api-presets-embedded .api-y2k-preset-box::before,
+#api-settings-screen #api-presets-control::before,
+#api-settings-screen .api-y2k-tts-preset::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(180deg, rgba(255,141,161,0.05) 0%, transparent 100%);
+    pointer-events: none;
+}
+#api-settings-screen #api-preset-select,
+#api-settings-screen #tts-preset-select {
+    background: rgba(255, 255, 255, 0.08) !important;
+    background-color: rgba(0, 0, 0, 0.35) !important;
+    border: 1px solid rgba(255, 141, 161, 0.45) !important;
+    color: #fff !important;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+}
+#api-settings-screen #api-presets-control label {
+    color: rgba(255, 240, 245, 0.92) !important;
+    font-weight: 700;
+}
+#api-settings-screen #temperature-value {
+    color: var(--api-y2k-pink) !important;
+    font-weight: 800;
+    font-size: 15px;
+    text-shadow: 0 0 10px rgba(255, 141, 161, 0.45);
+}
+#api-settings-screen #temperature-slider {
+    width: 100% !important;
+    accent-color: var(--api-y2k-pink) !important;
+    height: 6px;
+}
+#api-settings-screen #temperature-slider::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+    background: #3d2a32;
+    border: 1px solid rgba(255, 141, 161, 0.25);
+}
+#api-settings-screen #temperature-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--api-y2k-pink) !important;
+    border: 2px solid var(--api-y2k-black) !important;
+    margin-top: -5px;
+    box-shadow: 0 0 0 1px rgba(255, 141, 161, 0.6);
+}
+#api-settings-screen #temperature-slider::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: #3d2a32;
+    border: 1px solid rgba(255, 141, 161, 0.25);
+}
+#api-settings-screen #temperature-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--api-y2k-pink) !important;
+    border: 2px solid var(--api-y2k-black) !important;
+}
+
+/* 确保预设管理里的按钮有合适的间距 */
+#api-settings-screen .api-preset-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    position: relative;
+    z-index: 1;
+}
+#api-settings-screen .api-preset-actions button {
+    flex: 1;
+}
+
+/* 修复下拉框的箭头颜色 */
+#api-settings-screen select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff8da1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    background-size: 1em !important;
+    padding-right: 30px !important;
+}

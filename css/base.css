@@ -74,6 +74,24 @@ body {
     display: flex;
 }
 
+/* 全图预览：iOS Safari 上 absolute+100% 与 100vh 会短于实际可视区，底部会漏出聊天层 */
+#full-image-modal {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    z-index: 20000;
+    box-sizing: border-box;
+}
+
+#full-image-modal .modal-window {
+    min-height: 100%;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+}
+
 .modal-window {
     background: #ffffff;
     padding: 15px;

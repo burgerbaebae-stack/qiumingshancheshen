@@ -13,8 +13,8 @@ const ImageGenModule = (() => {
         return !!(cfg.enabled && cfg.url && cfg.key && cfg.model);
     }
 
-    // ── 正则：识别角色「发来的照片/视频」或「发来的照片」，兼容两种写法 ──
-    const PHOTO_REGEX = /\[(?:.+?)发来的照片(?:\/视频)?[：:]([\s\S]+?)\]/;
+    // ── 正则：识别「发来的照片/视频」「发来的照片」「发来的视频」（须把 照片/视频 写在 照片、视频 之前） ──
+    const PHOTO_REGEX = /\[(?:.+?)发来的(?:照片\/视频|照片|视频)[：:]([\s\S]+?)\]/;
 
     /**
      * 从消息 content 里抽出「画面描述」，没有则返回 null
@@ -410,6 +410,15 @@ const ImageGenModule = (() => {
         };
     }
 
+    function _syncIgRefFrameHasImage() {
+        const prev = document.getElementById('setting-ig-ref-preview');
+        const frame = document.getElementById('y2k-ig-ref-frame');
+        if (!frame || !prev) return;
+        const src = String(prev.getAttribute('src') || prev.src || '').trim();
+        const has = src.length > 0 && (src.startsWith('data:') || src.startsWith('blob:') || src.startsWith('http'));
+        frame.dataset.hasImage = has ? 'true' : 'false';
+    }
+
     /** 将角色生图相关字段填入聊天设置「生图」Tab */
     function loadCharImageGenToUI(chat) {
         if (!chat) return;
@@ -422,12 +431,11 @@ const ImageGenModule = (() => {
         if (prev) {
             if (ref && String(ref).startsWith('data:')) {
                 prev.src = ref;
-                prev.style.display = 'block';
             } else {
                 prev.removeAttribute('src');
-                prev.style.display = 'none';
             }
         }
+        _syncIgRefFrameHasImage();
     }
 
     function saveCharImageGenFromUI(chat) {
@@ -467,8 +475,8 @@ const ImageGenModule = (() => {
                     : await _blobToDataUrl(f);
                 if (prev) {
                     prev.src = dataUrl;
-                    prev.style.display = 'block';
                 }
+                _syncIgRefFrameHasImage();
             } catch (err) {
                 console.error('[ImageGen] ref file', err);
                 if (typeof showToast === 'function') showToast('图片处理失败，请重试');
@@ -478,9 +486,10 @@ const ImageGenModule = (() => {
             clearBtn.addEventListener('click', () => {
                 file.value = '';
                 prev.removeAttribute('src');
-                prev.style.display = 'none';
+                _syncIgRefFrameHasImage();
             });
         }
+        _syncIgRefFrameHasImage();
     }
 
     function initApiSection() {

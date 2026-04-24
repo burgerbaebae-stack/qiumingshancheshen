@@ -1,5 +1,69 @@
 // --- 设置与管理逻辑 (js/settings.js) ---
 
+/** 人设短框摘要（仅展示） */
+function y2kTruncatePersonaPreview(text, maxLen) {
+    if (text == null || !String(text).trim()) return '（未填写，点击编辑）';
+    const t = String(text).trim().replace(/\s+/g, ' ');
+    return t.length > maxLen ? t.slice(0, maxLen) + '…' : t;
+}
+
+function y2kSyncPersonaPreviews() {
+    const charTa = document.getElementById('setting-char-persona');
+    const userTa = document.getElementById('setting-my-persona');
+    const charPrev = document.getElementById('y2k-char-persona-preview');
+    const userPrev = document.getElementById('y2k-user-persona-preview');
+    if (charPrev && charTa) charPrev.textContent = y2kTruncatePersonaPreview(charTa.value, 180);
+    if (userPrev && userTa) userPrev.textContent = y2kTruncatePersonaPreview(userTa.value, 180);
+}
+
+function initY2kChatSettingsPersonaUi() {
+    const edChar = document.getElementById('y2k-persona-editor-char');
+    const edUser = document.getElementById('y2k-persona-editor-user');
+    if (!edChar) return;
+    const open = (which) => {
+        y2kSyncPersonaPreviews();
+        const el = which === 'char' ? edChar : edUser;
+        el.classList.add('is-open');
+        el.setAttribute('aria-hidden', 'false');
+    };
+    const close = (which) => {
+        const el = which === 'char' ? edChar : edUser;
+        y2kSyncPersonaPreviews();
+        el.classList.remove('is-open');
+        el.setAttribute('aria-hidden', 'true');
+    };
+    document.getElementById('y2k-char-persona-snippet')?.addEventListener('click', () => open('char'));
+    document.getElementById('y2k-char-persona-snippet')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open('char'); }
+    });
+    document.getElementById('y2k-user-persona-snippet')?.addEventListener('click', () => open('user'));
+    document.getElementById('y2k-user-persona-snippet')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open('user'); }
+    });
+    document.querySelectorAll('[data-persona-editor-close]').forEach((el) => {
+        el.addEventListener('click', () => {
+            const w = el.getAttribute('data-persona-editor-close');
+            if (w) close(w);
+        });
+    });
+    document.getElementById('setting-char-persona')?.addEventListener('input', y2kSyncPersonaPreviews);
+    document.getElementById('setting-my-persona')?.addEventListener('input', y2kSyncPersonaPreviews);
+}
+
+/** 聊天设置 Y2K：首页身份牌 vs 全屏二级设置 */
+function syncChatSettingsViewMode() {
+    const screen = document.getElementById('chat-settings-screen');
+    if (!screen) return;
+    const basic = document.getElementById('setting-tab-basic');
+    if (!basic) return;
+    const isHome = basic.classList.contains('active');
+    screen.dataset.settingsView = isHome ? 'home' : 'sub';
+    const sub = document.getElementById('kkt-settings-subpage');
+    if (sub) {
+        sub.setAttribute('aria-hidden', isHome ? 'true' : 'false');
+    }
+}
+
 function setupChatSettings() {
     document.getElementById('chat-settings-btn').addEventListener('click', () => {
         if (currentChatType === 'private') {
@@ -33,7 +97,8 @@ function setupChatSettings() {
     // --- Tab 切换逻辑 ---
     // 仅选择聊天设置和群聊设置中的 Tab，排除 CoT 设置
     const tabs = document.querySelectorAll('#chat-settings-screen .settings-tab-item, #group-settings-screen .settings-tab-item');
-    const contents = document.querySelectorAll('.settings-tab-content');
+    /* 仅聊天设置内的 Tab 内容（勿用全局 .settings-tab-content，CoT 等屏也有同名 class） */
+    const contents = document.querySelectorAll('#chat-settings-screen .settings-tab-content');
 
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
@@ -47,6 +112,13 @@ function setupChatSettings() {
             if (targetId) {
                 const targetEl = document.getElementById(targetId);
                 if (targetEl) targetEl.classList.add('active');
+            }
+            if (tab.closest && tab.closest('#chat-settings-screen')) {
+                const cs = document.getElementById('chat-settings-screen');
+                if (cs && targetId) {
+                    cs.dataset.settingsView = targetId === 'setting-tab-basic' ? 'home' : 'sub';
+                }
+                syncChatSettingsViewMode();
             }
         });
     });
@@ -187,6 +259,8 @@ function setupChatSettings() {
         showToast('世界书关联已更新');
     });
 
+    initY2kChatSettingsPersonaUi();
+
     const statusPanelSwitch = document.getElementById('setting-status-panel-enabled');
     if (statusPanelSwitch) {
         statusPanelSwitch.addEventListener('change', (e) => {
@@ -220,8 +294,15 @@ function loadSettingsToSidebar() {
     const e = db.characters.find(e => e.id === currentChatId);
     if (e) {
         document.getElementById('setting-char-avatar-preview').src = e.avatar;
-        const nameDisplay = document.getElementById('setting-char-name-display');
-        if(nameDisplay) nameDisplay.textContent = e.remarkName;
+        const realNameInput = document.getElementById('setting-char-real-name');
+        if (realNameInput) {
+            realNameInput.value = (e.realName != null && e.realName !== '') ? e.realName : (e.remarkName || '');
+        }
+        const officialName = document.getElementById('setting-char-official-name');
+        if (officialName) {
+            officialName.value = (e.realName != null && String(e.realName).trim() !== '') ? e.realName.trim()
+                : (e.name && String(e.name).trim() !== '' ? e.name.trim() : (e.remarkName || ''));
+        }
         document.getElementById('setting-char-remark').value = e.remarkName;
         document.getElementById('setting-char-persona').value = e.persona;
         
@@ -311,6 +392,10 @@ function loadSettingsToSidebar() {
             ImageGenModule.loadCharImageGenToUI(e);
             ImageGenModule.initCharImageGenTab();
         }
+        y2kSyncPersonaPreviews();
+        const y2kcs = document.getElementById('chat-settings-screen');
+        if (y2kcs) y2kcs.dataset.settingsView = 'home';
+        syncChatSettingsViewMode();
     }
 }
 
@@ -318,6 +403,13 @@ async function saveSettingsFromSidebar() {
     const e = db.characters.find(e => e.id === currentChatId);
     if (e) {
         e.avatar = document.getElementById('setting-char-avatar-preview').src;
+        const officialNameEl = document.getElementById('setting-char-official-name');
+        const realNameEl = document.getElementById('setting-char-real-name');
+        if (officialNameEl) {
+            e.realName = officialNameEl.value.trim();
+        } else {
+            e.realName = realNameEl ? realNameEl.value.trim() : (e.realName || '');
+        }
         e.remarkName = document.getElementById('setting-char-remark').value;
         e.persona = document.getElementById('setting-char-persona').value;
         
@@ -393,12 +485,45 @@ async function saveSettingsFromSidebar() {
         await saveData();
         showToast('设置已保存！');
         chatRoomTitle.textContent = e.remarkName;
+        y2kSyncPersonaPreviews();
         renderChatList();
         // updateCustomBubbleStyle(currentChatId, e.customBubbleCss, e.useCustomBubbleCss); // 移除实时应用以防污染设置页
         currentPage = 1;
         renderMessages(false, true);
     }
 }
+
+/** API 设置：hub ↔ 二级子页（不改各表单 id / 保存逻辑） */
+const API_SETTINGS_VIEW_TITLES = { hub: 'API 设置', main: '主 API', ig: '生图服务', tts: 'TTS 语音', runtime: '运行环境' };
+
+function setApiSettingsView(view) {
+    const screen = document.getElementById('api-settings-screen');
+    if (!screen) return;
+    const v = view && ['hub', 'main', 'ig', 'tts', 'runtime'].includes(view) ? view : 'hub';
+    screen.dataset.apiView = v;
+    const titleEl = document.getElementById('api-settings-title');
+    if (titleEl) titleEl.textContent = API_SETTINGS_VIEW_TITLES[v] || 'API 设置';
+    const ids = {
+        hub: 'api-view-hub',
+        main: 'api-view-main',
+        ig: 'api-view-ig',
+        tts: 'api-view-tts',
+        runtime: 'api-view-runtime'
+    };
+    Object.keys(ids).forEach((key) => {
+        const el = document.getElementById(ids[key]);
+        if (el) el.hidden = key !== v;
+    });
+    const ttsModal = document.getElementById('tts-preset-modal');
+    if (ttsModal) ttsModal.classList.remove('open');
+    const apiPresetModal = document.getElementById('api-presets-modal');
+    if (apiPresetModal) apiPresetModal.style.display = 'none';
+}
+
+function resetApiSettingsToHub() {
+    setApiSettingsView('hub');
+}
+window.resetApiSettingsToHub = resetApiSettingsToHub;
 
 function setupApiSettingsApp() {
     const e = document.getElementById('api-form'), t = document.getElementById('fetch-models-btn'),
@@ -534,6 +659,28 @@ function setupApiSettingsApp() {
     if (typeof ImageGenModule !== 'undefined') {
         ImageGenModule.initApiSection();
     }
+
+    document.querySelectorAll('#api-settings-screen [data-api-nav]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const v = btn.getAttribute('data-api-nav');
+            if (v) setApiSettingsView(v);
+        });
+    });
+    const apiBack = document.getElementById('api-settings-back-btn');
+    if (apiBack) {
+        apiBack.addEventListener('click', (ev) => {
+            const screen = document.getElementById('api-settings-screen');
+            if (!screen || !screen.classList.contains('active')) return;
+            if ((screen.dataset.apiView || 'hub') !== 'hub') {
+                ev.preventDefault();
+                ev.stopPropagation();
+                setApiSettingsView('hub');
+            } else if (typeof switchScreen === 'function') {
+                switchScreen('home-screen');
+            }
+        });
+    }
+    setApiSettingsView('hub');
 }
 
 // --- 预设管理 ---

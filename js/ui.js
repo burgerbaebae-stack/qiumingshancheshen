@@ -85,6 +85,9 @@ const switchScreen = (targetId) => {
         if (typeof TTSModule !== 'undefined' && typeof TTSModule.loadToUI === 'function') {
             TTSModule.loadToUI();
         }
+        if (typeof window.resetApiSettingsToHub === 'function') {
+            window.resetApiSettingsToHub();
+        }
     }
 };
 

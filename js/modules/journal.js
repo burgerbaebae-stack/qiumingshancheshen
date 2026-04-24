@@ -703,7 +703,7 @@ function setupMemoryJournalScreen() {
             }
             if (!confirm(
                 `将永久删除第 ${start}～${end} 条消息范围内的所有内嵌真实图片（如相册识图产生的 data URL / 大图数据）。\n` +
-                '不会删除：纯 http(s) 图片链接、仅文字的「发来的照片/视频：…」描述。\n' +
+                '不会删除：纯 http(s) 图片链接、仅文字的「发来的照片/视频 / 发来的照片 / 发来的视频」类描述。\n' +
                 '去掉图后若没有可读文字，将整行删除（与聊天里多选删除一致）。此操作不可恢复。\n\n确定继续？'
             )) return;
 
@@ -1030,7 +1030,7 @@ function _jMeaningfulTextsAfterStrip(msg) {
 }
 
 /**
- * 在 1-based 闭区间 [start, end] 内删除内嵌真实图片；纯 http(s) 图链、仅文字的「照片/视频」描述不处理。
+ * 在 1-based 闭区间 [start, end] 内删除内嵌真实图片；纯 http(s) 图链、仅文字的照片/视频类描述不处理。
  * 去掉图后若无正文则整行删除（与聊天多选删消息一致）。
  * @returns {{ error?: string, deletedRows: number, cleanedRows: number, scannedWithImage: number }}
  */
