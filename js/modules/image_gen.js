@@ -15,6 +15,8 @@ const ImageGenModule = (() => {
 
     // ── 正则：识别「发来的照片/视频」「发来的照片」「发来的视频」（须把 照片/视频 写在 照片、视频 之前） ──
     const PHOTO_REGEX = /\[(?:.+?)发来的(?:照片\/视频|照片|视频)[：:]([\s\S]+?)\]/;
+    /** 文生/垫图文字提示过长时截断，减轻网关/上游异常 */
+    const MAX_IG_TEXT_PROMPT_LEN = 16000;
 
     /**
      * 从消息 content 里抽出「画面描述」，没有则返回 null
@@ -73,21 +75,31 @@ const ImageGenModule = (() => {
         const { mimeType, data } = _parseDataUrlParts(dataUrl);
         const keyParam = (typeof getRandomValue === 'function') ? getRandomValue(key) : key;
         const endpoint = `${url}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(keyParam)}`;
+        let text = textPrompt;
+        if (text.length > MAX_IG_TEXT_PROMPT_LEN) {
+            console.warn(`[ImageGen] 垫图提示词过长，已截断至 ${MAX_IG_TEXT_PROMPT_LEN} 字符`);
+            text = text.slice(0, MAX_IG_TEXT_PROMPT_LEN) + '…';
+        }
         const body = {
             contents: [{
                 parts: [
                     { inlineData: { mimeType, data } },
-                    { text: textPrompt }
+                    { text }
                 ]
             }],
             generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
         };
-        const resp = await fetch(endpoint, {
+        const post = () => fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
             signal
         });
+        let resp = await post();
+        if (!resp.ok && [500, 502, 503, 504].includes(resp.status)) {
+            await new Promise((r) => setTimeout(r, 900));
+            resp = await post();
+        }
         const rawText = await resp.text();
         let json;
         try {
@@ -120,6 +132,10 @@ const ImageGenModule = (() => {
             if (_isGeminiConfig(cfg)) {
                 return await generateWithReferenceDataUrl(char.imageGenRefDataUrl, prompt, signal);
             }
+            if (_supportsOpenAIReferenceEdit(cfg)) {
+                return await generateOpenAIWithReferenceDataUrl(char.imageGenRefDataUrl, prompt, signal);
+            }
+            console.warn('[ImageGen] 已设置参考图，但当前模型非 Gemini 且非 gpt-image / dall-e-2 等可垫图模型，将仅使用文字生图。');
             return await generateImage(prompt, signal);
         }
         return await generateImage(prompt, signal);
@@ -137,6 +153,11 @@ const ImageGenModule = (() => {
         if (!url || !key || !model || !prompt) throw new Error('生图配置不完整');
         if (url.endsWith('/')) url = url.slice(0, -1);
 
+        if (prompt.length > MAX_IG_TEXT_PROMPT_LEN) {
+            console.warn(`[ImageGen] 文生图提示词过长，已截断至 ${MAX_IG_TEXT_PROMPT_LEN} 字符`);
+            prompt = prompt.slice(0, MAX_IG_TEXT_PROMPT_LEN) + '…';
+        }
+
         // 判断是 gemini 还是 openai 兼容
         const isGemini = cfg.provider === 'gemini' ||
             model.toLowerCase().includes('gemini') ||
@@ -145,21 +166,27 @@ const ImageGenModule = (() => {
         let responseData;
 
         if (isGemini) {
-            // Gemini generateContent 接口
-            const endpoint = `${url}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${key}`;
+            // 与 generateWithReferenceDataUrl 一致：多 key 轮询、URL 编码，避免 + & 等破坏 query 或误传密钥
+            const keyParam = (typeof getRandomValue === 'function') ? getRandomValue(String(key)) : String(key);
+            const endpoint = `${url}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(keyParam)}`;
             const body = {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
             };
-            const resp = await fetch(endpoint, {
+            const post = () => fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
                 signal
             });
+            let resp = await post();
+            if (!resp.ok && [500, 502, 503, 504].includes(resp.status)) {
+                await new Promise((r) => setTimeout(r, 900));
+                resp = await post();
+            }
             if (!resp.ok) {
                 const errText = await resp.text();
-                throw new Error(`生图 API 错误 ${resp.status}：${errText.slice(0, 200)}`);
+                throw new Error(`生图 API 错误 ${resp.status}：${errText.slice(0, 500)}`);
             }
             responseData = await resp.json();
 
@@ -175,6 +202,7 @@ const ImageGenModule = (() => {
 
         } else {
             // OpenAI 兼容 /v1/images/generations
+            const authKey = (typeof getRandomValue === 'function') ? getRandomValue(String(key)) : String(key);
             const endpoint = `${url}/v1/images/generations`;
             const body = {
                 model,
@@ -183,34 +211,26 @@ const ImageGenModule = (() => {
                 size: cfg.size || '1024x1024',
                 response_format: 'b64_json'
             };
-            const resp = await fetch(endpoint, {
+            const post = () => fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${key}`
+                    Authorization: `Bearer ${authKey}`
                 },
                 body: JSON.stringify(body),
                 signal
             });
+            let resp = await post();
+            if (!resp.ok && [500, 502, 503, 504].includes(resp.status)) {
+                await new Promise((r) => setTimeout(r, 900));
+                resp = await post();
+            }
             if (!resp.ok) {
                 const errText = await resp.text();
-                throw new Error(`生图 API 错误 ${resp.status}：${errText.slice(0, 200)}`);
+                throw new Error(`生图 API 错误 ${resp.status}：${errText.slice(0, 500)}`);
             }
             responseData = await resp.json();
-
-            const item = responseData?.data?.[0];
-            if (!item) throw new Error('生图 API 返回中未找到图片数据');
-
-            if (item.b64_json) {
-                return `data:image/png;base64,${item.b64_json}`;
-            } else if (item.url) {
-                // 若 API 只返回 URL（部分聚合站），先 fetch 转 dataUrl
-                const imgResp = await fetch(item.url, { signal });
-                if (!imgResp.ok) throw new Error('图片 URL 下载失败');
-                const blob = await imgResp.blob();
-                return await _blobToDataUrl(blob);
-            }
-            throw new Error('生图 API 返回格式未知，无法提取图片');
+            return await _dataUrlFromOpenAIGenJson(responseData, signal);
         }
     }
 
@@ -249,18 +269,117 @@ const ImageGenModule = (() => {
     }
 
     /**
-     * 测试「参考图 + 文字」是否被当前 gemai 模型接受（垫图 / 图生图前置探测）
-     * 仅走 Gemini generateContent；与纯文生使用同一 endpoint，仅 parts 多一张 inlineData。
+     * OpenAI 兼容：是否可用 /v1/images/edits 做「参考图 + 文」（gpt-image-2 / gpt-image-1 等；dall-e-2 为传统编辑接口）
      */
-    async function testReferenceImageWithFile(file) {
+    function _supportsOpenAIReferenceEdit(cfg) {
+        if (!cfg || _isGeminiConfig(cfg)) return false;
+        const m = (cfg.model || '').toLowerCase();
+        if (m.includes('gpt-image')) return true;
+        if (m === 'dall-e-2' || m.startsWith('dall-e-2@')) return true;
+        return false;
+    }
+
+    /** gpt-image 系列尺寸与下拉框里 DALL·E3 风格尺寸对齐（上游仅支持 1024 档） */
+    function _mapSizeForOpenAIImageEdit(size) {
+        const s = size || '1024x1024';
+        if (/^(1024x1024|1024x1536|1536x1024)$/.test(s)) return s;
+        if (s === '1024x1792') return '1024x1536';
+        if (s === '1792x1024') return '1536x1024';
+        if (s === '512x512') return '1024x1024';
+        return '1024x1024';
+    }
+
+    /**
+     * 从 OpenAI /v1/images/generations 或 /v1/images/edits 的 JSON 得到 dataUrl
+     */
+    async function _dataUrlFromOpenAIGenJson(responseData, signal) {
+        const item = responseData?.data?.[0];
+        if (!item) throw new Error('生图 API 返回中未找到图片数据');
+        if (item.b64_json) {
+            return `data:image/png;base64,${item.b64_json}`;
+        }
+        if (item.url) {
+            const imgResp = await fetch(item.url, { signal });
+            if (!imgResp.ok) throw new Error('图片 URL 下载失败');
+            const blob = await imgResp.blob();
+            return await _blobToDataUrl(blob);
+        }
+        throw new Error('生图 API 返回格式未知，无法提取图片');
+    }
+
+    /**
+     * OpenAI 兼容垫图：POST /v1/images/edits（multipart），与官方 gpt-image、聚合站透传方式一致
+     */
+    async function generateOpenAIWithReferenceDataUrl(dataUrl, textPrompt, signal) {
+        const cfg = getConfig();
+        let { url, key, model } = cfg;
+        if (!url || !key || !model || !dataUrl || !textPrompt) throw new Error('生图配置不完整');
+        if (!_supportsOpenAIReferenceEdit(cfg)) {
+            throw new Error('当前模型不支持 OpenAI 垫图，请使用 gpt-image 系列或 dall-e-2，或改用 Gemini 多模态');
+        }
+        if (url.endsWith('/')) url = url.slice(0, -1);
+
+        let text = textPrompt;
+        if (text.length > MAX_IG_TEXT_PROMPT_LEN) {
+            console.warn(`[ImageGen] 垫图提示词过长，已截断至 ${MAX_IG_TEXT_PROMPT_LEN} 字符`);
+            text = text.slice(0, MAX_IG_TEXT_PROMPT_LEN) + '…';
+        }
+
+        const authKey = (typeof getRandomValue === 'function') ? getRandomValue(String(key)) : String(key);
+        const endpoint = `${url}/v1/images/edits`;
+        const size = _mapSizeForOpenAIImageEdit(cfg.size);
+
+        const r = await fetch(dataUrl);
+        const blob = await r.blob();
+        const mime = (String(dataUrl).match(/^data:([^;]+);/) || [null, 'image/png'])[1].split(';')[0];
+        const ext = /jpe?g/i.test(mime) ? 'jpg' : (/webp/i.test(mime) ? 'webp' : 'png');
+        const fileName = `ref.${ext}`;
+
+        const form = new FormData();
+        form.append('model', model);
+        form.append('prompt', text);
+        form.append('n', '1');
+        form.append('size', size);
+        form.append('response_format', 'b64_json');
+        form.append('image', blob, fileName);
+
+        const post = () => fetch(endpoint, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${authKey}` },
+            body: form,
+            signal
+        });
+        let resp = await post();
+        if (!resp.ok && [500, 502, 503, 504].includes(resp.status)) {
+            await new Promise((r) => setTimeout(r, 900));
+            resp = await post();
+        }
+        if (!resp.ok) {
+            const errText = await resp.text();
+            let msg = errText.slice(0, 500);
+            try {
+                const e = JSON.parse(errText);
+                msg = e.error?.message || e.message || msg;
+            } catch { /* 保持原文 */ }
+            throw new Error(`生图 API 错误 ${resp.status}：${msg}`);
+        }
+        const responseData = await resp.json();
+        return await _dataUrlFromOpenAIGenJson(responseData, signal);
+    }
+
+    const DEFAULT_IG_TEST_REF_PROMPT =
+        '与参考人物为同一人，保持五官与发型整体特征一致。请生成全新画面（不要沿用参考图姿势与角度）：他坐在现代办公室落地窗前，侧脸朝向镜头一侧，表情略带玩味，眼神落在玻璃反光上；仅半身，黑衬衫解开一粒扣。室内城市夜景与台灯光，光从一侧打在颧骨，与窗外冷光形成对比。整图同一场景、环境光落在脸与背景上一致，自然融合，不要贴图换底感。写实、3D乙游成男风格。仅输出图像。';
+
+    /**
+     * 测试「参考图 + 文字」：Gemini 走 generateContent 多模态；OpenAI 兼容且为 gpt-image / dall-e-2 等走 /v1/images/edits
+     * @param {File} file 参考图文件
+     * @param {string} [textOverride] 若填写则作为文字说明；空则用内置说明（设置页大文本框会传入用户粘贴的提示词）
+     */
+    async function testReferenceImageWithFile(file, textOverride) {
         if (!file || !file.type.startsWith('image/')) throw new Error('请选择图片文件');
         saveFromUI();
         const cfg = getConfig();
         if (!cfg.url || !cfg.key || !cfg.model) throw new Error('请先填写接口地址、密钥与模型');
-
-        if (!_isGeminiConfig(cfg)) {
-            throw new Error('垫图测试需使用「接口类型：Gemini」或模型名含 gemini（与 :generateContent 一致）。OpenAI 的 /v1/images/generations 不支持传参考图。');
-        }
 
         let dataUrl;
         if (typeof compressImage === 'function') {
@@ -268,10 +387,20 @@ const ImageGenModule = (() => {
         } else {
             dataUrl = await _blobToDataUrl(file);
         }
-        const textHint =
-            '与参考人物为同一人，保持五官与发型整体特征一致。请生成全新画面（不要沿用参考图姿势与角度）：他坐在现代办公室落地窗前，侧脸朝向镜头一侧，表情略带玩味，眼神落在玻璃反光上；仅半身，黑衬衫解开一粒扣。室内城市夜景与台灯光，光从一侧打在颧骨，与窗外冷光形成对比。整图同一场景、环境光落在脸与背景上一致，自然融合，不要贴图换底感。写实、3D乙游成男风格。仅输出图像。';
+        const textHint = (typeof textOverride === 'string' && textOverride.trim().length)
+            ? textOverride.trim()
+            : DEFAULT_IG_TEST_REF_PROMPT;
 
-        return generateWithReferenceDataUrl(dataUrl, textHint, null);
+        if (_isGeminiConfig(cfg)) {
+            return generateWithReferenceDataUrl(dataUrl, textHint, null);
+        }
+        if (_supportsOpenAIReferenceEdit(cfg)) {
+            return generateOpenAIWithReferenceDataUrl(dataUrl, textHint, null);
+        }
+        throw new Error(
+            '垫图测试需使用：「接口类型：Gemini」+ 多模态模型，或「OpenAI 兼容」+ 支持 /v1/images/edits 的模型（如 gpt-image-2、dall-e-2）。' +
+            ' 纯文生 /v1/images/generations 无法上传参考图。'
+        );
     }
 
     // ── 设置页 UI 相关 ──
@@ -512,7 +641,10 @@ const ImageGenModule = (() => {
                 testBtn.disabled = true;
                 testBtn.textContent = '生成中…';
                 try {
-                    const dataUrl = await generateImage('a beautiful sunset over the ocean, photo style');
+                    const custom = _getIgTestPromptText();
+                    const dataUrl = await generateImage(
+                        custom || 'a beautiful sunset over the ocean, photo style'
+                    );
                     if (typeof openImageViewer === 'function') openImageViewer(dataUrl);
                     showToast('生图测试成功！');
                 } catch (e) {
@@ -549,7 +681,11 @@ const ImageGenModule = (() => {
                 const oldText = refBtn.textContent;
                 refBtn.textContent = '垫图测试中…';
                 try {
-                    const dataUrl = await testReferenceImageWithFile(f);
+                    const customPrompt = _getIgTestPromptText();
+                    const dataUrl = await testReferenceImageWithFile(
+                        f,
+                        customPrompt || undefined
+                    );
                     if (typeof openImageViewer === 'function') openImageViewer(dataUrl);
                     if (typeof showToast === 'function') {
                         showToast('垫图测试成功：接口已接受参考图并返回新图');
@@ -576,6 +712,13 @@ const ImageGenModule = (() => {
         if (!el) return '';
         if (prop === 'checked') return el.checked;
         return el[prop];
+    }
+
+    /** 设置页「测试用提示词」文本框，供文生/垫图测试与聊天里长文复现 */
+    function _getIgTestPromptText() {
+        const el = document.getElementById('ig-test-prompt');
+        if (!el) return '';
+        return String(el.value || '').trim();
     }
 
     return {

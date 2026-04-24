@@ -751,11 +751,14 @@
                             </div>
                         </div>
                     </div>
-                    <button type="button" id="ig-save-btn" class="btn btn-primary" style="margin-top:14px; width:100%;">保存生图设置</button>
+                    <p class="api-y2k-muted" style="font-size:12px; font-weight:600; margin: 14px 0 6px 0; color: var(--text-color, #333);">测试用提示词（可选）</p>
+                    <textarea id="ig-test-prompt" rows="4" wrap="soft" placeholder="可粘贴聊天里生图失败时的长文。留空时：点「测试生图」用默认短英文；点「测试参考图」用内置垫图说明。" style="width:100%; max-width:100%; box-sizing:border-box; font-size:12px; line-height:1.45; padding:10px 12px; border-radius:8px; border:1px solid #e0e0e0; background:#fafafa; resize:vertical; min-height:88px; -webkit-appearance:none; appearance:none;"></textarea>
+                    <p class="api-y2k-muted" style="font-size:11px; margin:4px 0 8px 0; line-height:1.4;">与聊天里生图走同一套接口；用长文可对比是否仍报 500。</p>
+                    <button type="button" id="ig-save-btn" class="btn btn-primary" style="margin-top:6px; width:100%;">保存生图设置</button>
                     <button type="button" id="ig-test-btn" class="tts-test-btn" style="margin-top:8px;">测试生图</button>
                     <input type="file" id="ig-test-ref-file" accept="image/jpeg,image/png,image/webp" style="display:none" />
                     <button type="button" id="ig-test-ref-btn" class="tts-test-btn" style="margin-top:4px;">测试参考图（垫图）</button>
-                    <p class="api-y2k-muted" style="font-size:11px; margin:6px 0 0 0; line-height:1.4;">将「接口类型」选为 <b>Gemini</b>（与模型详情的 generateContent 一致）。选一张正脸/半身参考图，检测接口是否支持「图片+文字」多模态出图。纯 OpenAI 的 <code>images</code> 接口无法垫图。</p>
+                    <p class="api-y2k-muted" style="font-size:11px; margin:6px 0 0 0; line-height:1.4;"><b>Gemini</b>：多模态 <code>generateContent</code> 垫图。<b>OpenAI 兼容</b>且模型为 <b>gpt-image</b> 系列（如 gpt-image-2）或 <b>dall-e-2</b>：走 <code>/v1/images/edits</code> 上传参考图。文字说明可写在上方「测试用提示词」；不填则垫图用内置例句。纯 <code>generations</code> 文生、其它模型无编辑接口时不能垫图。</p>
                 </div>
                 </div>
 
