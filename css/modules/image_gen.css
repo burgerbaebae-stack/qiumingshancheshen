@@ -70,8 +70,16 @@
 }
 
 /* ── 生图失败气泡 ── */
+/* chat.css 里 .pv-card-footer 有 pointer-events:none（默认卡片整卡点击），会挡住底部按钮。失败态须恢复可点，否则重试在移动端/桌面均无效。 */
 .ig-error-card .pv-card-footer {
     display: flex;
     align-items: center;
     gap: 6px;
+    pointer-events: auto;
+}
+.ig-error-card .ig-retry-btn {
+    position: relative;
+    z-index: 4;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    touch-action: manipulation;
 }
