@@ -751,8 +751,8 @@
                             </div>
                         </div>
                     </div>
-                    <p class="api-y2k-muted" style="font-size:12px; font-weight:600; margin: 14px 0 6px 0; color: var(--text-color, #333);">测试用提示词（可选）</p>
-                    <textarea id="ig-test-prompt" rows="4" wrap="soft" placeholder="可粘贴聊天里生图失败时的长文。留空时：点「测试生图」用默认短英文；点「测试参考图」用内置垫图说明。" style="width:100%; max-width:100%; box-sizing:border-box; font-size:12px; line-height:1.45; padding:10px 12px; border-radius:8px; border:1px solid #e0e0e0; background:#fafafa; resize:vertical; min-height:88px; -webkit-appearance:none; appearance:none;"></textarea>
+                    <p class="api-y2k-field-label">测试用提示词（可选）</p>
+                    <textarea id="ig-test-prompt" rows="4" wrap="soft" placeholder="可粘贴聊天里生图失败时的长文。留空时：点「测试生图」用默认短英文；点「测试参考图」用内置垫图说明。"></textarea>
                     <p class="api-y2k-muted" style="font-size:11px; margin:4px 0 8px 0; line-height:1.4;">与聊天里生图走同一套接口；用长文可对比是否仍报 500。</p>
                     <button type="button" id="ig-save-btn" class="btn btn-primary" style="margin-top:6px; width:100%;">保存生图设置</button>
                     <button type="button" id="ig-test-btn" class="tts-test-btn" style="margin-top:8px;">测试生图</button>
@@ -1330,26 +1330,29 @@
     </div>
 
     <!-- Message Edit Modal -->
-    <div id="message-edit-modal" class="modal-overlay">
-        <div class="modal-window">
-            <h3>编辑消息</h3>
-            <form id="message-edit-form">
-                <div class="form-group">
-                    <textarea id="message-edit-textarea" rows="6" required></textarea>
+    <div id="message-edit-modal" class="y2k-persona-editor" aria-hidden="true" style="z-index: 2000;">
+        <div class="y2k-persona-editor-backdrop" onclick="cancelMessageEdit()"></div>
+        <div class="y2k-persona-editor-sheet" style="padding-bottom: env(safe-area-inset-bottom); height: auto; max-height: 80vh;">
+            <div class="y2k-editor-modal-head">
+                <button type="button" class="y2k-editor-modal-close" id="cancel-edit-modal-btn" aria-label="关闭">×</button>
+                <h2 class="y2k-editor-modal-title">编辑消息</h2>
+            </div>
+            <form id="message-edit-form" style="display: flex; flex-direction: column; flex: 1; padding: 0 20px 20px 20px; box-sizing: border-box;">
+                <div class="form-group" style="flex: 1; display: flex; flex-direction: column; margin: 0;">
+                    <textarea id="message-edit-textarea" class="y2k-persona-editor-text" style="flex: 1; min-height: 150px; resize: none; margin: 0;" required></textarea>
                 </div>
                 <!-- 新增：时间戳编辑输入框，默认隐藏 -->
-                <div class="form-group" id="message-edit-timestamp-group" style="display: none; margin-top: 10px;">
-                    <label for="message-edit-timestamp" style="font-size: 12px; color: #666;">消息时间 (修改可能影响排序)</label>
+                <div class="form-group" id="message-edit-timestamp-group" style="display: none; margin-top: 15px;">
+                    <label for="message-edit-timestamp" style="font-size: 12px; color: var(--y2k-pink); font-weight: bold; margin-bottom: 8px; display: block;">消息时间 (修改可能影响排序)</label>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="datetime-local" id="message-edit-timestamp" step="1" style="flex: 1;">
-                        <button type="button" id="hide-timestamp-btn" class="btn btn-neutral" style="padding: 8px 12px; font-size: 12px; white-space: nowrap; display: none;" title="将时间设置为上一条消息+1分钟">隐藏时间戳</button>
+                        <input type="datetime-local" id="message-edit-timestamp" class="y2k-name-input y2k-name-input--on-dark" step="1" style="flex: 1; font-size: 14px;">
+                        <button type="button" id="hide-timestamp-btn" class="btn y2k-persona-editor-done" style="padding: 10px 14px; font-size: 12px; white-space: nowrap; display: none; background: rgba(255, 255, 255, 0.1); color: #fff; width: auto; min-height: 0;" title="将时间设置为上一条消息+1分钟">隐藏时间戳</button>
                     </div>
                 </div>
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
                     <!-- 新增的删除按钮，默认隐藏 -->
-                    <button type="button" id="debug-delete-msg-btn" class="btn btn-danger" style="flex: 1; display: none;">删除</button>
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">保存</button>
-                    <button type="button" id="cancel-edit-modal-btn" class="btn btn-neutral" style="flex: 1;">取消</button>
+                    <button type="button" id="debug-delete-msg-btn" class="btn y2k-persona-editor-done" style="flex: 1; display: none; background: var(--y2k-dark-pink); color: #fff; border: 2px solid var(--y2k-pink);">删除</button>
+                    <button type="submit" class="btn y2k-persona-editor-done" style="flex: 2;">保存</button>
                 </div>
                 
             </form>
@@ -1573,25 +1576,25 @@
 
                     <!-- 角色人设全屏编辑（textarea 放此处，与保存逻辑 id 一致） -->
                     <div id="y2k-persona-editor-char" class="y2k-persona-editor" aria-hidden="true">
-                        <div class="y2k-persona-editor-backdrop" data-persona-editor-close="char"></div>
+                        <div class="y2k-persona-editor-backdrop" data-persona-editor-cancel="char"></div>
                         <div class="y2k-persona-editor-sheet">
                             <div class="y2k-editor-modal-head">
-                                <button type="button" class="y2k-editor-modal-close" data-persona-editor-close="char" aria-label="关闭">×</button>
+                                <button type="button" class="y2k-editor-modal-close" data-persona-editor-cancel="char" aria-label="关闭">×</button>
                                 <h2 class="y2k-editor-modal-title">角色人设</h2>
                             </div>
-                            <textarea id="setting-char-persona" class="y2k-persona-editor-text" rows="14" placeholder="详细描述角色性格、背景、说话方式等，保存后点下方「完成」或先保存档案。"></textarea>
-                            <button type="button" class="btn y2k-persona-editor-done" data-persona-editor-close="char">完成</button>
+                            <textarea id="setting-char-persona" class="y2k-persona-editor-text" rows="14" placeholder="详细描述角色性格、背景、说话方式等；点「完成」保留本次编辑，点 × 放弃。写入档案需再点「保存档案」。"></textarea>
+                            <button type="button" class="btn y2k-persona-editor-done" data-persona-editor-done="char">完成</button>
                         </div>
                     </div>
                     <div id="y2k-persona-editor-user" class="y2k-persona-editor" aria-hidden="true">
-                        <div class="y2k-persona-editor-backdrop" data-persona-editor-close="user"></div>
+                        <div class="y2k-persona-editor-backdrop" data-persona-editor-cancel="user"></div>
                         <div class="y2k-persona-editor-sheet">
                             <div class="y2k-editor-modal-head">
-                                <button type="button" class="y2k-editor-modal-close" data-persona-editor-close="user" aria-label="关闭">×</button>
+                                <button type="button" class="y2k-editor-modal-close" data-persona-editor-cancel="user" aria-label="关闭">×</button>
                                 <h2 class="y2k-editor-modal-title">我的人设</h2>
                             </div>
-                            <textarea id="setting-my-persona" class="y2k-persona-editor-text" rows="14" placeholder="描述你的形象、与角色的关系等。"></textarea>
-                            <button type="button" class="btn y2k-persona-editor-done" data-persona-editor-close="user">完成</button>
+                            <textarea id="setting-my-persona" class="y2k-persona-editor-text" rows="14" placeholder="点「完成」保留本次编辑，点 × 放弃。写入档案需再点「保存档案」。"></textarea>
+                            <button type="button" class="btn y2k-persona-editor-done" data-persona-editor-done="user">完成</button>
                         </div>
                     </div>
 
@@ -1735,7 +1738,7 @@
                                 </div>
                             </div>
                             <div class="kkt-item" style="font-size:12px; color:#999; padding-top:0; padding-bottom:8px;">
-                                开启后，当你距上次对话超过7分钟再次发消息时，AI将感知到准确的时间间隔（仅注入本次请求，不写入历史）。
+                                开启后，若你距上一条消息超过7分钟再发，会在你这条前插入与「时间跳跃」同结构的说明（一条居中展示，一条以 [system:] 进上下文并随聊天记录保存）。
                             </div>
                         </div>
 

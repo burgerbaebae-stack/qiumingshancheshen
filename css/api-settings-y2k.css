@@ -10,6 +10,19 @@
     background-attachment: fixed;
 }
 
+/* 隐藏系统默认灰竖条，界面更干净；滚轮/触控/键盘仍可滚动 */
+#api-settings-screen .content,
+#api-settings-screen .api-view-sub {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* legacy Edge */
+}
+#api-settings-screen .content::-webkit-scrollbar,
+#api-settings-screen .api-view-sub::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
 #api-settings-screen .app-header {
     background-color: var(--api-y2k-black);
     border-bottom: 2px solid var(--api-y2k-pink);
@@ -215,6 +228,48 @@
 #api-settings-screen .kkt-item-control input:focus,
 #api-settings-screen .kkt-item-control select:focus,
 #api-settings-screen .kkt-item-control textarea:focus {
+    border-color: var(--api-y2k-pink) !important;
+    outline: none;
+    box-shadow: 0 0 8px rgba(255, 141, 161, 0.4);
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* 生图：测试用提示词（与 kkt 内输入同系，非白底） */
+#api-settings-screen .api-y2k-field-label {
+    margin: 14px 0 6px 0;
+    padding: 0 2px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: var(--api-y2k-pink) !important;
+}
+#api-settings-screen #ig-test-prompt {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-height: 88px;
+    resize: vertical;
+    font-size: 12px;
+    line-height: 1.45;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 141, 161, 0.45) !important;
+    color: #fff !important;
+    -webkit-appearance: none;
+    appearance: none;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+#api-settings-screen #ig-test-prompt::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+}
+#api-settings-screen #ig-test-prompt::placeholder {
+    color: rgba(255, 255, 255, 0.42);
+}
+#api-settings-screen #ig-test-prompt:focus {
     border-color: var(--api-y2k-pink) !important;
     outline: none;
     box-shadow: 0 0 8px rgba(255, 141, 161, 0.4);

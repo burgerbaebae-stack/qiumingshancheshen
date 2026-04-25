@@ -1912,16 +1912,21 @@
     position: static;
     width: 100%;
     height: 0;
-    background: #f7f7f7;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    box-shadow: none;
+    /* 恢复面板的半透明毛玻璃背景，让泡泡有依托，同时与底栏衔接 */
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-top: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
     z-index: auto;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     transition: height 0.3s cubic-bezier(0.25, 0.8, 0.5, 1);
     flex-shrink: 0;
+    /* 移除圆角，让它和底栏无缝贴合 */
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
 }
 
 #chat-expansion-panel.no-transition {
@@ -1931,7 +1936,7 @@
 #chat-expansion-panel.visible {
     /* 底栏增高后略减面板高度，整体更「低」，少挡消息区 */
     height: 29%;
-    border-top: 1px solid #eee;
+    border-top: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .panel-area {
@@ -2023,34 +2028,113 @@
     flex-direction: column;
     align-items: center;
     cursor: pointer;
+    /* 为泡泡添加轻微的上下浮动呼吸动画 */
+    animation: bubble-float 4s ease-in-out infinite alternate;
+}
+
+/* 错开不同泡泡的动画时间，看起来更自然 */
+.expansion-item:nth-child(2n) { animation-delay: 0.7s; }
+.expansion-item:nth-child(3n) { animation-delay: 1.4s; }
+.expansion-item:nth-child(4n) { animation-delay: 2.1s; }
+
+@keyframes bubble-float {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-5px); }
 }
 
 .expansion-item-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 15px;
-    background-color: #fff;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    position: relative; /* 为伪元素定位做准备 */
+    
+    /* 基础材质：极度透明的玻璃质感，带一点点模糊 */
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    
+    /* 核心：七彩镭射边缘和高光（模拟真实肥皂泡的干涉条纹） */
+    box-shadow: 
+        /* 1. 顶部强烈的白色反光点 */
+        inset 0 6px 8px -2px rgba(255, 255, 255, 0.9),
+        /* 2. 内部的七彩折射光（核心灵魂） */
+        inset 0 -4px 12px -2px rgba(255, 105, 180, 0.6), /* 底部粉色 */
+        inset -6px 0 12px -4px rgba(135, 206, 235, 0.5), /* 右侧蓝色 */
+        inset 6px 0 12px -4px rgba(255, 255, 153, 0.5),  /* 左侧黄色 */
+        /* 3. 外部极细的七彩光晕 */
+        0 0 4px 1px rgba(255, 255, 255, 0.4),
+        0 4px 10px rgba(0, 0, 0, 0.05);
+        
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 8px;
-    transition: background-color 0.2s;
+    
+    /* 增加 Q 弹的过渡效果 */
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* 添加一个伪元素来做泡泡表面的“弧形高光斑”，让它看起来更圆润立体 */
+.expansion-item-icon::after {
+    content: '';
+    position: absolute;
+    top: 8%;
+    left: 15%;
+    width: 40%;
+    height: 25%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+    transform: rotate(-45deg);
+    pointer-events: none; /* 防止遮挡点击 */
 }
 
 .expansion-item:hover .expansion-item-icon {
-    background-color: #f0f0f0;
+    /* 悬停时稍微变大，七彩光晕增强 */
+    transform: scale(1.08);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 
+        inset 0 6px 10px -2px rgba(255, 255, 255, 1),
+        inset 0 -6px 15px -2px rgba(255, 105, 180, 0.8),
+        inset -8px 0 15px -4px rgba(135, 206, 235, 0.7),
+        inset 8px 0 15px -4px rgba(255, 255, 153, 0.7),
+        0 0 8px 2px rgba(255, 255, 255, 0.6),
+        0 6px 15px rgba(0, 0, 0, 0.08);
+}
+
+/* 修复点击动画：必须加在 .expansion-item:active 上，让整个元素跟着缩 */
+.expansion-item:active {
+    transform: scale(0.85);
+    transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.expansion-item:active .expansion-item-icon {
+    /* 点击时泡泡被“挤压”，光影变暗 */
+    box-shadow: 
+        inset 0 2px 5px -1px rgba(255, 255, 255, 0.6),
+        inset 0 -2px 8px -1px rgba(255, 105, 180, 0.4),
+        inset -3px 0 8px -2px rgba(135, 206, 235, 0.3),
+        inset 3px 0 8px -2px rgba(255, 255, 153, 0.3);
+    transition: all 0.1s;
 }
 
 .expansion-item-icon svg {
-    width: 24px;
-    height: 24px;
-    fill: #555;
+    width: 26px; /* 稍微缩小一点图标，给泡泡留出更多空间展示光影 */
+    height: 26px;
+    /* 图标颜色改为更深的粉紫色，在七彩泡泡中更清晰 */
+    fill: #d65c85; 
+    color: #d65c85; 
+    /* 增加图标的发光感 */
+    filter: drop-shadow(0 1px 3px rgba(255, 255, 255, 0.8)); 
+    z-index: 1; /* 确保图标在高光伪元素之上 */
 }
 
 .expansion-item-name {
-    font-size: 12px;
-    color: #666;
+    font-size: 13px;
+    color: #8f5b70; /* 文字颜色稍微加深一点点保证可读性 */
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    /* 柔和的白色文字阴影，防止在复杂背景看不清 */
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.8), 0 0 6px rgba(255, 255, 255, 0.5); 
 }
 
 .icon-btn-simple {

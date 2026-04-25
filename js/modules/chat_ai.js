@@ -1,19 +1,87 @@
 // --- AI 交互模块 ---
 
 
+/** 时间感知：与上一条消息间隔超过此值时触发（与设置说明一致） */
+const TIME_PERCEPTION_GAP_MS = 7 * 60 * 1000;
+
+/**
+ * 从当前 chat.history 裁剪并过滤，得到与发 API 一致的历史切片（可多次调用，如插入时间感知条后需重算）。
+ */
+function buildFilteredHistorySliceForAi(chat) {
+    let historySlice = chat.history.slice(-chat.maxMemory);
+    historySlice = filterHistoryForAI(chat, historySlice);
+    historySlice = historySlice.filter(m => !m.isContextDisabled);
+    historySlice = historySlice.filter(m => {
+        if (m.isThinking) return false;
+        if (m.content && typeof m.content === 'string' && m.content.trim().startsWith('<thinking>')) return false;
+        return true;
+    });
+    return historySlice;
+}
+
+/**
+ * 时间感知（B）：在距上一条超过阈值时，于用户本条前插入「剧情式」双条（system-display 展示 + [system:] 入上下文并持久化）；与「点继续」「迟点请求回复」路径互斥。
+ * @returns {boolean} 是否插入成功
+ */
+function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySlice, needsChannelContinuePrivate, needsReplyLatencyTimePerceptionPrivate) {
+    if (isBackground || !chat.timePerceptionEnabled) return false;
+    if (needsChannelContinuePrivate || needsReplyLatencyTimePerceptionPrivate) return false;
+    const histLen = historySlice.length;
+    if (histLen < 2) return false;
+    const last = historySlice[histLen - 1];
+    const prev = historySlice[histLen - 2];
+    if (last.role !== 'user') return false;
+    const timeDiff = last.timestamp - prev.timestamp;
+    if (timeDiff <= TIME_PERCEPTION_GAP_MS) return false;
+    const pen = chat.history.length >= 2 ? chat.history[chat.history.length - 2] : null;
+    if (pen && pen.isTimePerceptionContext) return false;
+
+    const timeGapStr = formatTimeGap(timeDiff);
+    const tpId = `tp_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    const innerForSystem = `系统通知：距离上一次对话已经过去了${timeGapStr}。请严格结合你的【角色性格】、【与当前用户的关系亲密度】、以及【当前的聊天上下文内容与氛围】（例如：你们是在日常闲聊、争吵冷战、还是暧昧拉扯等情况），综合判断是否需要对这段时间的流逝作出反应。绝不能每次都机械地询问对方去向，必须保持真人沟通的逻辑连贯性与自然边界感。`;
+    const visualMessage = {
+        id: `${tpId}_vis`,
+        role: 'system',
+        content: `[system-display:已过去${timeGapStr}]`,
+        parts: [],
+        timestamp: last.timestamp,
+        isTimePerceptionDisplay: true,
+        timePerceptionPairId: tpId
+    };
+    const contextMessage = {
+        id: `${tpId}_ctx`,
+        role: 'user',
+        content: `[system: ${innerForSystem}]`,
+        parts: [{ type: 'text', text: `[system: ${innerForSystem}]` }],
+        timestamp: last.timestamp,
+        isTimePerceptionContext: true,
+        timePerceptionPairId: tpId
+    };
+    if (chatType === 'group') {
+        visualMessage.senderId = 'user_me';
+        contextMessage.senderId = 'user_me';
+    }
+    const insertAt = chat.history.findIndex(m => m.id === last.id);
+    if (insertAt === -1) {
+        chat.history.splice(Math.max(0, chat.history.length - 1), 0, visualMessage, contextMessage);
+    } else {
+        chat.history.splice(insertAt, 0, visualMessage, contextMessage);
+    }
+    return true;
+}
+
 /**
  * 私聊「未发消息继续要回复」时仅注入本次 API 请求（单条 user），不入库。
  * 静默超过阈值时在末尾追加一段 [频道系统] 时间说明；与原有「两条消息间隔」时间感知互斥（由调用处跳过旧逻辑）。
  */
 function buildChannelContinueUserPrompt(historySlice) {
-    const CONTINUE_SILENCE_THRESHOLD_MS = 7 * 60 * 1000;
     const lastMsg = historySlice[historySlice.length - 1];
     const lastTs = (lastMsg && typeof lastMsg.timestamp === 'number') ? lastMsg.timestamp : Date.now();
     const silenceMs = Date.now() - lastTs;
 
     let text = `[频道系统] 对方暂未输入。请严格依据上文语境、情绪与关系亲密度，并结合你作为角色自身的人设、性格特点、世界观与背景等，像活人一样自行判断是否续写、如何续写；以你的角色身份自然续写一条或多条回复，不要复述本句，不要把它当作对方说的话。`;
 
-    if (silenceMs > CONTINUE_SILENCE_THRESHOLD_MS) {
+    if (silenceMs > TIME_PERCEPTION_GAP_MS) {
         const gapStr = formatTimeGap(silenceMs);
         text += `\n\n[频道系统] 自本会话最后一条消息起至本次延续请求，已过去约${gapStr}。对方未发送新消息；此为界面触发的续写请求。请结合上文语境、情绪与关系亲密度以及你的人设、性格、世界观与背景，自行判断是否在语气或内容里体现这段空白，避免每次机械抱怨久等或追问去向；若剧情上适合沉默衔接，也可自然接话而不强调时间。`;
     }
@@ -108,19 +176,7 @@ async function getAiReply(chatId, chatType, isBackground = false) {
         // 添加聊天记录提示
         systemPrompt += "\n\n以下为当前聊天记录：\n";
         
-        let historySlice = chat.history.slice(-chat.maxMemory);
-        
-        // 使用工具函数进行过滤（包含深度克隆、屏蔽过滤、双语修正、状态栏剔除）
-        historySlice = filterHistoryForAI(chat, historySlice);
-        // 【新增】过滤掉不应进入上下文的消息（如思考过程、被撤回的消息标记等）
-        historySlice = historySlice.filter(m => !m.isContextDisabled);
-        
-        // 【双重保险】再次过滤掉内容匹配 <thinking> 的消息，防止 isContextDisabled 属性丢失
-        historySlice = historySlice.filter(m => {
-            if (m.isThinking) return false;
-            if (m.content && typeof m.content === 'string' && m.content.trim().startsWith('<thinking>')) return false;
-            return true;
-        });
+        let historySlice = buildFilteredHistorySliceForAi(chat);
 
         const needsChannelContinuePrivate =
             !isBackground &&
@@ -129,7 +185,6 @@ async function getAiReply(chatId, chatType, isBackground = false) {
             historySlice.length > 0 &&
             historySlice[historySlice.length - 1].role === 'assistant';
 
-        const TIME_PERCEPTION_GAP_MS = 7 * 60 * 1000;
         const lastHistMsgForLatency = historySlice.length > 0 ? historySlice[historySlice.length - 1] : null;
         const needsReplyLatencyTimePerceptionPrivate =
             !isBackground &&
@@ -139,6 +194,20 @@ async function getAiReply(chatId, chatType, isBackground = false) {
             lastHistMsgForLatency.role === 'user' &&
             typeof lastHistMsgForLatency.timestamp === 'number' &&
             (Date.now() - lastHistMsgForLatency.timestamp) > TIME_PERCEPTION_GAP_MS;
+
+        if (tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySlice, needsChannelContinuePrivate, needsReplyLatencyTimePerceptionPrivate)) {
+            historySlice = buildFilteredHistorySliceForAi(chat);
+            try {
+                if (typeof saveData === 'function') await saveData();
+            } catch (e) {
+                console.error('saveData after 时间感知入库', e);
+            }
+            if (typeof currentChatId !== 'undefined' && currentChatId === chatId &&
+                typeof currentChatType !== 'undefined' && currentChatType === chatType &&
+                typeof renderMessages === 'function') {
+                renderMessages(false, true);
+            }
+        }
 
         if (provider === 'gemini') {
             const contents = historySlice.map(msg => {
@@ -175,28 +244,6 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                     role: 'user',
                     parts: [{ text: `[系统通知：距离上次互动已经过去了${bgTimeGapStr}。请严格结合你的【角色设定】、【与当前用户的关系亲密度】与【当前的聊天上下文内容和氛围】，综合判断是否需要对这段时间的流逝作出反应以及是否自然地延续对话（例如：若是闲聊，可自然延续话题或者发起新话题，若是之前在争吵，请延续情绪或主动破冰），绝对不要每次都机械地抱怨或提及对方消失了多久，保持活人的真实沟通节奏。]` }]
                 });
-            }
-
-            // 用户主动发消息：阅后即焚时间感知（仅注入本次 payload，绝不写入历史）；与「点继续」路径互斥，避免与静默时长重复；与「迟点请求回复」互斥（优先后者）
-            if (!isBackground && chat.timePerceptionEnabled && contents.length > 0 && !needsChannelContinuePrivate && !needsReplyLatencyTimePerceptionPrivate) {
-                const histLen = historySlice.length;
-                if (histLen >= 2) {
-                    const latestMsgTime = historySlice[histLen - 1].timestamp;
-                    const prevMsgTime   = historySlice[histLen - 2].timestamp;
-                    const timeDiff = latestMsgTime - prevMsgTime;
-                    if (timeDiff > TIME_PERCEPTION_GAP_MS) {
-                        const timeGapStr  = formatTimeGap(timeDiff);
-                        const lastContent = contents[contents.length - 1];
-                        if (lastContent && lastContent.parts && lastContent.parts.length > 0) {
-                            if (lastContent.parts[0].text) {
-                                const timeNoticeGemini = `[系统通知：距离上一次对话已经过去了${timeGapStr}。请严格结合你的【角色性格】、【与当前用户的关系亲密度】、以及【当前的聊天上下文内容与氛围】（例如：你们是在日常闲聊、争吵冷战、还是暧昧拉扯等情况），综合判断是否需要对这段时间的流逝作出反应。绝不能每次都机械地询问对方去向，必须保持真人沟通的逻辑连贯性与自然边界感。]\n\n`;
-                                lastContent.parts[0].text = timeNoticeGemini + lastContent.parts[0].text;
-                            } else {
-                                lastContent.parts.unshift({ text: timeNoticeGemini });
-                            }
-                        }
-                    }
-                }
             }
 
             if (needsReplyLatencyTimePerceptionPrivate && contents.length > 0) {
@@ -276,31 +323,6 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                     role: 'user',
                     content: `[系统通知：距离上次互动已经过去了${bgTimeGapStr}。请严格结合你的【角色设定】、【与当前用户的关系亲密度】与【当前的聊天上下文内容和氛围】，综合判断是否需要对这段时间的流逝作出反应以及是否自然地延续对话（例如：若是闲聊，可自然延续话题或者发起新话题，若是之前在争吵，请延续情绪或主动破冰），绝对不要每次都机械地抱怨或提及对方消失了多久，保持活人的真实沟通节奏。]`
                 });
-            }
-
-            // 2. 用户主动发消息：阅后即焚时间感知（仅注入本次 payload，绝不写入历史）；与「点继续」路径互斥；与「迟点请求回复」互斥（优先后者）
-            if (!isBackground && chat.timePerceptionEnabled && !needsChannelContinuePrivate && !needsReplyLatencyTimePerceptionPrivate) {
-                const histLen = historySlice.length;
-                if (histLen >= 2) {
-                    const latestMsgTime = historySlice[histLen - 1].timestamp;
-                    const prevMsgTime   = historySlice[histLen - 2].timestamp;
-                    const timeDiff = latestMsgTime - prevMsgTime;
-                    if (timeDiff > TIME_PERCEPTION_GAP_MS) {
-                        const timeGapStr = formatTimeGap(timeDiff);
-                        const timeNotice = `[系统通知：距离上一次对话已经过去了${timeGapStr}。请严格结合你的【角色性格】、【与当前用户的关系亲密度】、以及【当前的聊天上下文内容与氛围】（例如：你们是在日常闲聊、争吵冷战、还是暧昧拉扯等情况），综合判断是否需要对这段时间的流逝作出反应。绝不能每次都机械地询问对方去向，必须保持真人沟通的逻辑连贯性与自然边界感。]\n\n`;
-                        for (let i = messages.length - 1; i >= 0; i--) {
-                            if (messages[i].role === 'user') {
-                                if (typeof messages[i].content === 'string') {
-                                    messages[i].content = timeNotice + messages[i].content;
-                                } else if (Array.isArray(messages[i].content)) {
-                                    const firstText = messages[i].content.find(p => p.type === 'text');
-                                    if (firstText) firstText.text = timeNotice + firstText.text;
-                                }
-                                break;
-                            }
-                        }
-                    }
-                }
             }
 
             if (needsReplyLatencyTimePerceptionPrivate && messages.length > 0) {
@@ -1192,7 +1214,7 @@ p) 求代付: [${character.realName}向${character.myName}发起了代付请求:
     
     prompt += `18. **多种特殊消息格式的使用原则**（包括但不限于送礼物、语音、照片或视频、撤回、转账、商城互动、发起视频或语音通话等；**凡上文第16条「输出格式」清单中已列出的各类格式，除 i）引用、m）内在状态记录等本提示另有硬性规定者外，是否使用、何时使用均按本条判断**，不必在此逐条穷举）：这些是你在本聊天情境里**真实可用的行为**，是否使用、何时使用，须结合**人设、性格、世界观与背景、当前关系与情境**自行判断，像活人一样取舍——情境与人设支撑时**应当果断使用**，不必为追求“少刷”而刻意回避；情境不符或按性格本就不会做时**不要硬凑**。**不要求**每轮都输出多种特殊格式，也**无需**在无新动因时重复堆砌同一种能力。**内在状态记录（m））**每轮**必须**至少一条，见上。**引用（i））**：凡符合第10条（接我的话/段/话题原意）时**必须用 i)**，**禁止**用「至于……」类句式代替；这不叫滥用。滥用是指无必要地堆满无关特殊指令。\n`;
     prompt += `19. **照片/视频（e））与可画性**：在需要发图时，须使用 e) 中三种外壳之一（\`发来的照片/视频\`、\`发来的照片\`、\`发来的视频\`），方括号\`{描述}\`里尽量给出**能指导一张具体画面**的信息：时间地点或室内一角、**光向与色调**、你在画面中的**景别/姿势/视线/表情**、与环境的互动；若**我**在生图页上传了**参考图**，系统会以参考为准呈现五官与整体气质，你只需把「这一刻的戏」写进方括号。不要假设用户能在文字里另读一份外貌设定，画面信息以方括号为出口。\n`;
-    prompt += `20. **e) 与现场分享**：在有「此刻想让你看见我这边的现场」的分享动因时（日常一角、正在做的事、当下的环境、小炫耀、小暧昧、想分享的这一幕等），优先用 e) 发图，把这种「现场感」用画面交给对方。没有这种「分享现场/画面」的动因、只是在叙事、讲理、约事、接情绪、纯文字就够用的时候，不必为显得主动而硬发图。发图是有则发、无则略，不打卡、不刷屏；同一动因、同一场景别拆成多条 e)，动因或现场变了再发下一张。\n`;
+    prompt += `20. **e) 与现场分享**：在有**现场、在过日子**，或**有情绪、想暧昧/调情**的时候（如正吃着、练着、忙着、行路、环境一角、手边小物、小暧昧、调情、想嘚瑟或一时兴起**想让你看看我这边**等，**不必穷举**），**更常**往「**想拍给你/发给你看看、想让你看见我这边的现场**」这条心路上想；**不必**等很了不得的大时刻，**大小、很碎的一眼**也能是。**发一张**也可以是在**吵架、争执、闹别扭**、想**哄人、道歉、求饶、示好**、当**辅助**时用的手段，**不是**只有和平聊、只讲理、说事时才能用图。**要**用画面递这一下时，用 e)；e) 的写法与可画性见上第 19 条。**有**则发，**无**则略。\n`;
     prompt += `</Chatting Guidelines>\n`
     
     if (character.myName) {

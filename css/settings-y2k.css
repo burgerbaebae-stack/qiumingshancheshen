@@ -400,11 +400,11 @@
     padding: 0 0 14px;
     overflow: hidden;
 }
-/* 居中标题 + 右上角关闭（略大、略下移） */
+/* 居中标题 + 右上关闭：与主按钮（完成/保存）同款小方块 */
 .y2k-editor-modal-head {
     position: relative;
     flex-shrink: 0;
-    padding: 16px 52px 12px;
+    padding: 14px 42px 12px;
     text-align: center;
     border-bottom: 1px solid rgba(255, 141, 161, 0.2);
 }
@@ -418,27 +418,38 @@
 }
 .y2k-editor-modal-close {
     position: absolute;
-    top: 14px;
-    right: 12px;
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    border: 2px solid rgba(255, 255, 255, 0.28);
-    background: rgba(0, 0, 0, 0.45);
-    color: #fff;
-    font-size: 28px;
-    line-height: 1;
-    font-weight: 300;
-    padding: 0 0 4px 0;
+    top: max(8px, env(safe-area-inset-top, 0px));
+    right: max(8px, env(safe-area-inset-right, 0px));
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    border: 2px solid var(--y2k-black) !important;
+    background: var(--y2k-pink) !important;
+    color: var(--y2k-black) !important;
+    font-size: 19px;
+    font-weight: 900;
+    line-height: 0;
+    padding: 0;
+    box-shadow: 2px 2px 0 var(--y2k-black);
+    text-shadow: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s, transform 0.1s;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.1s;
+}
+.y2k-editor-modal-close:hover {
+    background: var(--y2k-dark-pink) !important;
+    color: var(--y2k-black) !important;
+    border-color: var(--y2k-black) !important;
+    box-shadow: 2px 2px 0 var(--y2k-black);
 }
 .y2k-editor-modal-close:active {
-    transform: scale(0.96);
-    background: rgba(255, 141, 161, 0.15);
+    background: var(--y2k-pink) !important;
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--y2k-black);
 }
 .y2k-persona-editor-text {
     flex: 1;
@@ -455,6 +466,11 @@
     resize: none;
     width: auto;
     min-height: 240px;
+}
+/* 消息编辑弹层内 textarea 与表单边距由表单 padding 控制 */
+#message-edit-modal .y2k-persona-editor-text {
+    margin: 0;
+    min-height: 150px;
 }
 .y2k-persona-editor-done {
     margin: 0 14px 0;
@@ -838,13 +854,36 @@
     font-weight: 900;
     letter-spacing: 1px;
 }
+/* 与 .y2k-editor-modal-close 同款（装备箱标题行内为 flex，非 absolute） */
 .y2k-bs-close {
-    color: #fff;
-    font-size: 24px;
-    background: none;
-    border: none;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    border: 2px solid var(--y2k-black) !important;
+    background: var(--y2k-pink) !important;
+    color: var(--y2k-black) !important;
+    font-size: 19px;
+    font-weight: 900;
+    line-height: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 2px 2px 0 var(--y2k-black);
     cursor: pointer;
-    padding: 0 10px;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.1s;
+    -webkit-tap-highlight-color: transparent;
+}
+.y2k-bs-close:hover {
+    background: var(--y2k-dark-pink) !important;
+    border-color: var(--y2k-black) !important;
+    box-shadow: 2px 2px 0 var(--y2k-black);
+}
+.y2k-bs-close:active {
+    background: var(--y2k-pink) !important;
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--y2k-black);
 }
 
 .y2k-bs-grid {

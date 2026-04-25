@@ -19,16 +19,26 @@ function y2kSyncPersonaPreviews() {
 function initY2kChatSettingsPersonaUi() {
     const edChar = document.getElementById('y2k-persona-editor-char');
     const edUser = document.getElementById('y2k-persona-editor-user');
+    const charTa = document.getElementById('setting-char-persona');
+    const userTa = document.getElementById('setting-my-persona');
+    /** 全屏编辑打开时的人设草稿快照；仅点「完成」时保留，点 ×/蒙层 恢复 */
+    const draftSnapshot = { char: '', user: '' };
     if (!edChar) return;
     const open = (which) => {
         y2kSyncPersonaPreviews();
+        if (which === 'char' && charTa) draftSnapshot.char = charTa.value;
+        if (which === 'user' && userTa) draftSnapshot.user = userTa.value;
         const el = which === 'char' ? edChar : edUser;
         el.classList.add('is-open');
         el.setAttribute('aria-hidden', 'false');
     };
-    const close = (which) => {
-        const el = which === 'char' ? edChar : edUser;
+    const close = (which, commit) => {
+        if (!commit) {
+            if (which === 'char' && charTa) charTa.value = draftSnapshot.char;
+            if (which === 'user' && userTa) userTa.value = draftSnapshot.user;
+        }
         y2kSyncPersonaPreviews();
+        const el = which === 'char' ? edChar : edUser;
         el.classList.remove('is-open');
         el.setAttribute('aria-hidden', 'true');
     };
@@ -40,14 +50,20 @@ function initY2kChatSettingsPersonaUi() {
     document.getElementById('y2k-user-persona-snippet')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open('user'); }
     });
-    document.querySelectorAll('[data-persona-editor-close]').forEach((el) => {
+    document.querySelectorAll('[data-persona-editor-cancel]').forEach((el) => {
         el.addEventListener('click', () => {
-            const w = el.getAttribute('data-persona-editor-close');
-            if (w) close(w);
+            const w = el.getAttribute('data-persona-editor-cancel');
+            if (w) close(w, false);
         });
     });
-    document.getElementById('setting-char-persona')?.addEventListener('input', y2kSyncPersonaPreviews);
-    document.getElementById('setting-my-persona')?.addEventListener('input', y2kSyncPersonaPreviews);
+    document.querySelectorAll('[data-persona-editor-done]').forEach((el) => {
+        el.addEventListener('click', () => {
+            const w = el.getAttribute('data-persona-editor-done');
+            if (w) close(w, true);
+        });
+    });
+    charTa?.addEventListener('input', y2kSyncPersonaPreviews);
+    userTa?.addEventListener('input', y2kSyncPersonaPreviews);
 }
 
 /** 聊天设置 Y2K：首页身份牌 vs 全屏二级设置 */

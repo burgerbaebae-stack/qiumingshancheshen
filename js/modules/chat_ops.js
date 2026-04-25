@@ -64,7 +64,7 @@ function startDebugEdit(messageId) {
 
     const modal = document.getElementById('message-edit-modal');
     const textarea = document.getElementById('message-edit-textarea');
-    const title = modal.querySelector('h3');
+    const title = modal.querySelector('.y2k-editor-modal-title');
     const deleteBtn = document.getElementById('debug-delete-msg-btn'); 
 
     if (!modal.dataset.originalTitle) modal.dataset.originalTitle = title.textContent;
@@ -115,7 +115,8 @@ function startDebugEdit(messageId) {
         });
     }
 
-    modal.classList.add('visible');
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
     textarea.focus();
 }
 
@@ -207,7 +208,8 @@ function startMessageEdit(messageId) {
         timestampGroup.style.display = 'flex';
     }
 
-    modal.classList.add('visible');
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
     textarea.focus();
 }
 
@@ -362,8 +364,9 @@ function cancelMessageEdit() {
     }
 
     if (modal) {
-        modal.classList.remove('visible');
-        const title = modal.querySelector('h3');
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+        const title = modal.querySelector('.y2k-editor-modal-title');
         if (modal.dataset.originalTitle) {
             title.textContent = modal.dataset.originalTitle;
         } else {
