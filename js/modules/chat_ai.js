@@ -20,21 +20,52 @@ function buildFilteredHistorySliceForAi(chat) {
 }
 
 /**
- * 时间感知（B）：在距上一条超过阈值时，于用户本条前插入「剧情式」双条（system-display 展示 + [system:] 入上下文并持久化）；与「点继续」「迟点请求回复」路径互斥。
+ * 自 historySlice[beforeIdx] 向前找「对方」锚点：私聊为最后一条非时间感知条目的 assistant；群聊为 assistant 或「非 user_me 的 user」。
+ * 用于计算「他最后一条 ↔ 我本轮首条」的沉默间隔（跳过本功能已插入的 timePerception 双条）。
+ */
+function findTimePerceptionBAnchorMessage(historySlice, beforeIdx, chatType) {
+    for (let j = beforeIdx - 1; j >= 0; j--) {
+        const m = historySlice[j];
+        if (m.isTimePerceptionContext || m.isTimePerceptionDisplay) continue;
+        if (chatType === 'private' && m.role === 'assistant') return m;
+        if (chatType === 'group') {
+            if (m.role === 'assistant') return m;
+            if (m.role === 'user' && m.senderId && m.senderId !== 'user_me') return m;
+        }
+    }
+    return null;
+}
+
+/**
+ * 时间感知（B）：对方最后一条 → 本轮首条用户话的间隔超阈值时，在本轮首条前入库双条。
+ * 与「迟点请求回复」互斥：若同时满足，只走后者（不入库 B）。非后台。
  * @returns {boolean} 是否插入成功
  */
-function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySlice, needsChannelContinuePrivate, needsReplyLatencyTimePerceptionPrivate) {
+function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySlice, needsReplyLatencyTimePerceptionPrivate) {
     if (isBackground || !chat.timePerceptionEnabled) return false;
-    if (needsChannelContinuePrivate || needsReplyLatencyTimePerceptionPrivate) return false;
+    if (needsReplyLatencyTimePerceptionPrivate) return false;
     const histLen = historySlice.length;
     if (histLen < 2) return false;
-    const last = historySlice[histLen - 1];
-    const prev = historySlice[histLen - 2];
-    if (last.role !== 'user') return false;
-    const timeDiff = last.timestamp - prev.timestamp;
+    if (historySlice[histLen - 1].role !== 'user' || !isUserMessageFromMeInContext(historySlice[histLen - 1], chatType)) {
+        return false;
+    }
+    // 自末尾起连续「我方」的 user 向上扩，取本轮首条
+    let runStart = histLen - 1;
+    while (runStart > 0) {
+        const p = historySlice[runStart - 1];
+        if (p.role === 'user' && isUserMessageFromMeInContext(p, chatType)) runStart--;
+        else break;
+    }
+    const firstUser = historySlice[runStart];
+    if (runStart < 1) return false;
+    if (firstUser && typeof firstUser.timestamp !== 'number') return false;
+    const anchor = findTimePerceptionBAnchorMessage(historySlice, runStart, chatType);
+    if (!anchor || typeof anchor.timestamp !== 'number') return false;
+    const timeDiff = firstUser.timestamp - anchor.timestamp;
     if (timeDiff <= TIME_PERCEPTION_GAP_MS) return false;
-    const pen = chat.history.length >= 2 ? chat.history[chat.history.length - 2] : null;
-    if (pen && pen.isTimePerceptionContext) return false;
+    // 已在 firstUser 前插过，勿重复
+    const headPos = chat.history.findIndex(m => m.id === firstUser.id);
+    if (headPos > 0 && chat.history[headPos - 1].isTimePerceptionContext) return false;
 
     const timeGapStr = formatTimeGap(timeDiff);
     const tpId = `tp_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
@@ -44,7 +75,7 @@ function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySl
         role: 'system',
         content: `[system-display:已过去${timeGapStr}]`,
         parts: [],
-        timestamp: last.timestamp,
+        timestamp: firstUser.timestamp,
         isTimePerceptionDisplay: true,
         timePerceptionPairId: tpId
     };
@@ -53,7 +84,7 @@ function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySl
         role: 'user',
         content: `[system: ${innerForSystem}]`,
         parts: [{ type: 'text', text: `[system: ${innerForSystem}]` }],
-        timestamp: last.timestamp,
+        timestamp: firstUser.timestamp,
         isTimePerceptionContext: true,
         timePerceptionPairId: tpId
     };
@@ -61,13 +92,22 @@ function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySl
         visualMessage.senderId = 'user_me';
         contextMessage.senderId = 'user_me';
     }
-    const insertAt = chat.history.findIndex(m => m.id === last.id);
+    const insertAt = chat.history.findIndex(m => m.id === firstUser.id);
     if (insertAt === -1) {
         chat.history.splice(Math.max(0, chat.history.length - 1), 0, visualMessage, contextMessage);
     } else {
         chat.history.splice(insertAt, 0, visualMessage, contextMessage);
     }
     return true;
+}
+
+/**
+ * 私聊：除 assistant 外皆视为「我」；群聊：senderId 为 user_me 或缺失的 user 视为我方。
+ */
+function isUserMessageFromMeInContext(msg, chatType) {
+    if (msg.role !== 'user') return false;
+    if (chatType === 'private') return true;
+    return !msg.senderId || msg.senderId === 'user_me';
 }
 
 /**
@@ -90,8 +130,8 @@ function buildChannelContinueUserPrompt(historySlice) {
 }
 
 /**
- * 私聊：最后一条为用户消息且距点「请求回复」超过阈值时，prepend 至本次 payload 最后一条 user（不入库）。
- * 与「倒数两条消息间隔」时间感知互斥（优先本段）。
+ * 私聊：最后一条为用户、点「要回复」时墙钟距该条超过阈值 → 仅 prepend 到本次 API 最后一条 user（不入库）。
+ * 与两消息间隔 B 互斥：同时满足时 tryInsert 不执行，只走本段（说明迟点按「要回复」的一方）。
  */
 function buildPrivateReplyLatencyTimeNotice(latencyMs) {
     const timeGapStr = formatTimeGap(latencyMs);
@@ -178,6 +218,12 @@ async function getAiReply(chatId, chatType, isBackground = false) {
         
         let historySlice = buildFilteredHistorySliceForAi(chat);
 
+        /* 时间感知相关（均受总开关等条件约束，此处只列分工）：
+         * 1) 两消息间隔·入库 B：对方最后一条 → 本轮首条用户话，间隔>7 分钟则插灰条；与(2)互斥。
+         * 2) 迟点要回复：私聊、最后一条为用户、点要回复时墙钟距该条>7 分钟，仅本次 API 拼文、不入库；与(1)互斥（优先后者，不插 B）。
+         * 3) 无新消息继续：末条为 assistant 且开续写 → 频道系统续写句；末条非 user 时不走(1)。
+         * 4) 后台自动：isBackground 走另一套「距上次互动」；前台 B 在 isBackground 时直接 return。
+         */
         const needsChannelContinuePrivate =
             !isBackground &&
             chatType === 'private' &&
@@ -195,7 +241,7 @@ async function getAiReply(chatId, chatType, isBackground = false) {
             typeof lastHistMsgForLatency.timestamp === 'number' &&
             (Date.now() - lastHistMsgForLatency.timestamp) > TIME_PERCEPTION_GAP_MS;
 
-        if (tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySlice, needsChannelContinuePrivate, needsReplyLatencyTimePerceptionPrivate)) {
+        if (tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySlice, needsReplyLatencyTimePerceptionPrivate)) {
             historySlice = buildFilteredHistorySliceForAi(chat);
             try {
                 if (typeof saveData === 'function') await saveData();

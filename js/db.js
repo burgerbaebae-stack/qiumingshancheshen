@@ -366,6 +366,7 @@ var currentFolderId = 'all';
 var currentFolderActionTarget = null;
 var currentGroupAction = {type: null, recipients: []};
 var isRawEditMode = false;
+var isPhotoCaptionEditMode = false;
 var currentPomodoroTask = null;
 var pomodoroInterval = null;
 var pomodoroRemainingSeconds = 0;

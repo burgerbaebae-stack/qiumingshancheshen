@@ -2,6 +2,16 @@
 
 let currentMultiSelectMode = 'delete';
 
+const PHOTO_VIDEO_OUTER_RE = /^\[((?:.+?)发来的(?:照片\/视频|照片|视频)[：:])([\s\S]*?)\]$/;
+
+/** 只替换方括号内「照片/视频」类消息的画面描述，保持前缀与外壳不变；失败则返回 null */
+function replacePhotoVideoDescription(content, newDescription) {
+    if (typeof content !== 'string') return null;
+    const m = content.match(PHOTO_VIDEO_OUTER_RE);
+    if (!m) return null;
+    return `[${m[1]}${newDescription}]`;
+}
+
 function handleMessageLongPress(messageWrapper, x, y) {
     if (isInMultiSelectMode) return;
     clearTimeout(longPressTimer);
@@ -27,7 +37,9 @@ function handleMessageLongPress(messageWrapper, x, y) {
     let menuItems = [];
 
     if (!isWithdrawn) {
-        if (!isImageRecognitionMsg && !isVoiceMessage && !isPhotoVideoMessage && !isTransferMessage && !isGiftMessage && !isInvisibleMessage) {
+        if (isPhotoVideoMessage) {
+            menuItems.push({ label: '编辑画面说明', action: () => startPhotoVideoCaptionEdit(messageId) });
+        } else if (!isImageRecognitionMsg && !isVoiceMessage && !isTransferMessage && !isGiftMessage && !isInvisibleMessage) {
             menuItems.push({label: '编辑', action: () => startMessageEdit(messageId)});
         }
         
@@ -56,7 +68,8 @@ function handleMessageLongPress(messageWrapper, x, y) {
 function startDebugEdit(messageId) {
     exitMultiSelectMode();
     editingMessageId = messageId;
-    isRawEditMode = true; 
+    isRawEditMode = true;
+    isPhotoCaptionEditMode = false;
 
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
     const message = chat.history.find(m => m.id === messageId);
@@ -178,6 +191,7 @@ function startMessageEdit(messageId) {
     exitMultiSelectMode();
     editingMessageId = messageId;
     isRawEditMode = false;
+    isPhotoCaptionEditMode = false;
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
     const message = chat.history.find(m => m.id === messageId);
     if (!message) return;
@@ -213,12 +227,70 @@ function startMessageEdit(messageId) {
     textarea.focus();
 }
 
+/**
+ * 仅编辑「照片/视频」方括号内画面说明；保留 message.parts 中的图片，不触发生图。
+ */
+function startPhotoVideoCaptionEdit(messageId) {
+    exitMultiSelectMode();
+    editingMessageId = messageId;
+    isRawEditMode = false;
+    isPhotoCaptionEditMode = true;
+
+    const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
+    const message = chat.history.find(m => m.id === messageId);
+    if (!message) return;
+
+    let desc = '';
+    if (typeof ImageGenModule !== 'undefined' && ImageGenModule.extractScenePrompt) {
+        desc = ImageGenModule.extractScenePrompt(message.content) || '';
+    }
+    if (!desc) {
+        const m = (message.content || '').match(PHOTO_VIDEO_OUTER_RE);
+        if (m) desc = m[2] || '';
+    }
+
+    const modal = document.getElementById('message-edit-modal');
+    const textarea = document.getElementById('message-edit-textarea');
+    const title = modal.querySelector('.y2k-editor-modal-title');
+    if (modal && !modal.dataset.originalTitle) modal.dataset.originalTitle = title.textContent;
+    title.textContent = '编辑画面说明';
+
+    textarea.value = desc;
+
+    const timestampInput = document.getElementById('message-edit-timestamp');
+    const timestampGroup = document.getElementById('message-edit-timestamp-group');
+    if (timestampInput && timestampGroup) {
+        const date = new Date(message.timestamp);
+        const Y = date.getFullYear();
+        const M = String(date.getMonth() + 1).padStart(2, '0');
+        const D = String(date.getDate()).padStart(2, '0');
+        const h = String(date.getHours()).padStart(2, '0');
+        const m = String(date.getMinutes()).padStart(2, '0');
+        timestampInput.value = `${Y}-${M}-${D}T${h}:${m}`;
+        timestampInput.dataset.originalValue = timestampInput.value;
+        timestampGroup.style.display = 'flex';
+    }
+
+    const deleteBtn = document.getElementById('debug-delete-msg-btn');
+    if (deleteBtn) deleteBtn.style.display = 'none';
+
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    textarea.focus();
+}
+
 async function saveMessageEdit() {
-    const newText = document.getElementById('message-edit-textarea').value.trim();
-    if (!newText || !editingMessageId) {
+    const rawInput = document.getElementById('message-edit-textarea').value;
+    if (!editingMessageId) {
         cancelMessageEdit();
         return;
     }
+    if (!isPhotoCaptionEditMode && !rawInput.trim()) {
+        cancelMessageEdit();
+        return;
+    }
+
+    const newText = rawInput.trim();
 
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
     const messageIndex = chat.history.findIndex(m => m.id === editingMessageId);
@@ -227,7 +299,29 @@ async function saveMessageEdit() {
         return;
     }
 
-    if (isRawEditMode) {
+    if (isPhotoCaptionEditMode) {
+        const msg = chat.history[messageIndex];
+        const rebuilt = replacePhotoVideoDescription(msg.content, newText);
+        if (!rebuilt) {
+            if (typeof showToast === 'function') showToast('无法解析照片/消息格式，未保存。');
+            return;
+        }
+        const oldImagePart = msg.parts && msg.parts.find(p => p.type === 'image' && p.data);
+        msg.content = rebuilt;
+        if (oldImagePart) {
+            msg.parts = [
+                { type: 'text', text: rebuilt },
+                { type: 'image', data: oldImagePart.data }
+            ];
+            if (msg.imageGenStatus === 'error') {
+                delete msg.imageGenError;
+            }
+        } else if (msg.parts) {
+            msg.parts = [{ type: 'text', text: rebuilt }];
+        }
+    } else if (isRawEditMode) {
+        const currentMsg = chat.history[messageIndex];
+        const rawSavedImage = currentMsg.parts && currentMsg.parts.find(p => p.type === 'image' && p.data);
         const quoteRegex = /^\[(.*?)引用[“"]([\s\S]*?)[”"]并回复：([\s\S]*?)\]$/;
         const match = newText.match(quoteRegex);
 
@@ -267,8 +361,15 @@ async function saveMessageEdit() {
             chat.history[messageIndex].content = newText;
         }
 
-        if (chat.history[messageIndex].parts) {
-            chat.history[messageIndex].parts = [{type: 'text', text: chat.history[messageIndex].content}];
+        if (currentMsg.parts) {
+            if (rawSavedImage) {
+                currentMsg.parts = [
+                    { type: 'text', text: currentMsg.content },
+                    { type: 'image', data: rawSavedImage.data }
+                ];
+            } else {
+                currentMsg.parts = [{ type: 'text', text: currentMsg.content }];
+            }
         }
     } else {
         const oldContent = chat.history[messageIndex].content;
@@ -351,7 +452,8 @@ async function saveMessageEdit() {
 
 function cancelMessageEdit() {
     editingMessageId = null;
-    isRawEditMode = false; 
+    isRawEditMode = false;
+    isPhotoCaptionEditMode = false;
     const modal = document.getElementById('message-edit-modal');
     const deleteBtn = document.getElementById('debug-delete-msg-btn');
     if (deleteBtn) deleteBtn.style.display = 'none';
