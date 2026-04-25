@@ -1334,8 +1334,9 @@
         <div class="y2k-persona-editor-backdrop" onclick="cancelMessageEdit()"></div>
         <div class="y2k-persona-editor-sheet" style="padding-bottom: env(safe-area-inset-bottom); height: auto; max-height: 80vh;">
             <div class="y2k-editor-modal-head">
-                <button type="button" class="y2k-editor-modal-close" id="cancel-edit-modal-btn" aria-label="关闭">×</button>
+                <span class="y2k-editor-modal-head-spacer" aria-hidden="true"></span>
                 <h2 class="y2k-editor-modal-title">编辑消息</h2>
+                <button type="button" class="y2k-editor-modal-close" id="cancel-edit-modal-btn" aria-label="关闭">×</button>
             </div>
             <form id="message-edit-form" style="display: flex; flex-direction: column; flex: 1; padding: 0 20px 20px 20px; box-sizing: border-box;">
                 <div class="form-group" style="flex: 1; display: flex; flex-direction: column; margin: 0;">
@@ -1579,8 +1580,9 @@
                         <div class="y2k-persona-editor-backdrop" data-persona-editor-cancel="char"></div>
                         <div class="y2k-persona-editor-sheet">
                             <div class="y2k-editor-modal-head">
-                                <button type="button" class="y2k-editor-modal-close" data-persona-editor-cancel="char" aria-label="关闭">×</button>
+                                <span class="y2k-editor-modal-head-spacer" aria-hidden="true"></span>
                                 <h2 class="y2k-editor-modal-title">角色人设</h2>
+                                <button type="button" class="y2k-editor-modal-close" data-persona-editor-cancel="char" aria-label="关闭">×</button>
                             </div>
                             <textarea id="setting-char-persona" class="y2k-persona-editor-text" rows="14" placeholder="详细描述角色性格、背景、说话方式等；点「完成」保留本次编辑，点 × 放弃。写入档案需再点「保存档案」。"></textarea>
                             <button type="button" class="btn y2k-persona-editor-done" data-persona-editor-done="char">完成</button>
@@ -1590,8 +1592,9 @@
                         <div class="y2k-persona-editor-backdrop" data-persona-editor-cancel="user"></div>
                         <div class="y2k-persona-editor-sheet">
                             <div class="y2k-editor-modal-head">
-                                <button type="button" class="y2k-editor-modal-close" data-persona-editor-cancel="user" aria-label="关闭">×</button>
+                                <span class="y2k-editor-modal-head-spacer" aria-hidden="true"></span>
                                 <h2 class="y2k-editor-modal-title">我的人设</h2>
+                                <button type="button" class="y2k-editor-modal-close" data-persona-editor-cancel="user" aria-label="关闭">×</button>
                             </div>
                             <textarea id="setting-my-persona" class="y2k-persona-editor-text" rows="14" placeholder="点「完成」保留本次编辑，点 × 放弃。写入档案需再点「保存档案」。"></textarea>
                             <button type="button" class="btn y2k-persona-editor-done" data-persona-editor-done="user">完成</button>
@@ -1942,8 +1945,9 @@
                     <div class="y2k-mypersona-backdrop" id="y2k-mypersona-backdrop"></div>
                     <div class="y2k-mypersona-sheet" role="dialog" aria-modal="true" aria-labelledby="y2k-mypersona-title">
                         <div class="y2k-editor-modal-head y2k-mypersona-head">
-                            <button type="button" class="y2k-editor-modal-close" id="y2k-mypersona-close" aria-label="关闭">×</button>
+                            <span class="y2k-editor-modal-head-spacer" aria-hidden="true"></span>
                             <h2 class="y2k-editor-modal-title" id="y2k-mypersona-title">人设预设</h2>
+                            <button type="button" class="y2k-editor-modal-close" id="y2k-mypersona-close" aria-label="关闭">×</button>
                         </div>
                         <div class="y2k-mypersona-body">
                             <div class="y2k-mypersona-controls">
