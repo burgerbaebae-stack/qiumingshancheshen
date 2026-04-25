@@ -49,7 +49,7 @@ function buildTimePerceptionBShortForHistory(timeGapStr) {
 
 /**
  * 时间感知（B）：对方最后一条 → 本轮首条用户话的间隔超阈值时，在本轮首条前入库双条（入库仅短事实；长说明见上函数，由 getAiReply 拼到本次请求）。
- * 与「迟点请求回复」互斥：若同时满足，只走后者（不入库 B）。非后台。
+ * 成功后在首条 user 上打 timePerceptionBGapInjected，API 失败重试要回复时不再叠插。与「迟点请求回复」互斥。非后台。
  * @returns {string|null} 成功时返回 timeGapStr，供本轮 prepend 长说明；未插入时 null
  */
 function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySlice, needsReplyLatencyTimePerceptionPrivate) {
@@ -74,9 +74,15 @@ function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySl
     if (!anchor || typeof anchor.timestamp !== 'number') return null;
     const timeDiff = firstUser.timestamp - anchor.timestamp;
     if (timeDiff <= TIME_PERCEPTION_GAP_MS) return null;
-    // 已在 firstUser 前插过，勿重复
+    // 同轮首条用户话已打过标 / 或紧挨前已有 B 双条时不再插（避免 API 失败后重点要回复叠两套）
+    const realUserRef = chat.history.find(m => m.id === firstUser.id);
+    if (realUserRef && realUserRef.timePerceptionBGapInjected) return null;
     const headPos = chat.history.findIndex(m => m.id === firstUser.id);
-    if (headPos > 0 && chat.history[headPos - 1].isTimePerceptionContext) return null;
+    if (headPos < 0) return null;
+    for (let hi = headPos - 1; hi >= 0 && hi >= headPos - 2; hi--) {
+        const m = chat.history[hi];
+        if (m.isTimePerceptionContext || m.isTimePerceptionDisplay) return null;
+    }
 
     const timeGapStr = formatTimeGap(timeDiff);
     const tpId = `tp_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
@@ -109,6 +115,8 @@ function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySl
     } else {
         chat.history.splice(insertAt, 0, visualMessage, contextMessage);
     }
+    const userAfterSplice = chat.history.find(m => m.id === firstUser.id);
+    if (userAfterSplice) userAfterSplice.timePerceptionBGapInjected = true;
     return timeGapStr;
 }
 
