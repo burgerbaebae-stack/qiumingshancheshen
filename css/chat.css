@@ -2049,21 +2049,20 @@
     position: relative; /* 为伪元素定位做准备 */
     
     /* 基础材质：极度透明的玻璃质感，带一点点模糊 */
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
+    background: rgba(255, 255, 255, 0.02); /* 进一步降低背景不透明度 */
+    backdrop-filter: blur(1px); /* 进一步降低模糊度，让边缘更通透 */
+    -webkit-backdrop-filter: blur(1px);
     
     /* 核心：七彩镭射边缘和高光（模拟真实肥皂泡的干涉条纹） */
     box-shadow: 
-        /* 1. 顶部强烈的白色反光点 */
-        inset 0 6px 8px -2px rgba(255, 255, 255, 0.9),
-        /* 2. 内部的七彩折射光（核心灵魂） */
-        inset 0 -4px 12px -2px rgba(255, 105, 180, 0.6), /* 底部粉色 */
-        inset -6px 0 12px -4px rgba(135, 206, 235, 0.5), /* 右侧蓝色 */
-        inset 6px 0 12px -4px rgba(255, 255, 153, 0.5),  /* 左侧黄色 */
-        /* 3. 外部极细的七彩光晕 */
-        0 0 4px 1px rgba(255, 255, 255, 0.4),
-        0 4px 10px rgba(0, 0, 0, 0.05);
+        /* 1. 顶部强烈的白色反光点，减弱边缘的实线感 */
+        inset 0 4px 6px -2px rgba(255, 255, 255, 0.7),
+        /* 2. 内部的七彩折射光（核心灵魂），增加模糊半径，让光晕更柔和散开 */
+        inset 0 -6px 16px -4px rgba(255, 105, 180, 0.5), /* 底部粉色 */
+        inset -8px 0 16px -6px rgba(135, 206, 235, 0.4), /* 右侧蓝色 */
+        inset 8px 0 16px -6px rgba(255, 255, 153, 0.4),  /* 左侧黄色 */
+        /* 3. 外部极细的七彩光晕，去掉黑色阴影，保持轻盈 */
+        0 0 6px 1px rgba(255, 255, 255, 0.3);
         
     display: flex;
     align-items: center;
@@ -2078,27 +2077,27 @@
 .expansion-item-icon::after {
     content: '';
     position: absolute;
-    top: 8%;
-    left: 15%;
-    width: 40%;
-    height: 25%;
+    top: 5%;
+    left: 10%;
+    width: 45%;
+    height: 30%;
     border-radius: 50%;
-    background: radial-gradient(ellipse at center, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
-    transform: rotate(-45deg);
+    /* 高光斑也做得更柔和，边缘羽化更自然 */
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 60%);
+    transform: rotate(-35deg);
     pointer-events: none; /* 防止遮挡点击 */
 }
 
 .expansion-item:hover .expansion-item-icon {
     /* 悬停时稍微变大，七彩光晕增强 */
     transform: scale(1.08);
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
     box-shadow: 
-        inset 0 6px 10px -2px rgba(255, 255, 255, 1),
-        inset 0 -6px 15px -2px rgba(255, 105, 180, 0.8),
-        inset -8px 0 15px -4px rgba(135, 206, 235, 0.7),
-        inset 8px 0 15px -4px rgba(255, 255, 153, 0.7),
-        0 0 8px 2px rgba(255, 255, 255, 0.6),
-        0 6px 15px rgba(0, 0, 0, 0.08);
+        inset 0 6px 12px -2px rgba(255, 255, 255, 0.8),
+        inset 0 -8px 20px -4px rgba(255, 105, 180, 0.7),
+        inset -10px 0 20px -6px rgba(135, 206, 235, 0.6),
+        inset 10px 0 20px -6px rgba(255, 255, 153, 0.6),
+        0 0 10px 2px rgba(255, 255, 255, 0.5);
 }
 
 /* 修复点击动画：必须加在 .expansion-item:active 上，让整个元素跟着缩 */
