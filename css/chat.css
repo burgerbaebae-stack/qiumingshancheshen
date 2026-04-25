@@ -1912,19 +1912,18 @@
     position: static;
     width: 100%;
     height: 0;
-    /* 恢复面板的半透明毛玻璃背景，让泡泡有依托，同时与底栏衔接 */
-    background: rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    border-top: 1px solid rgba(255, 255, 255, 0.4);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+    /* 彻底移除面板的背景色和毛玻璃，让它完全透明，和底栏无缝衔接 */
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-top: none;
+    box-shadow: none;
     z-index: auto;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     transition: height 0.3s cubic-bezier(0.25, 0.8, 0.5, 1);
     flex-shrink: 0;
-    /* 移除圆角，让它和底栏无缝贴合 */
     border-top-left-radius: 0;
     border-top-right-radius: 0;
 }
@@ -1936,7 +1935,7 @@
 #chat-expansion-panel.visible {
     /* 底栏增高后略减面板高度，整体更「低」，少挡消息区 */
     height: 29%;
-    border-top: 1px solid rgba(255, 255, 255, 0.6);
+    border-top: none;
 }
 
 .panel-area {
@@ -2048,21 +2047,26 @@
     border-radius: 50%;
     position: relative; /* 为伪元素定位做准备 */
     
-    /* 基础材质：极度透明的玻璃质感，带一点点模糊 */
-    background: rgba(255, 255, 255, 0.02); /* 进一步降低背景不透明度 */
-    backdrop-filter: blur(1px); /* 进一步降低模糊度，让边缘更通透 */
-    -webkit-backdrop-filter: blur(1px);
+    /* 彻底抛弃背景色，完全依靠阴影和高光来塑造体积 */
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     
-    /* 核心：七彩镭射边缘和高光（模拟真实肥皂泡的干涉条纹） */
+    /* 核心灵魂：用多重 box-shadow 打造极光/镭射干涉条纹，彻底打散边缘 */
     box-shadow: 
-        /* 1. 顶部强烈的白色反光点，减弱边缘的实线感 */
-        inset 0 4px 6px -2px rgba(255, 255, 255, 0.7),
-        /* 2. 内部的七彩折射光（核心灵魂），增加模糊半径，让光晕更柔和散开 */
-        inset 0 -6px 16px -4px rgba(255, 105, 180, 0.5), /* 底部粉色 */
-        inset -8px 0 16px -6px rgba(135, 206, 235, 0.4), /* 右侧蓝色 */
-        inset 8px 0 16px -6px rgba(255, 255, 153, 0.4),  /* 左侧黄色 */
-        /* 3. 外部极细的七彩光晕，去掉黑色阴影，保持轻盈 */
-        0 0 6px 1px rgba(255, 255, 255, 0.3);
+        /* 1. 顶部主高光，极细的白边，模拟水膜反光 */
+        inset 0 2px 4px -1px rgba(255, 255, 255, 0.8),
+        
+        /* 2. 七彩干涉条纹（极光色），大幅度向内偏移并模糊，彻底消除实线感 */
+        /* 偏紫红色的光晕，大面积晕染 */
+        inset -10px -10px 25px -5px rgba(255, 105, 180, 0.3),
+        /* 偏青蓝色的光晕，在另一侧 */
+        inset 10px 10px 25px -5px rgba(0, 255, 255, 0.2),
+        /* 偏黄绿色的光晕，在底部交汇 */
+        inset 0 -15px 30px -8px rgba(200, 255, 0, 0.15),
+        
+        /* 3. 外部极微弱的白色辉光，让泡泡边缘柔和地融入背景 */
+        0 0 10px 0px rgba(255, 255, 255, 0.2);
         
     display: flex;
     align-items: center;
@@ -2078,13 +2082,19 @@
     content: '';
     position: absolute;
     top: 5%;
-    left: 10%;
+    left: 15%;
     width: 45%;
-    height: 30%;
+    height: 35%;
     border-radius: 50%;
-    /* 高光斑也做得更柔和，边缘羽化更自然 */
-    background: radial-gradient(ellipse at center, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 60%);
-    transform: rotate(-35deg);
+    /* 使用双重渐变，模拟那种带有彩虹边缘的高光 */
+    background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.9) 0%,
+        rgba(255, 255, 255, 0.2) 40%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    /* 给高光斑加一点点变形，更贴合球体 */
+    transform: rotate(-40deg) skewX(15deg);
     pointer-events: none; /* 防止遮挡点击 */
 }
 
