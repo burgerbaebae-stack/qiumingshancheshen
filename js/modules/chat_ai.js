@@ -37,17 +37,28 @@ function findTimePerceptionBAnchorMessage(historySlice, beforeIdx, chatType) {
 }
 
 /**
- * 时间感知（B）：对方最后一条 → 本轮首条用户话的间隔超阈值时，在本轮首条前入库双条。
+ * 两消息间隔 B 的长说明：只拼进**当次** API，不入库（库内只保留 `buildTimePerceptionBShortForHistory` 一条）。
+ */
+function buildTimePerceptionBLongInstructionForRequest(timeGapStr) {
+    return `[系统通知：距离上一次对话已经过去了${timeGapStr}。请严格结合你的【角色性格】、【与当前用户的关系亲密度】、以及【当前的聊天上下文内容与氛围】（例如：你们是在日常闲聊、争吵冷战、还是暧昧拉扯等情况），综合判断是否需要对这段时间的流逝作出反应。绝不能每次都机械地询问对方去向，必须保持真人沟通的逻辑连贯性与自然边界感。]\n\n`;
+}
+
+function buildTimePerceptionBShortForHistory(timeGapStr) {
+    return `距离上一次对话已过去${timeGapStr}。`;
+}
+
+/**
+ * 时间感知（B）：对方最后一条 → 本轮首条用户话的间隔超阈值时，在本轮首条前入库双条（入库仅短事实；长说明见上函数，由 getAiReply 拼到本次请求）。
  * 与「迟点请求回复」互斥：若同时满足，只走后者（不入库 B）。非后台。
- * @returns {boolean} 是否插入成功
+ * @returns {string|null} 成功时返回 timeGapStr，供本轮 prepend 长说明；未插入时 null
  */
 function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySlice, needsReplyLatencyTimePerceptionPrivate) {
-    if (isBackground || !chat.timePerceptionEnabled) return false;
-    if (needsReplyLatencyTimePerceptionPrivate) return false;
+    if (isBackground || !chat.timePerceptionEnabled) return null;
+    if (needsReplyLatencyTimePerceptionPrivate) return null;
     const histLen = historySlice.length;
-    if (histLen < 2) return false;
+    if (histLen < 2) return null;
     if (historySlice[histLen - 1].role !== 'user' || !isUserMessageFromMeInContext(historySlice[histLen - 1], chatType)) {
-        return false;
+        return null;
     }
     // 自末尾起连续「我方」的 user 向上扩，取本轮首条
     let runStart = histLen - 1;
@@ -57,19 +68,19 @@ function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySl
         else break;
     }
     const firstUser = historySlice[runStart];
-    if (runStart < 1) return false;
-    if (firstUser && typeof firstUser.timestamp !== 'number') return false;
+    if (runStart < 1) return null;
+    if (firstUser && typeof firstUser.timestamp !== 'number') return null;
     const anchor = findTimePerceptionBAnchorMessage(historySlice, runStart, chatType);
-    if (!anchor || typeof anchor.timestamp !== 'number') return false;
+    if (!anchor || typeof anchor.timestamp !== 'number') return null;
     const timeDiff = firstUser.timestamp - anchor.timestamp;
-    if (timeDiff <= TIME_PERCEPTION_GAP_MS) return false;
+    if (timeDiff <= TIME_PERCEPTION_GAP_MS) return null;
     // 已在 firstUser 前插过，勿重复
     const headPos = chat.history.findIndex(m => m.id === firstUser.id);
-    if (headPos > 0 && chat.history[headPos - 1].isTimePerceptionContext) return false;
+    if (headPos > 0 && chat.history[headPos - 1].isTimePerceptionContext) return null;
 
     const timeGapStr = formatTimeGap(timeDiff);
     const tpId = `tp_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-    const innerForSystem = `系统通知：距离上一次对话已经过去了${timeGapStr}。请严格结合你的【角色性格】、【与当前用户的关系亲密度】、以及【当前的聊天上下文内容与氛围】（例如：你们是在日常闲聊、争吵冷战、还是暧昧拉扯等情况），综合判断是否需要对这段时间的流逝作出反应。绝不能每次都机械地询问对方去向，必须保持真人沟通的逻辑连贯性与自然边界感。`;
+    const shortForHistory = buildTimePerceptionBShortForHistory(timeGapStr);
     const visualMessage = {
         id: `${tpId}_vis`,
         role: 'system',
@@ -82,8 +93,8 @@ function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySl
     const contextMessage = {
         id: `${tpId}_ctx`,
         role: 'user',
-        content: `[system: ${innerForSystem}]`,
-        parts: [{ type: 'text', text: `[system: ${innerForSystem}]` }],
+        content: `[system: ${shortForHistory}]`,
+        parts: [{ type: 'text', text: `[system: ${shortForHistory}]` }],
         timestamp: firstUser.timestamp,
         isTimePerceptionContext: true,
         timePerceptionPairId: tpId
@@ -98,7 +109,7 @@ function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySl
     } else {
         chat.history.splice(insertAt, 0, visualMessage, contextMessage);
     }
-    return true;
+    return timeGapStr;
 }
 
 /**
@@ -219,10 +230,10 @@ async function getAiReply(chatId, chatType, isBackground = false) {
         let historySlice = buildFilteredHistorySliceForAi(chat);
 
         /* 时间感知相关（均受总开关等条件约束，此处只列分工）：
-         * 1) 两消息间隔·入库 B：对方最后一条 → 本轮首条用户话，间隔>7 分钟则插灰条；与(2)互斥。
-         * 2) 迟点要回复：私聊、最后一条为用户、点要回复时墙钟距该条>7 分钟，仅本次 API 拼文、不入库；与(1)互斥（优先后者，不插 B）。
-         * 3) 无新消息继续：末条为 assistant 且开续写 → 频道系统续写句；末条非 user 时不走(1)。
-         * 4) 后台自动：isBackground 走另一套「距上次互动」；前台 B 在 isBackground 时直接 return。
+         * 1) 两消息间隔·B：对方最后一条 → 本轮首条用户话，>7 分钟则插灰条 + 入库短 [system: 已过去X]；长「系统通知+性格亲密度等」只拼在**当次**请求、不入库。与(2)互斥。
+         * 2) 迟点要回复：私聊、点要回复时墙钟距该条>7 分钟，仅当次 API 拼文；与(1)互斥（优先后者）。
+         * 3) 无新消息继续：末条 assistant + 开续写 → 频道续写。末条非 user 则不走(1)。
+         * 4) 后台 isBackground 另一套；前台 B 在 isBackground 不执行。
          */
         const needsChannelContinuePrivate =
             !isBackground &&
@@ -241,7 +252,8 @@ async function getAiReply(chatId, chatType, isBackground = false) {
             typeof lastHistMsgForLatency.timestamp === 'number' &&
             (Date.now() - lastHistMsgForLatency.timestamp) > TIME_PERCEPTION_GAP_MS;
 
-        if (tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySlice, needsReplyLatencyTimePerceptionPrivate)) {
+        const timePerceptionBGapForThisRequest = tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySlice, needsReplyLatencyTimePerceptionPrivate);
+        if (timePerceptionBGapForThisRequest != null) {
             historySlice = buildFilteredHistorySliceForAi(chat);
             try {
                 if (typeof saveData === 'function') await saveData();
@@ -290,6 +302,18 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                     role: 'user',
                     parts: [{ text: `[系统通知：距离上次互动已经过去了${bgTimeGapStr}。请严格结合你的【角色设定】、【与当前用户的关系亲密度】与【当前的聊天上下文内容和氛围】，综合判断是否需要对这段时间的流逝作出反应以及是否自然地延续对话（例如：若是闲聊，可自然延续话题或者发起新话题，若是之前在争吵，请延续情绪或主动破冰），绝对不要每次都机械地抱怨或提及对方消失了多久，保持活人的真实沟通节奏。]` }]
                 });
+            }
+
+            if (!isBackground && timePerceptionBGapForThisRequest && contents.length > 0) {
+                const timeNoticeB = buildTimePerceptionBLongInstructionForRequest(timePerceptionBGapForThisRequest);
+                const lastContentB = contents[contents.length - 1];
+                if (lastContentB && lastContentB.role === 'user' && lastContentB.parts && lastContentB.parts.length > 0) {
+                    if (lastContentB.parts[0].text) {
+                        lastContentB.parts[0].text = timeNoticeB + lastContentB.parts[0].text;
+                    } else {
+                        lastContentB.parts.unshift({ text: timeNoticeB.trimEnd() });
+                    }
+                }
             }
 
             if (needsReplyLatencyTimePerceptionPrivate && contents.length > 0) {
@@ -369,6 +393,22 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                     role: 'user',
                     content: `[系统通知：距离上次互动已经过去了${bgTimeGapStr}。请严格结合你的【角色设定】、【与当前用户的关系亲密度】与【当前的聊天上下文内容和氛围】，综合判断是否需要对这段时间的流逝作出反应以及是否自然地延续对话（例如：若是闲聊，可自然延续话题或者发起新话题，若是之前在争吵，请延续情绪或主动破冰），绝对不要每次都机械地抱怨或提及对方消失了多久，保持活人的真实沟通节奏。]`
                 });
+            }
+
+            if (!isBackground && timePerceptionBGapForThisRequest && messages.length > 0) {
+                const timeNoticeB = buildTimePerceptionBLongInstructionForRequest(timePerceptionBGapForThisRequest);
+                for (let i = messages.length - 1; i >= 0; i--) {
+                    if (messages[i].role === 'user') {
+                        if (typeof messages[i].content === 'string') {
+                            messages[i].content = timeNoticeB + messages[i].content;
+                        } else if (Array.isArray(messages[i].content)) {
+                            const firstText = messages[i].content.find(p => p.type === 'text');
+                            if (firstText) firstText.text = timeNoticeB + firstText.text;
+                            else messages[i].content.unshift({ type: 'text', text: timeNoticeB.trimEnd() });
+                        }
+                        break;
+                    }
+                }
             }
 
             if (needsReplyLatencyTimePerceptionPrivate && messages.length > 0) {
