@@ -365,7 +365,7 @@ function renderChatList() {
                 const urlRegex = /^(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)|data:image\/[a-z]+;base64,)/i;
                 const imageRecogRegex = /\[.*?发来了一张图片：\]/
                 const voiceRegex = /\[.*?的语音：.*?\]/;
-                const photoVideoRegex = /\[.*?发来的(?:照片\/视频|照片|视频)[：:][\s\S]*?\]/;
+                const photoVideoRegex = /\[.*?发来的(?:照片\/视频|照片|视频)(?:·(?:锁脸|空镜|局部))?[：:][\s\S]*?\]/;
                 const transferRegex = /\[.*?的转账：.*?元.*?\]|\[.*?给你转账：.*?元.*?\]|\[.*?向.*?转账：.*?元.*?\]/;
                 const giftRegex = /\[.*?送来的礼物：.*?\]|\[.*?向.*?送来了礼物：.*?\]/;
 
@@ -374,7 +374,7 @@ function renderChatList() {
                 } else if (voiceRegex.test(lastMsg.content)) {
                     lastMessageText = '[语音]';
                 } else if (photoVideoRegex.test(lastMsg.content)) {
-                    lastMessageText = '[照片/视频]';
+                    lastMessageText = '[照片]';
                 } else if (transferRegex.test(lastMsg.content)) {
                     lastMessageText = '[转账]';
                 } else if (imageRecogRegex.test(lastMsg.content) || (lastMsg.parts && lastMsg.parts.some(p => p.type === 'image'))) {

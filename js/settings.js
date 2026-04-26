@@ -16,6 +16,21 @@ function y2kSyncPersonaPreviews() {
     if (userPrev && userTa) userPrev.textContent = y2kTruncatePersonaPreview(userTa.value, 180);
 }
 
+/** 全屏人设编辑点「完成」时写入当前角色并持久化（此前仅改 textarea，未写 db，刷新会丢） */
+async function y2kPersistPersonaOnEditorDone(which) {
+    if (typeof currentChatType === 'undefined' || currentChatType !== 'private' || !currentChatId) return;
+    const e = typeof db !== 'undefined' && db.characters && db.characters.find(c => c.id === currentChatId);
+    if (!e) return;
+    const charTa = document.getElementById('setting-char-persona');
+    const userTa = document.getElementById('setting-my-persona');
+    if (which === 'char' && charTa) e.persona = charTa.value;
+    if (which === 'user' && userTa) e.myPersona = userTa.value;
+    if (typeof saveData === 'function') {
+        await saveData();
+        showToast('人设已保存');
+    }
+}
+
 function initY2kChatSettingsPersonaUi() {
     const edChar = document.getElementById('y2k-persona-editor-char');
     const edUser = document.getElementById('y2k-persona-editor-user');
@@ -59,7 +74,10 @@ function initY2kChatSettingsPersonaUi() {
     document.querySelectorAll('[data-persona-editor-done]').forEach((el) => {
         el.addEventListener('click', () => {
             const w = el.getAttribute('data-persona-editor-done');
-            if (w) close(w, true);
+            if (w) {
+                close(w, true);
+                y2kPersistPersonaOnEditorDone(w);
+            }
         });
     });
     charTa?.addEventListener('input', y2kSyncPersonaPreviews);

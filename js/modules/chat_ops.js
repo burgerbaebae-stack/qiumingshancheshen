@@ -2,9 +2,10 @@
 
 let currentMultiSelectMode = 'delete';
 
-const PHOTO_VIDEO_OUTER_RE = /^\[((?:.+?)发来的(?:照片\/视频|照片|视频)[：:])([\s\S]*?)\]$/;
+// 须与 image_gen.js PHOTO_REGEX 中「发来的…」段一致（含可选 ·锁脸|·空镜|·局部；并兼容旧外壳 照片/视频、视频）
+const PHOTO_VIDEO_OUTER_RE = /^\[((?:.+?)发来的(?:照片\/视频|照片|视频)(?:·(?:锁脸|空镜|局部))?[：:])([\s\S]*?)\]$/;
 
-/** 只替换方括号内「照片/视频」类消息的画面描述，保持前缀与外壳不变；失败则返回 null */
+/** 只替换方括号内「发来的照片」类消息的画面描述，保持前缀与外壳不变；失败则返回 null */
 function replacePhotoVideoDescription(content, newDescription) {
     if (typeof content !== 'string') return null;
     const m = content.match(PHOTO_VIDEO_OUTER_RE);
@@ -26,7 +27,7 @@ function handleMessageLongPress(messageWrapper, x, y) {
 
     const isImageRecognitionMsg = message.parts && message.parts.some(p => p.type === 'image');
     const isVoiceMessage = /\[.*?的语音：.*?\]/.test(message.content);
-    const isPhotoVideoMessage = /\[.*?发来的(?:照片\/视频|照片|视频)[：:][\s\S]*?\]/.test(message.content);
+    const isPhotoVideoMessage = /\[.*?发来的(?:照片\/视频|照片|视频)(?:·(?:锁脸|空镜|局部))?[：:][\s\S]*?\]/.test(message.content);
     const isTransferMessage = /\[.*?给你转账：.*?\]|\[.*?的转账：.*?\]|\[.*?向.*?转账：.*?\]/.test(message.content);
     const isGiftMessage = /\[.*?送来的礼物：.*?\]|\[.*?向.*?送来了礼物：.*?\]/.test(message.content);
     
@@ -160,8 +161,8 @@ function startQuoteReply(messageId) {
         previewContent = textMatch[1];
     } else if (/\[.*?的语音：.*?\]/.test(message.content)) {
         previewContent = '[语音]';
-    } else if (/\[.*?发来的(?:照片\/视频|照片|视频)[：:][\s\S]*?\]/.test(message.content)) {
-        previewContent = '[照片/视频]';
+    } else if (/\[.*?发来的(?:照片\/视频|照片|视频)(?:·(?:锁脸|空镜|局部))?[：:][\s\S]*?\]/.test(message.content)) {
+        previewContent = '[照片]';
     } else if (message.parts && message.parts.some(p => p.type === 'image')) {
         previewContent = '[图片]';
     }
@@ -228,7 +229,7 @@ function startMessageEdit(messageId) {
 }
 
 /**
- * 仅编辑「照片/视频」方括号内画面说明；保留 message.parts 中的图片，不触发生图。
+ * 仅编辑「发来的照片」方括号内画面说明；保留 message.parts 中的图片，不触发生图。
  */
 function startPhotoVideoCaptionEdit(messageId) {
     exitMultiSelectMode();

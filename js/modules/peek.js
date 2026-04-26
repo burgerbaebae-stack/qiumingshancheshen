@@ -786,7 +786,7 @@ function generatePeekContentPrompt(char, appType, mainChatContext) {
                 { "type": "video", "imageDescription": "对一段视频的详细文字描述，例如：一段在猫咖撸猫的视频，视频里有一只橘猫在打哈欠。", "description": "角色对这段视频的一句话批注，例如：下次还来这里！" }
               ]
             }
-            请为 ${char.realName} 的相册生成5-8个条目（照片或视频）。内容需要与Ta的人设和我们的聊天上下文高度相关。'imageDescription' 是对这张照片/视频的详细文字描述，它将代替真实的图片展示给用户。'description' 是 ${char.realName} 自己对这张照片/视频的一句话批注，会显示在描述下方。`;
+            请为 ${char.realName} 的相册生成5-8个条目（均为静态配图条目）。内容需要与Ta的人设和我们的聊天上下文高度相关。'imageDescription' 是对这张配图的详细文字描述，它将代替真实的图片展示给用户。'description' 是 ${char.realName} 自己对这张配图的一句话批注，会显示在描述下方。`;
             break;
         case 'memos':
             prompt += `

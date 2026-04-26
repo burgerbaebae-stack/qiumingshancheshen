@@ -929,7 +929,7 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
                     chat.history.push(message);
                     addMessageBubble(message, targetChatId, targetChatType);
 
-                    // ── 生图触发：角色「发来的照片/视频」「发来的照片」「发来的视频」 ──
+                    // ── 生图触发：角色「发来的照片」（兼容旧格式 照片/视频、视频） ──
                     if (
                         typeof ImageGenModule !== 'undefined' &&
                         ImageGenModule.isEnabled() &&
@@ -982,7 +982,7 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
                 const groupTransferRegex = /\[(.*?)\s*向\s*(.*?)\s*转账：([\d.,]+)元；备注：(.*?)\]/;
                 const transferMatch = item.content.match(groupTransferRegex);
 
-                const r = /\[(.*?)((?:的消息|的语音|发来的(?:照片\/视频|照片|视频)))：/;
+                const r = /\[(.*?)((?:的消息|的语音|发来的(?:照片\/视频|照片|视频)(?:·(?:锁脸|空镜|局部))?))[：:]/;
                 const nameMatch = item.content.match(r);
                 
                 if (transferMatch) {
@@ -1042,17 +1042,24 @@ async function handleAiReplyContent(fullResponse, chat, targetChatId, targetChat
  */
 async function _triggerImageGen(message, chat, targetChatId, targetChatType) {
     try {
-        const sceneText = ImageGenModule.extractScenePrompt(message.content);
+        const parsed = ImageGenModule.parsePhotoBlock
+            ? ImageGenModule.parsePhotoBlock(message.content)
+            : null;
+        const sceneText = parsed
+            ? parsed.sceneText
+            : ImageGenModule.extractScenePrompt(message.content);
         if (!sceneText) return;
+        const refMode = parsed && parsed.refMode ? parsed.refMode : 'lock';
 
-        const prompt = ImageGenModule.buildImageGenPrompt(sceneText, chat);
+        const prompt = ImageGenModule.buildImageGenPrompt(sceneText, chat, refMode);
 
         // 标记「生图中」，触发 loading 渲染
         message.imageGenStatus = 'loading';
         message.imageGenPrompt = prompt;
+        message.imageGenRefMode = refMode;
         _refreshMessageBubble(message, targetChatId, targetChatType);
 
-        const dataUrl = await ImageGenModule.generateImageForCharacter(chat, sceneText);
+        const dataUrl = await ImageGenModule.generateImageForCharacter(chat, sceneText, undefined, refMode);
 
         // 写入图片数据
         if (!message.parts) message.parts = [];
@@ -1223,7 +1230,7 @@ function generatePrivateSystemPrompt(character) {
 - [${character.myName}发来了一张图片：]：我给你发送了一张图片，你需要对图片内容做出回应。
 - [${character.myName}送来的礼物：xxx]：我给你送了一个礼物，xxx是礼物的描述。
 - [${character.myName}的语音：xxx]：我给你发送了一段内容为xxx的语音。
-- [${character.myName}发来的照片/视频：xxx]、[${character.myName}发来的照片：xxx] 或 [${character.myName}发来的视频：xxx]（三种等价）：我给你分享了一个描述为xxx的照片或视频。若**我**已在「聊天设置 → 生图」中上传参考图，生图时将以参考图锁定外貌与气质；**方括号内请写清本画面里的场景、光线、动作、表情与氛围（戏）**，外貌细节不必在文字里长写。避免只写笼统一句而缺少可画信息。
+- [${character.myName}发来的照片：xxx]：我给你分享了一张画面描述为 xxx 的配图（实为静态图，并非视频）。若**我**已在「聊天设置 → 生图」中上传参考图，默认会以参考图锁定你的外貌与气质。**发图时可在「照片」与冒号之间加标签**（仅三选一、间隔号 ·）：**·锁脸**（或不写标签，与历史一致）= 需要整张脸/全身出镜或锁脸时；**·空镜**= 画面无真人（静物、环境、动物/机械主体等），勿因垫图强行出现你；**·局部**= 仅手/肢体局部等你未在描述里写脸与全身时，勿补全正脸或全身。**标签只改生图管线，不改变你写画面正文的方式**；正文仍须写清场景、光线、动作/取景与氛围。避免只写笼统一句而缺少可画信息。
 - [${character.myName}给你转账：xxx元；备注：xxx]：我给你转了一笔钱。
 - [${character.myName}向${character.realName}发起了代付请求:金额|商品清单]：我正在向你发起代付请求，希望你为这些商品买单。你需要根据我们当前的关系和你的性格决定是否同意。
 - [${character.myName}为${character.realName}下单了：配送方式|金额|商品清单]：我已经下单购买了商品送给你。
@@ -1259,14 +1266,14 @@ b) [${character.realName}拒绝了${character.myName}的代付请求]
 `;
     
     prompt += `</logic_rules>\n\n`
-    const photoVideoFormat = `e) 照片/视频（三种外壳等价，任选其一）: [${character.realName}发来的照片/视频：{描述}] 或 [${character.realName}发来的照片：{描述}] 或 [${character.realName}发来的视频：{描述}]`;
+    const photoImageFormat = `e) 照片/配图（唯一外壳；输出为静态图）：[${character.realName}发来的照片：{描述}]。「照片」与冒号之间可插入 ·锁脸 / ·空镜 / ·局部 之一（见 logic_rules 第4条），示例：[${character.realName}发来的照片·空镜：{描述}]、[${character.realName}发来的照片·局部：{描述}]、[${character.realName}发来的照片·锁脸：{描述}]`;
  
     let outputFormats = `
 a) 普通消息: [${character.realName}的消息：{消息内容}]
 b) 双语模式下的普通消息（非双语模式请忽略此条）: [${character.realName}的消息：{外语原文}「中文翻译」]
 c) 送我的礼物: [${character.realName}送来的礼物：{礼物描述}]
 d) 语音消息: [${character.realName}的语音：{语音内容}]
-${photoVideoFormat}
+${photoImageFormat}
 f) 给我的转账: [${character.realName}的转账：{金额}元；备注：{备注}]`;
 
     outputFormats += `
@@ -1306,9 +1313,9 @@ p) 求代付: [${character.realName}向${character.myName}发起了代付请求:
     prompt += `<Chatting Guidelines>\n`
     prompt += `17. **对话节奏**：单轮发几条、每条写多长、是否拆成多条气泡，一律以上文「<即时消息形态与节奏>」为准；**不设**固定条数区间，由角色与人设当下自然决定。保持轮与轮之间的随机感，避免每轮条数或结构雷同。\n`;
     
-    prompt += `18. **多种特殊消息格式的使用原则**（包括但不限于送礼物、语音、照片或视频、撤回、转账、商城互动、发起视频或语音通话等；**凡上文第16条「输出格式」清单中已列出的各类格式，除 i）引用、m）内在状态记录等本提示另有硬性规定者外，是否使用、何时使用均按本条判断**，不必在此逐条穷举）：这些是你在本聊天情境里**真实可用的行为**，是否使用、何时使用，须结合**人设、性格、世界观与背景、当前关系与情境**自行判断，像活人一样取舍——情境与人设支撑时**应当果断使用**，不必为追求“少刷”而刻意回避；情境不符或按性格本就不会做时**不要硬凑**。**不要求**每轮都输出多种特殊格式，也**无需**在无新动因时重复堆砌同一种能力。**内在状态记录（m））**每轮**必须**至少一条，见上。**引用（i））**：凡符合第10条（接我的话/段/话题原意）时**必须用 i)**，**禁止**用「至于……」类句式代替；这不叫滥用。滥用是指无必要地堆满无关特殊指令。\n`;
-    prompt += `19. **照片/视频（e））与可画性**：在需要发图时，须使用 e) 中三种外壳之一（\`发来的照片/视频\`、\`发来的照片\`、\`发来的视频\`），方括号\`{描述}\`里尽量给出**能指导一张具体画面**的信息：时间地点或室内一角、**光向与色调**、你在画面中的**景别/姿势/视线/表情**、与环境的互动；若**我**在生图页上传了**参考图**，系统会以参考为准呈现五官与整体气质，你只需把「这一刻的戏」写进方括号。不要假设用户能在文字里另读一份外貌设定，画面信息以方括号为出口。\n`;
-    prompt += `20. **e) 与现场分享**：在有**现场、在过日子**，或**有情绪、想暧昧/调情**的时候（如正吃着、练着、忙着、行路、环境一角、手边小物、小暧昧、调情、想嘚瑟或一时兴起**想让你看看我这边**等，**不必穷举**），**更常**往「**想拍给你/发给你看看、想让你看见我这边的现场**」这条心路上想；**不必**等很了不得的大时刻，**大小、很碎的一眼**也能是。**发一张**也可以是在**吵架、争执、闹别扭**、想**哄人、道歉、求饶、示好**、当**辅助**时用的手段，**不是**只有和平聊、只讲理、说事时才能用图。**要**用画面递这一下时，用 e)；e) 的写法与可画性见上第 19 条。**有**则发，**无**则略。\n`;
+    prompt += `18. **多种特殊消息格式的使用原则**（包括但不限于送礼物、语音、照片/配图、撤回、转账、商城互动、发起视频或语音通话等；**凡上文第16条「输出格式」清单中已列出的各类格式，除 i）引用、m）内在状态记录等本提示另有硬性规定者外，是否使用、何时使用均按本条判断**，不必在此逐条穷举）：这些是你在本聊天情境里**真实可用的行为**，是否使用、何时使用，须结合**人设、性格、世界观与背景、当前关系与情境**自行判断，像活人一样取舍——情境与人设支撑时**应当果断使用**，不必为追求“少刷”而刻意回避；情境不符或按性格本就不会做时**不要硬凑**。**不要求**每轮都输出多种特殊格式，也**无需**在无新动因时重复堆砌同一种能力。**内在状态记录（m））**每轮**必须**至少一条，见上。**引用（i））**：凡符合第10条（接我的话/段/话题原意）时**必须用 i)**，**禁止**用「至于……」类句式代替；这不叫滥用。滥用是指无必要地堆满无关特殊指令。\n`;
+    prompt += `19. **照片（e））与可画性**：在需要发图时，须使用 e) 的 \`发来的照片：\` 格式（系统生成的是**静态配图**，没有视频消息类型），并可按画面需要选用 **·锁脸**（可省略，等同默认）、**·空镜** 或 **·局部**（写在「照片」与冒号之间）。方括号\`{描述}\`里尽量给出**能指导一张具体画面**的信息：时间地点或室内一角、**光向与色调**、**景别/姿势/视线/表情或取景**、与环境的互动。**锁脸/不写标签**且**我**已在生图设置上传**锁脸槽**参考图时，系统以该图锁定五官与整体气质；**·空镜**使用**画风槽**（宜无真人静物/场景图）统一渲染风格；**·局部**优先使用**肢体槽**（宜半身/手部，可裁脸）保持肤色与肢体质感。**不要假设用户能在文字里另读一份外貌设定**，画面信息以方括号为出口。\n`;
+    prompt += `20. **e) 与现场分享**：在有**现场、在过日子**，或**有情绪、想暧昧/调情**的时候（如正吃着、练着、忙着、行路、环境一角、手边小物、小暧昧、调情、想嘚瑟或一时兴起**想让你看看我这边**等，**不必穷举**），**更常**往「**想拍给你/发给你看看、想让你看见我这边的现场**」这条心路上想；**不必**等很了不得的大时刻，**大小、很碎的一眼**也能是。**发一张配图**也可以是在**吵架、争执、闹别扭**、想**哄人、道歉、求饶、示好**、当**辅助**时用的手段，**不是**只有和平聊、只讲理、说事时才能用图。**要**用画面递这一下时，用 e)；e) 的写法与可画性见上第 19 条。**有**则发，**无**则略。\n`;
     prompt += `</Chatting Guidelines>\n`
     
     if (character.myName) {

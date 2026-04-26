@@ -1081,6 +1081,17 @@
     color: rgba(255, 250, 252, 0.72);
     padding: 2px 2px 0;
 }
+/* 生图三槽：纵向排列，单槽预览略缩小以便一屏多看 */
+#chat-settings-screen .y2k-ig-ref-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+#chat-settings-screen .y2k-ig-panel--ref-slot .y2k-ig-ref-frame {
+    max-width: 260px;
+    max-height: min(36vh, 300px);
+    aspect-ratio: 2 / 3;
+}
 #chat-settings-screen .y2k-ig-panel {
     background: rgba(8, 4, 10, 0.55);
     border: 1px solid rgba(255, 141, 161, 0.35);

@@ -688,7 +688,7 @@
                 <!-- ══ 生图全局配置区 ══ -->
                 <div id="ig-global-config">
                     <p class="tts-section-title" style="padding: 18px 0 0 0; font-size:13px; font-weight:600; color:var(--primary-color);">生图全局配置</p>
-                    <p class="tts-section-desc" style="font-size:12px; color:#aaa; margin:0 0 10px 0;">配置 AI 生图服务，开启后角色使用「发来的照片/视频」「发来的照片」或「发来的视频」任一格式将触发生成真实配图。</p>
+                    <p class="tts-section-desc" style="font-size:12px; color:#aaa; margin:0 0 10px 0;">配置 AI 生图服务，开启后角色使用「发来的照片：…」将触发生成真实静态配图。可在「照片」与冒号之间加 <code>·锁脸</code> / <code>·空镜</code> / <code>·局部</code>（不写则等同锁脸），用于控制是否使用本角色参考图垫脸。</p>
                     <div class="kkt-group">
                         <div class="kkt-item">
                             <div class="kkt-item-label">全局总开关</div>
@@ -1400,11 +1400,11 @@
     </div>
     <div id="send-pv-modal" class="modal-overlay">
         <div class="modal-window">
-            <h3>分享照片/视频</h3>
+            <h3>分享照片</h3>
             <form id="send-pv-form">
                 <div class="form-group">
                     <label for="pv-text-input">输入描述</label>
-                    <textarea id="pv-text-input" placeholder="在这里描述你的照片或视频内容..." required
+                    <textarea id="pv-text-input" placeholder="在这里描述你想发送的画面内容…" required
                               rows="4"></textarea>
                 </div>
                 <button type="submit" class="btn btn-primary">发送</button>
@@ -1584,7 +1584,7 @@
                                 <h2 class="y2k-editor-modal-title">角色人设</h2>
                                 <button type="button" class="y2k-editor-modal-close" data-persona-editor-cancel="char" aria-label="关闭">×</button>
                             </div>
-                            <textarea id="setting-char-persona" class="y2k-persona-editor-text" rows="14" placeholder="详细描述角色性格、背景、说话方式等；点「完成」保留本次编辑，点 × 放弃。写入档案需再点「保存档案」。"></textarea>
+                            <textarea id="setting-char-persona" class="y2k-persona-editor-text" rows="14" placeholder="详细描述角色性格、背景、说话方式等。点「完成」会保存到本地；点 × 或蒙层关闭则放弃本次编辑。"></textarea>
                             <button type="button" class="btn y2k-persona-editor-done" data-persona-editor-done="char">完成</button>
                         </div>
                     </div>
@@ -1596,7 +1596,7 @@
                                 <h2 class="y2k-editor-modal-title">我的人设</h2>
                                 <button type="button" class="y2k-editor-modal-close" data-persona-editor-cancel="user" aria-label="关闭">×</button>
                             </div>
-                            <textarea id="setting-my-persona" class="y2k-persona-editor-text" rows="14" placeholder="点「完成」保留本次编辑，点 × 放弃。写入档案需再点「保存档案」。"></textarea>
+                            <textarea id="setting-my-persona" class="y2k-persona-editor-text" rows="14" placeholder="点「完成」会保存到本地；点 × 或蒙层关闭则放弃本次编辑。"></textarea>
                             <button type="button" class="btn y2k-persona-editor-done" data-persona-editor-done="user">完成</button>
                         </div>
                     </div>
@@ -1900,38 +1900,88 @@
 
                     <!-- 【生图】Tab：特工档案风（参考图 + 无参考时关键词） -->
                     <div id="setting-tab-imagegen" class="settings-tab-content y2k-ig-tab">
-                        <p class="y2k-ig-lead">在「更多设置 → API 设置」中配置生图接口后，角色使用「发来的照片/视频」「发来的照片」或「发来的视频」格式会触发生成真实配图。此页设置<strong>本角色</strong>的参考图与无参考时的外貌提示。</p>
+                        <p class="y2k-ig-lead">在「更多设置 → API 设置」中配置生图接口后，角色使用「发来的照片：…」会触发生成真实静态配图。<code>·锁脸</code>（或不写标签）使用<strong>槽①</strong>；<code>·空镜</code>使用<strong>槽②</strong>；<code>·局部</code>优先<strong>槽③</strong>，未设置时回退槽②。每次请求仅上传对应一张参考图。多模态垫图需 Gemini 或支持 edits 的 OpenAI 兼容模型。</p>
 
-                        <section class="y2k-ig-panel" aria-labelledby="y2k-ig-ref-title">
+                        <div class="y2k-ig-ref-slots">
+                        <section class="y2k-ig-panel y2k-ig-panel--ref-slot" aria-labelledby="y2k-ig-ref-title">
                             <div class="y2k-ig-panel-head">
-                                <span class="y2k-ig-panel-tag">ATTACH</span>
-                                <h3 class="y2k-ig-panel-title" id="y2k-ig-ref-title">参考图 · 垫图锁脸</h3>
+                                <span class="y2k-ig-panel-tag">① LOCK</span>
+                                <h3 class="y2k-ig-panel-title" id="y2k-ig-ref-title">锁脸 · 五官参考</h3>
                             </div>
-                            <p class="y2k-ig-panel-desc">上传后，生图以参考人物为准；<strong>方括号里请写本帧的场景、光、动作与神态</strong>（戏），不必在长文里重复五官设定。多模态生图需使用 Gemini 类接口。无参考图时本项不生效。</p>
+                            <p class="y2k-ig-panel-desc">对应 <code>发来的照片·锁脸：</code> 或不写标签。建议正脸大头照；生图以参考人物为准。<strong>方括号里写场景、光、动作与神态</strong>，不必长文重复五官。</p>
                             <div class="y2k-ig-ref-dossier">
                                 <div class="y2k-ig-ref-card">
                                     <div class="y2k-ig-ref-frame" id="y2k-ig-ref-frame" data-has-image="false">
-                                        <img id="setting-ig-ref-preview" class="y2k-ig-ref-preview ig-char-ref-preview" alt="参考图预览" />
+                                        <img id="setting-ig-ref-preview" class="y2k-ig-ref-preview ig-char-ref-preview" alt="锁脸参考预览" />
                                         <div class="y2k-ig-ref-empty" id="y2k-ig-ref-empty" aria-hidden="false">
                                             <span class="y2k-ig-ref-empty-icon" aria-hidden="true">▣</span>
-                                            <span class="y2k-ig-ref-empty-text">未选择参考图<br><small>将用于多模态锁脸</small></span>
+                                            <span class="y2k-ig-ref-empty-text">未选择<br><small>锁脸槽</small></span>
                                         </div>
                                     </div>
                                     <div class="y2k-ig-ref-actions">
                                         <input type="file" id="setting-ig-ref-file" accept="image/*" style="display:none;" />
-                                        <button type="button" class="btn y2k-ig-btn-primary" id="setting-ig-ref-choose">选择参考图</button>
-                                        <button type="button" class="btn y2k-ig-btn-ghost" id="setting-ig-ref-clear">清除参考图</button>
+                                        <button type="button" class="btn y2k-ig-btn-primary" id="setting-ig-ref-choose">选择图片</button>
+                                        <button type="button" class="btn y2k-ig-btn-ghost" id="setting-ig-ref-clear">清除</button>
                                     </div>
                                 </div>
                             </div>
                         </section>
+
+                        <section class="y2k-ig-panel y2k-ig-panel--ref-slot" aria-labelledby="y2k-ig-style-ref-title">
+                            <div class="y2k-ig-panel-head">
+                                <span class="y2k-ig-panel-tag">② SCENE</span>
+                                <h3 class="y2k-ig-panel-title" id="y2k-ig-style-ref-title">空镜 · 画风锚</h3>
+                            </div>
+                            <p class="y2k-ig-panel-desc">对应 <code>发来的照片·空镜：</code>。建议<strong>无真人</strong>的静物/场景图（如机械乌鸦、室内一角），用于统一 3D/CG 渲染气质；不锁脸。</p>
+                            <div class="y2k-ig-ref-dossier">
+                                <div class="y2k-ig-ref-card">
+                                    <div class="y2k-ig-ref-frame" id="y2k-ig-style-ref-frame" data-has-image="false">
+                                        <img id="setting-ig-style-ref-preview" class="y2k-ig-ref-preview ig-char-ref-preview" alt="空镜画风参考预览" />
+                                        <div class="y2k-ig-ref-empty" id="y2k-ig-style-ref-empty" aria-hidden="false">
+                                            <span class="y2k-ig-ref-empty-icon" aria-hidden="true">▣</span>
+                                            <span class="y2k-ig-ref-empty-text">未选择<br><small>空镜槽</small></span>
+                                        </div>
+                                    </div>
+                                    <div class="y2k-ig-ref-actions">
+                                        <input type="file" id="setting-ig-style-ref-file" accept="image/*" style="display:none;" />
+                                        <button type="button" class="btn y2k-ig-btn-primary" id="setting-ig-style-ref-choose">选择图片</button>
+                                        <button type="button" class="btn y2k-ig-btn-ghost" id="setting-ig-style-ref-clear">清除</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="y2k-ig-panel y2k-ig-panel--ref-slot" aria-labelledby="y2k-ig-body-ref-title">
+                            <div class="y2k-ig-panel-head">
+                                <span class="y2k-ig-panel-tag">③ PART</span>
+                                <h3 class="y2k-ig-panel-title" id="y2k-ig-body-ref-title">局部 · 肢体参考</h3>
+                            </div>
+                            <p class="y2k-ig-panel-desc">对应 <code>发来的照片·局部：</code>。建议带手/手臂/躯干的半身（可裁掉脸），用于肤色、肌肉与手型的 3D 质感；不强制出现正脸。</p>
+                            <div class="y2k-ig-ref-dossier">
+                                <div class="y2k-ig-ref-card">
+                                    <div class="y2k-ig-ref-frame" id="y2k-ig-body-ref-frame" data-has-image="false">
+                                        <img id="setting-ig-body-ref-preview" class="y2k-ig-ref-preview ig-char-ref-preview" alt="局部肢体参考预览" />
+                                        <div class="y2k-ig-ref-empty" id="y2k-ig-body-ref-empty" aria-hidden="false">
+                                            <span class="y2k-ig-ref-empty-icon" aria-hidden="true">▣</span>
+                                            <span class="y2k-ig-ref-empty-text">未选择<br><small>局部槽</small></span>
+                                        </div>
+                                    </div>
+                                    <div class="y2k-ig-ref-actions">
+                                        <input type="file" id="setting-ig-body-ref-file" accept="image/*" style="display:none;" />
+                                        <button type="button" class="btn y2k-ig-btn-primary" id="setting-ig-body-ref-choose">选择图片</button>
+                                        <button type="button" class="btn y2k-ig-btn-ghost" id="setting-ig-body-ref-clear">清除</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                        </div>
 
                         <section class="y2k-ig-panel" aria-labelledby="y2k-ig-hint-title">
                             <div class="y2k-ig-panel-head">
                                 <span class="y2k-ig-panel-tag">TEXT</span>
                                 <h3 class="y2k-ig-panel-title" id="y2k-ig-hint-title">无参考图时的短外貌关键词</h3>
                             </div>
-                            <p class="y2k-ig-panel-desc">仅当<strong>未上传</strong>参考图时，会拼到生图提示前（发色、瞳色、画风等短词即可）。<strong>有参考图时以图为主，本框不参与拼接。</strong></p>
+                            <p class="y2k-ig-panel-desc">仅当<strong>当前标签对应的槽位未上传图片</strong>时，会拼到生图提示前（发色、瞳色、画风等短词）。三种槽均有图时本框不参与拼接。</p>
                             <textarea id="setting-ig-no-ref-hint" class="y2k-ig-textarea" rows="4"
                                 placeholder="如：白短发红瞳，偏写实3D成男"></textarea>
                         </section>

@@ -512,7 +512,7 @@ const SearchSystem = {
         
         const urlRegex = /^(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)|data:image\/[a-z]+;base64,)/i;
         const imageRecogRegex = /\[.*?发来了一张图片：\]/;
-        const photoVideoRegex = /\[.*?发来的(?:照片\/视频|照片|视频)[：:][\s\S]*?\]/;
+        const photoVideoRegex = /\[.*?发来的(?:照片\/视频|照片|视频)(?:·(?:锁脸|空镜|局部))?[：:][\s\S]*?\]/;
         const transferRegex = /\[.*?的转账：.*?元.*?\]|\[.*?给你转账：.*?元.*?\]|\[.*?向.*?转账：.*?元.*?\]/;
         const giftRegex = /\[.*?送来的礼物：.*?\]|\[.*?向.*?送来了礼物：.*?\]/;
         const forumShareRegex = /\[论坛分享\]标题：([\s\S]+?)\n摘要：([\s\S]+)/;

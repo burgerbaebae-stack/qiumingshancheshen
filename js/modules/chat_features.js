@@ -54,7 +54,7 @@ function sendMyPhotoVideo(text) {
     setTimeout(() => {
         const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
         const myName = (currentChatType === 'private') ? chat.myName : chat.me.nickname;
-        const content = `[${myName}发来的照片\/视频：${text}]`;
+        const content = `[${myName}发来的照片：${text}]`;
         const message = {
             id: `msg_${Date.now()}`,
             role: 'user',

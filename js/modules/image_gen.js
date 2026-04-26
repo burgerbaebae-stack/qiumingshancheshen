@@ -13,19 +13,36 @@ const ImageGenModule = (() => {
         return !!(cfg.enabled && cfg.url && cfg.key && cfg.model);
     }
 
-    // ── 正则：识别「发来的照片/视频」「发来的照片」「发来的视频」（须把 照片/视频 写在 照片、视频 之前） ──
-    const PHOTO_REGEX = /\[(?:.+?)发来的(?:照片\/视频|照片|视频)[：:]([\s\S]+?)\]/;
+    // ── 正则：识别「发来的照片」及可选标签；仍兼容旧存档里的「发来的照片/视频」「发来的视频」 ──
+    // 可选 ·锁脸 | ·空镜 | ·局部：控制是否使用参考图垫脸（无标签时与历史一致，视为锁脸）
+    const PHOTO_REGEX = /\[(?:.+?)发来的(?:照片\/视频|照片|视频)(?:·(锁脸|空镜|局部))?[：:]([\s\S]+?)\]/;
     /** 文生/垫图文字提示过长时截断，减轻网关/上游异常 */
     const MAX_IG_TEXT_PROMPT_LEN = 16000;
+
+    /** @typedef {'lock'|'scene'|'partial'} ImageGenRefMode */
+
+    /**
+     * 解析「发来的照片」方括号块：画面正文 + 生图参考模式（无标签 → lock）
+     * @returns {{ sceneText: string, refMode: ImageGenRefMode, rawTag: string|null }|null}
+     */
+    function parsePhotoBlock(content) {
+        if (!content) return null;
+        const m = content.match(PHOTO_REGEX);
+        if (!m) return null;
+        const sceneText = (m[2] || '').trim();
+        if (!sceneText) return null;
+        const rawTag = m[1] || null;
+        /** @type {ImageGenRefMode} */
+        const refMode = !rawTag ? 'lock' : { 锁脸: 'lock', 空镜: 'scene', 局部: 'partial' }[rawTag];
+        return { sceneText, refMode, rawTag };
+    }
 
     /**
      * 从消息 content 里抽出「画面描述」，没有则返回 null
      */
     function extractScenePrompt(content) {
-        if (!content) return null;
-        const m = content.match(PHOTO_REGEX);
-        if (!m) return null;
-        return m[1].trim();
+        const p = parsePhotoBlock(content);
+        return p ? p.sceneText : null;
     }
 
     /**
@@ -38,29 +55,90 @@ const ImageGenModule = (() => {
         return parts.join('，');
     }
 
-    /** 角色是否已设有效参考图（data URL） */
-    function hasRefImage(char) {
-        const s = char && char.imageGenRefDataUrl;
+    function _isValidDataUrlRef(s) {
         return typeof s === 'string' && s.startsWith('data:') && s.length > 80;
     }
 
+    /** 槽① 锁脸参考 */
+    function hasRefImage(char) {
+        return _isValidDataUrlRef(char && char.imageGenRefDataUrl);
+    }
+
+    /** 槽② 空镜画风 */
+    function hasStyleRefImage(char) {
+        return _isValidDataUrlRef(char && char.imageGenStyleRefDataUrl);
+    }
+
+    /** 槽③ 局部肢体 */
+    function hasBodyRefImage(char) {
+        return _isValidDataUrlRef(char && char.imageGenBodyRefDataUrl);
+    }
+
     /**
-     * 按角色设置拼接生图提示：有参考时以图锁脸 + 方括号内为戏/场景；无参考时拼短外貌词 + 场景
+     * 本轮实际用于多模态的参考图（每次仅一张）
+     * @returns {{ url: string, kind: 'face'|'style'|'body' }|null}
      */
-    function buildImageGenPrompt(sceneText, char) {
+    function pickCharacterRefForMode(char, refMode) {
+        const mode = refMode || 'lock';
+        if (mode === 'lock' && hasRefImage(char)) {
+            return { url: char.imageGenRefDataUrl, kind: 'face' };
+        }
+        if (mode === 'scene' && hasStyleRefImage(char)) {
+            return { url: char.imageGenStyleRefDataUrl, kind: 'style' };
+        }
+        if (mode === 'partial') {
+            if (hasBodyRefImage(char)) {
+                return { url: char.imageGenBodyRefDataUrl, kind: 'body' };
+            }
+            if (hasStyleRefImage(char)) {
+                return { url: char.imageGenStyleRefDataUrl, kind: 'style' };
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param {string} sceneText
+     * @param {*} char
+     * @param {ImageGenRefMode} [refMode='lock']
+     */
+    function buildImageGenPrompt(sceneText, char, refMode = 'lock') {
         const scene = (sceneText || '').trim();
         if (!scene) return '';
-        if (hasRefImage(char)) {
-            return [
-                '与参考人物为同一人。以下为本次画面内容；请整图重绘、统一光照与风格，避免贴图换底感。表情、动作、氛围按文字描述，气质克制、少油腻感：',
-                scene
-            ].join('\n');
+        const mode = refMode || 'lock';
+        const sceneSuffix = mode === 'scene'
+            ? '\n\n【生图约束】本画面为无真人或全身人像的场景/物体；勿因参考角色设定而在画面中加入未在描述中出现的真人。仅按上文描述生成。'
+            : mode === 'partial'
+                ? '\n\n【生图约束】严格按上文取景；若仅描述身体局部（如手、指、腕等），画面中不得出现面部或完整人像，勿补全全身或正脸。'
+                : '';
+        const sceneWithSuffix = scene + sceneSuffix;
+
+        const picked = pickCharacterRefForMode(char, mode);
+        if (picked) {
+            if (picked.kind === 'face') {
+                return [
+                    '与参考人物为同一人。以下为本次画面内容；请整图重绘、统一光照与风格，避免贴图换底感。表情、动作、氛围按文字描述，气质克制、少油腻感：',
+                    sceneWithSuffix
+                ].join('\n');
+            }
+            if (picked.kind === 'style') {
+                return [
+                    '【参考图说明】附图仅作渲染风格、光影与材质气质参考（如高精度 3D 游戏 CG），不是本帧要绘制的主体。请严格按下列文字生成画面，勿照搬参考图中的具体物体、人物或构图；若附图含人物，本生成图中不得出现该人物。正文以文字为准：',
+                    sceneWithSuffix
+                ].join('\n');
+            }
+            if (picked.kind === 'body') {
+                return [
+                    '【参考图说明】附图用于同一角色肢体、手型、肤色与肌肉的渲染风格与体块参考（3D CG 质感）。取景、姿势、场景与镜头完全以文字为准；若参考图含面部而文字未要求出现脸，则生成图中不得出现完整正对镜头的人脸：',
+                    sceneWithSuffix
+                ].join('\n');
+            }
         }
         const hint = (char && char.imageGenNoRefHint != null && String(char.imageGenNoRefHint).trim())
             ? String(char.imageGenNoRefHint).trim()
             : (char && char.imageAppearanceAnchor) ? String(char.imageAppearanceAnchor).trim() : '';
-        if (hint) return [hint, scene].join('，');
-        return scene;
+        if (hint) return [hint, sceneWithSuffix].join('，');
+        return sceneWithSuffix;
     }
 
     /** Gemini 多模态：参考图 data URL + 文本提示 */
@@ -125,17 +203,25 @@ const ImageGenModule = (() => {
     /**
      * 根据角色设置选择纯文生图或多模态垫图
      */
-    async function generateImageForCharacter(char, sceneText, signal) {
-        const prompt = buildImageGenPrompt(sceneText, char);
-        if (hasRefImage(char)) {
+    /**
+     * @param {*} char
+     * @param {string} sceneText
+     * @param {AbortSignal|null} signal
+     * @param {ImageGenRefMode} [refMode='lock'] 按模式选用槽①/②/③ 之一作为多模态参考（每次一张）
+     */
+    async function generateImageForCharacter(char, sceneText, signal, refMode = 'lock') {
+        const mode = refMode || 'lock';
+        const prompt = buildImageGenPrompt(sceneText, char, mode);
+        const picked = pickCharacterRefForMode(char, mode);
+        if (picked) {
             const cfg = getConfig();
             if (_isGeminiConfig(cfg)) {
-                return await generateWithReferenceDataUrl(char.imageGenRefDataUrl, prompt, signal);
+                return await generateWithReferenceDataUrl(picked.url, prompt, signal);
             }
             if (_supportsOpenAIReferenceEdit(cfg)) {
-                return await generateOpenAIWithReferenceDataUrl(char.imageGenRefDataUrl, prompt, signal);
+                return await generateOpenAIWithReferenceDataUrl(picked.url, prompt, signal);
             }
-            console.warn('[ImageGen] 已设置参考图，但当前模型非 Gemini 且非 gpt-image / dall-e-2 等可垫图模型，将仅使用文字生图。');
+            console.warn('[ImageGen] 已设置本模式参考图，但当前模型非 Gemini 且非 gpt-image / dall-e-2 等可垫图模型，将仅使用文字生图。');
             return await generateImage(prompt, signal);
         }
         return await generateImage(prompt, signal);
@@ -539,13 +625,26 @@ const ImageGenModule = (() => {
         };
     }
 
-    function _syncIgRefFrameHasImage() {
-        const prev = document.getElementById('setting-ig-ref-preview');
-        const frame = document.getElementById('y2k-ig-ref-frame');
-        if (!frame || !prev) return;
-        const src = String(prev.getAttribute('src') || prev.src || '').trim();
+    function _syncIgRefSlot(frame, preview) {
+        if (!frame || !preview) return;
+        const src = String(preview.getAttribute('src') || preview.src || '').trim();
         const has = src.length > 0 && (src.startsWith('data:') || src.startsWith('blob:') || src.startsWith('http'));
         frame.dataset.hasImage = has ? 'true' : 'false';
+    }
+
+    function _syncAllIgRefSlots() {
+        _syncIgRefSlot(
+            document.getElementById('y2k-ig-ref-frame'),
+            document.getElementById('setting-ig-ref-preview')
+        );
+        _syncIgRefSlot(
+            document.getElementById('y2k-ig-style-ref-frame'),
+            document.getElementById('setting-ig-style-ref-preview')
+        );
+        _syncIgRefSlot(
+            document.getElementById('y2k-ig-body-ref-frame'),
+            document.getElementById('setting-ig-body-ref-preview')
+        );
     }
 
     /** 将角色生图相关字段填入聊天设置「生图」Tab */
@@ -555,27 +654,34 @@ const ImageGenModule = (() => {
             ? chat.imageGenNoRefHint
             : (chat.imageAppearanceAnchor || '');
         _setVal('setting-ig-no-ref-hint', hint);
-        const prev = document.getElementById('setting-ig-ref-preview');
-        const ref = chat.imageGenRefDataUrl;
-        if (prev) {
-            if (ref && String(ref).startsWith('data:')) {
-                prev.src = ref;
+
+        const setPrev = (prevId, dataUrl) => {
+            const prev = document.getElementById(prevId);
+            if (!prev) return;
+            if (dataUrl && String(dataUrl).startsWith('data:')) {
+                prev.src = dataUrl;
             } else {
                 prev.removeAttribute('src');
             }
-        }
-        _syncIgRefFrameHasImage();
+        };
+        setPrev('setting-ig-ref-preview', chat.imageGenRefDataUrl);
+        setPrev('setting-ig-style-ref-preview', chat.imageGenStyleRefDataUrl);
+        setPrev('setting-ig-body-ref-preview', chat.imageGenBodyRefDataUrl);
+        _syncAllIgRefSlots();
     }
 
     function saveCharImageGenFromUI(chat) {
         if (!chat) return;
         chat.imageGenNoRefHint = String(_getVal('setting-ig-no-ref-hint') || '').trim();
-        const prev = document.getElementById('setting-ig-ref-preview');
-        if (prev && prev.src && prev.src.startsWith('data:')) {
-            chat.imageGenRefDataUrl = prev.src;
-        } else {
-            chat.imageGenRefDataUrl = '';
-        }
+
+        const readSlot = (previewId) => {
+            const prev = document.getElementById(previewId);
+            if (prev && prev.src && prev.src.startsWith('data:')) return prev.src;
+            return '';
+        };
+        chat.imageGenRefDataUrl = readSlot('setting-ig-ref-preview');
+        chat.imageGenStyleRefDataUrl = readSlot('setting-ig-style-ref-preview');
+        chat.imageGenBodyRefDataUrl = readSlot('setting-ig-body-ref-preview');
     }
 
     /** 兼容旧代码：长框已废弃，读写到新字段时顺带保留旧键供迁移期读取 */
@@ -583,14 +689,10 @@ const ImageGenModule = (() => {
     function saveCharAnchorFromUI(chat) { saveCharImageGenFromUI(chat); }
 
     let _charImageGenTabBound = false;
-    function initCharImageGenTab() {
-        if (_charImageGenTabBound) return;
-        const file = document.getElementById('setting-ig-ref-file');
-        const choose = document.getElementById('setting-ig-ref-choose');
-        const clearBtn = document.getElementById('setting-ig-ref-clear');
-        const prev = document.getElementById('setting-ig-ref-preview');
-        if (!file || !choose) return;
-        _charImageGenTabBound = true;
+
+    function _bindCharRefSlot(slot) {
+        const { file, choose, clearBtn, prev, frame } = slot;
+        if (!file || !choose || !prev || !frame) return;
         choose.addEventListener('click', () => {
             file.value = '';
             file.click();
@@ -602,23 +704,49 @@ const ImageGenModule = (() => {
                 const dataUrl = (typeof compressImage === 'function')
                     ? await compressImage(f, { maxWidth: 1024, maxHeight: 1024, quality: 0.88 })
                     : await _blobToDataUrl(f);
-                if (prev) {
-                    prev.src = dataUrl;
-                }
-                _syncIgRefFrameHasImage();
+                prev.src = dataUrl;
+                _syncIgRefSlot(frame, prev);
             } catch (err) {
                 console.error('[ImageGen] ref file', err);
                 if (typeof showToast === 'function') showToast('图片处理失败，请重试');
             }
         });
-        if (clearBtn && prev) {
+        if (clearBtn) {
             clearBtn.addEventListener('click', () => {
                 file.value = '';
                 prev.removeAttribute('src');
-                _syncIgRefFrameHasImage();
+                _syncIgRefSlot(frame, prev);
             });
         }
-        _syncIgRefFrameHasImage();
+    }
+
+    function initCharImageGenTab() {
+        if (_charImageGenTabBound) return;
+        const lockChoose = document.getElementById('setting-ig-ref-choose');
+        if (!lockChoose) return;
+        _charImageGenTabBound = true;
+        _bindCharRefSlot({
+            file: document.getElementById('setting-ig-ref-file'),
+            choose: lockChoose,
+            clearBtn: document.getElementById('setting-ig-ref-clear'),
+            prev: document.getElementById('setting-ig-ref-preview'),
+            frame: document.getElementById('y2k-ig-ref-frame')
+        });
+        _bindCharRefSlot({
+            file: document.getElementById('setting-ig-style-ref-file'),
+            choose: document.getElementById('setting-ig-style-ref-choose'),
+            clearBtn: document.getElementById('setting-ig-style-ref-clear'),
+            prev: document.getElementById('setting-ig-style-ref-preview'),
+            frame: document.getElementById('y2k-ig-style-ref-frame')
+        });
+        _bindCharRefSlot({
+            file: document.getElementById('setting-ig-body-ref-file'),
+            choose: document.getElementById('setting-ig-body-ref-choose'),
+            clearBtn: document.getElementById('setting-ig-body-ref-clear'),
+            prev: document.getElementById('setting-ig-body-ref-preview'),
+            frame: document.getElementById('y2k-ig-body-ref-frame')
+        });
+        _syncAllIgRefSlots();
     }
 
     function initApiSection() {
@@ -724,9 +852,13 @@ const ImageGenModule = (() => {
     return {
         isEnabled,
         extractScenePrompt,
+        parsePhotoBlock,
         buildPrompt,
         buildImageGenPrompt,
         hasRefImage,
+        hasStyleRefImage,
+        hasBodyRefImage,
+        pickCharacterRefForMode,
         generateImage,
         generateWithReferenceDataUrl,
         generateImageForCharacter,
