@@ -129,6 +129,24 @@ function startDebugEdit(messageId) {
         });
     }
 
+    const regenBtnEl = document.getElementById('debug-regen-image-btn');
+    if (regenBtnEl) {
+        const newRegenBtn = regenBtnEl.cloneNode(true);
+        regenBtnEl.parentNode.replaceChild(newRegenBtn, regenBtnEl);
+        const canShowRegen = typeof ImageGenModule !== 'undefined' && ImageGenModule.isEnabled() &&
+            message.imageGenStatus === 'done' &&
+            message.parts && message.parts.some(p => p.type === 'image' && p.data) &&
+            PHOTO_VIDEO_OUTER_RE.test(message.content || '');
+        if (canShowRegen) {
+            newRegenBtn.style.display = 'block';
+            newRegenBtn.addEventListener('click', async () => {
+                await debugRegenerateImageFromEditor();
+            });
+        } else {
+            newRegenBtn.style.display = 'none';
+        }
+    }
+
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
     textarea.focus();
@@ -274,21 +292,25 @@ function startPhotoVideoCaptionEdit(messageId) {
 
     const deleteBtn = document.getElementById('debug-delete-msg-btn');
     if (deleteBtn) deleteBtn.style.display = 'none';
+    const regenBtnCap = document.getElementById('debug-regen-image-btn');
+    if (regenBtnCap) regenBtnCap.style.display = 'none';
 
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
     textarea.focus();
 }
 
-async function saveMessageEdit() {
+/**
+ * 将弹窗内编辑内容写回当前消息（与保存逻辑一致，不关弹窗）。
+ * @returns {'ok'|'cancel'|'abort'} cancel=关弹窗无保存；abort=校验失败保持弹窗
+ */
+function applyMessageEditFromForm() {
     const rawInput = document.getElementById('message-edit-textarea').value;
     if (!editingMessageId) {
-        cancelMessageEdit();
-        return;
+        return 'cancel';
     }
     if (!isPhotoCaptionEditMode && !rawInput.trim()) {
-        cancelMessageEdit();
-        return;
+        return 'cancel';
     }
 
     const newText = rawInput.trim();
@@ -296,8 +318,7 @@ async function saveMessageEdit() {
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
     const messageIndex = chat.history.findIndex(m => m.id === editingMessageId);
     if (messageIndex === -1) {
-        cancelMessageEdit();
-        return;
+        return 'cancel';
     }
 
     if (isPhotoCaptionEditMode) {
@@ -305,7 +326,7 @@ async function saveMessageEdit() {
         const rebuilt = replacePhotoVideoDescription(msg.content, newText);
         if (!rebuilt) {
             if (typeof showToast === 'function') showToast('无法解析照片/消息格式，未保存。');
-            return;
+            return 'abort';
         }
         const oldImagePart = msg.parts && msg.parts.find(p => p.type === 'image' && p.data);
         msg.content = rebuilt;
@@ -443,12 +464,63 @@ async function saveMessageEdit() {
         }
     }
 
+    return 'ok';
+}
+
+async function saveMessageEdit() {
+    const outcome = applyMessageEditFromForm();
+    if (outcome === 'cancel') {
+        cancelMessageEdit();
+        return;
+    }
+    if (outcome === 'abort') {
+        return;
+    }
+
     await saveData();
     currentPage = 1;
     renderMessages(false, true);
     renderChatList();
-    
+
     cancelMessageEdit();
+}
+
+/** 调试弹窗：先按当前文本写回消息并保存，再关弹窗并触发生图（覆盖配图）。 */
+async function debugRegenerateImageFromEditor() {
+    const outcome = applyMessageEditFromForm();
+    if (outcome === 'cancel') {
+        cancelMessageEdit();
+        return;
+    }
+    if (outcome === 'abort') {
+        return;
+    }
+
+    const msgId = editingMessageId;
+    const chat = (currentChatType === 'private')
+        ? db.characters.find(c => c.id === currentChatId)
+        : db.groups.find(g => g.id === currentChatId);
+    const message = chat && chat.history ? chat.history.find(m => m.id === msgId) : null;
+    if (!message) {
+        cancelMessageEdit();
+        return;
+    }
+
+    await saveData();
+    currentPage = 1;
+    renderMessages(false, true);
+    renderChatList();
+
+    cancelMessageEdit();
+
+    if (typeof ImageGenModule === 'undefined' || !ImageGenModule.isEnabled()) {
+        if (typeof showToast === 'function') showToast('请先在设置中开启生图。');
+        return;
+    }
+    if (typeof _triggerImageGen !== 'function') {
+        return;
+    }
+    await _triggerImageGen(message, chat, currentChatId, currentChatType);
 }
 
 function cancelMessageEdit() {
@@ -458,6 +530,8 @@ function cancelMessageEdit() {
     const modal = document.getElementById('message-edit-modal');
     const deleteBtn = document.getElementById('debug-delete-msg-btn');
     if (deleteBtn) deleteBtn.style.display = 'none';
+    const regenBtnHide = document.getElementById('debug-regen-image-btn');
+    if (regenBtnHide) regenBtnHide.style.display = 'none';
 
     const timestampInput = document.getElementById('message-edit-timestamp');
     const timestampGroup = document.getElementById('message-edit-timestamp-group');
