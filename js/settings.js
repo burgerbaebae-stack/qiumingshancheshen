@@ -794,32 +794,29 @@ function openApiManageModal() {
     list.innerHTML = '';
     const presets = _getApiPresets();
     if (!presets.length) {
-        list.innerHTML = '<p style="color:#888;margin:6px 0;">暂无预设</p>';
+        list.innerHTML = '<p class="api-preset-manage-empty">暂无预设</p>';
     }
     presets.forEach((p, idx) => {
         const row = document.createElement('div');
-        row.style.display = 'flex';
-        row.style.justifyContent = 'space-between';
-        row.style.alignItems = 'center';
-        row.style.padding = '8px 6px';
-        row.style.borderBottom = '1px solid #f6f6f6';
+        row.className = 'api-preset-manage-row';
 
         const left = document.createElement('div');
-        left.style.flex = '1';
-        left.style.minWidth = '0';
-        left.innerHTML = '<div style="font-weight:600;">'+p.name+'</div><div style="font-size:12px;color:#666;margin-top:4px;">' + (p.data && p.data.provider ? ('提供者：'+p.data.provider) : '') + '</div>';
+        left.className = 'api-preset-manage-info';
+        const sub = (p.data && p.data.provider) ? ('<div class="api-preset-manage-sub">提供者：'+p.data.provider+'</div>') : '';
+        left.innerHTML = '<div class="api-preset-manage-name">'+p.name+'</div>'+sub;
 
         const btns = document.createElement('div');
-        btns.style.display = 'flex';
-        btns.style.gap = '6px';
+        btns.className = 'api-preset-manage-btns';
 
         const applyBtn = document.createElement('button');
-        applyBtn.className = 'btn';
+        applyBtn.type = 'button';
+        applyBtn.className = 'btn btn-small api-preset-manage-btn';
         applyBtn.textContent = '应用';
         applyBtn.onclick = function(){ applyApiPreset(p.name); modal.style.display='none'; };
 
         const renameBtn = document.createElement('button');
-        renameBtn.className = 'btn';
+        renameBtn.type = 'button';
+        renameBtn.className = 'btn btn-small api-preset-manage-btn';
         renameBtn.textContent = '重命名';
         renameBtn.onclick = function(){
             const newName = prompt('输入新名称：', p.name);
@@ -832,7 +829,8 @@ function openApiManageModal() {
         };
 
         const delBtn = document.createElement('button');
-        delBtn.className = 'btn';
+        delBtn.type = 'button';
+        delBtn.className = 'btn btn-small api-preset-manage-btn api-preset-manage-btn--del';
         delBtn.textContent = '删除';
         delBtn.onclick = function(){ if(!confirm('确定删除 "'+p.name+'" ?')) return; const all=_getApiPresets(); all.splice(idx,1); _saveApiPresets(all); openApiManageModal(); populateApiSelect(); };
 

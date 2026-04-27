@@ -234,6 +234,24 @@
     background: rgba(255, 255, 255, 0.12) !important;
 }
 
+/*
+ * 桌面 Chrome/Edge（尤其 Windows）原生 <select> 弹层常沿用浅色底，却仍继承上文的 color:#fff，
+ * 结果下拉列表里「白字 + 白底」看不见，只能盲点；iOS/Android 用另一套路由/滚轮，往往正常。
+ * color-scheme: dark 让 UA 以暗色系统控件渲染关闭态与弹层；option 作后备色值。
+ */
+#api-settings-screen .kkt-item-control select,
+#api-settings-screen #api-preset-select,
+#api-settings-screen #tts-preset-select {
+    color-scheme: dark;
+    accent-color: var(--api-y2k-pink);
+}
+#api-settings-screen .kkt-item-control select option,
+#api-settings-screen #api-preset-select option,
+#api-settings-screen #tts-preset-select option {
+    background-color: var(--api-y2k-black);
+    color: #f5f0f2;
+}
+
 /* 生图：测试用提示词（与 kkt 内输入同系，非白底） */
 #api-settings-screen .api-y2k-field-label {
     margin: 14px 0 6px 0;
@@ -516,6 +534,184 @@
 }
 #api-settings-screen .api-preset-actions button {
     flex: 1;
+}
+
+/* ─── API 预设管理弹窗：与 API 页 Y2K 粉黑风一致 ─── */
+#api-presets-modal.api-presets-modal-backdrop {
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5, 5, 8, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+#api-presets-modal .api-presets-modal-window {
+    position: relative;
+    width: 100%;
+    max-width: min(520px, 90vw);
+    padding: 16px 16px 14px;
+    border-radius: 16px;
+    box-sizing: border-box;
+    background: var(--api-y2k-black);
+    border: 2px solid var(--api-y2k-pink);
+    box-shadow:
+        0 0 24px rgba(255, 141, 161, 0.28),
+        0 16px 48px rgba(0, 0, 0, 0.55),
+        inset 0 0 14px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+}
+#api-presets-modal .api-presets-modal-window::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(255, 141, 161, 0.07) 0%, transparent 50%);
+    pointer-events: none;
+    border-radius: 14px;
+}
+#api-presets-modal .api-presets-modal-title,
+#api-presets-modal #api-presets-list,
+#api-presets-modal .api-presets-modal-footer {
+    position: relative;
+    z-index: 1;
+}
+#api-presets-modal .api-presets-modal-title {
+    margin: 0 0 12px 0;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: var(--api-y2k-pink);
+    text-shadow: 0 0 12px rgba(255, 141, 161, 0.35);
+}
+#api-presets-modal #api-presets-list {
+    max-height: min(360px, 50vh);
+    overflow: auto;
+    border: 1px solid rgba(255, 141, 161, 0.38);
+    background: rgba(0, 0, 0, 0.38);
+    padding: 8px 8px 6px;
+    border-radius: 10px;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 141, 161, 0.45) rgba(0, 0, 0, 0.2);
+}
+#api-presets-modal #api-presets-list::-webkit-scrollbar {
+    width: 6px;
+}
+#api-presets-modal #api-presets-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 141, 161, 0.45);
+    border-radius: 3px;
+}
+#api-presets-modal .api-preset-manage-empty {
+    margin: 10px 4px 12px;
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255, 240, 245, 0.45);
+}
+#api-presets-modal .api-preset-manage-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 4px 10px 2px;
+    border-bottom: 1px solid rgba(255, 141, 161, 0.14);
+}
+#api-presets-modal .api-preset-manage-row:last-child {
+    border-bottom: none;
+}
+#api-presets-modal .api-preset-manage-name {
+    font-weight: 700;
+    color: #f5f0f2;
+    line-height: 1.35;
+    word-break: break-word;
+}
+#api-presets-modal .api-preset-manage-sub {
+    font-size: 12px;
+    color: rgba(255, 240, 245, 0.55);
+    margin-top: 4px;
+    line-height: 1.35;
+}
+#api-presets-modal .api-preset-manage-info {
+    flex: 1;
+    min-width: 0;
+}
+#api-presets-modal .api-preset-manage-btns {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex-shrink: 0;
+    justify-content: flex-end;
+    align-items: center;
+}
+#api-presets-modal .api-preset-manage-btn {
+    white-space: nowrap;
+    width: auto !important;
+    flex: 0 0 auto;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    background: var(--api-y2k-black) !important;
+    color: var(--api-y2k-pink) !important;
+    border: 2px solid var(--api-y2k-pink) !important;
+    box-shadow: 0 0 0 1px rgba(255, 141, 161, 0.15) inset;
+    -webkit-tap-highlight-color: transparent;
+}
+#api-presets-modal .api-preset-manage-btn--del {
+    color: #ffc9cf !important;
+    border-color: rgba(255, 150, 160, 0.95) !important;
+    background: rgba(40, 12, 18, 0.6) !important;
+}
+#api-presets-modal .api-preset-manage-btn:active {
+    transform: scale(0.98);
+    opacity: 0.95;
+}
+#api-presets-modal .api-presets-modal-footer {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    justify-content: center;
+}
+#api-presets-modal .api-presets-modal-close {
+    width: auto;
+    min-width: 120px;
+    padding: 9px 22px;
+    font-weight: 800;
+    background: var(--api-y2k-pink) !important;
+    color: var(--api-y2k-black) !important;
+    border: 2px solid var(--api-y2k-black) !important;
+    box-shadow: 0 0 0 1px rgba(255, 141, 161, 0.45);
+}
+
+@media (max-width: 480px) {
+    #api-presets-modal .api-presets-modal-window {
+        max-width: min(340px, 88vw);
+        padding: 12px 12px 10px;
+    }
+    #api-presets-modal #api-presets-list {
+        max-height: min(260px, 42vh);
+        padding: 6px 6px 4px;
+    }
+    #api-presets-modal .api-preset-manage-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 10px 2px 10px 0;
+    }
+    #api-presets-modal .api-preset-manage-btns {
+        justify-content: space-between;
+        width: 100%;
+    }
+    #api-presets-modal .api-preset-manage-btn,
+    #api-presets-modal .api-preset-manage-btn--del {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 7px 6px;
+        font-size: 12px;
+        justify-content: center;
+    }
 }
 
 /* 修复下拉框的箭头颜色 */

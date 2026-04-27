@@ -672,12 +672,12 @@
                             <button id="api-export-presets" class="btn btn-small" style="flex: 1;">导出</button>
                         </div>
                     </div>
-                    <div id="api-presets-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:9999;align-items:center;justify-content:center;">
-                        <div style="width:640px;max-width:94%;background:var(--panel-bg,#fff);padding:16px;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);">
-                            <h3 style="margin:0 0 12px 0;">API 预设管理</h3>
-                            <div id="api-presets-list" style="max-height:360px;overflow:auto;border:1px solid #f0f0f0;padding:8px;border-radius:6px;"></div>
-                            <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
-                                <button id="api-close-modal" class="btn btn-primary">关闭</button>
+                    <div id="api-presets-modal" class="api-presets-modal-backdrop" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;">
+                        <div class="api-presets-modal-window">
+                            <h3 class="api-presets-modal-title">API 预设管理</h3>
+                            <div id="api-presets-list"></div>
+                            <div class="api-presets-modal-footer">
+                                <button id="api-close-modal" type="button" class="btn btn-primary btn-small api-presets-modal-close">关闭</button>
                             </div>
                         </div>
                     </div>
