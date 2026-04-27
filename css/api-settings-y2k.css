@@ -547,9 +547,16 @@
 }
 #api-presets-modal .api-presets-modal-window {
     position: relative;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     max-width: min(520px, 90vw);
+    /* 限制整窗高度，列表在内部滚动，避免小屏下列项被父级 overflow 裁掉却无法滑动 */
+    /* dvh 在部分移动浏览器中扣掉地址栏，比 100vh 更准；有回退 */
+    max-height: min(88vh, 92vh);
+    max-height: min(88dvh, 92dvh);
     padding: 16px 16px 14px;
+    padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
     border-radius: 16px;
     box-sizing: border-box;
     background: var(--api-y2k-black);
@@ -578,6 +585,7 @@
     z-index: 1;
 }
 #api-presets-modal .api-presets-modal-title {
+    flex-shrink: 0;
     margin: 0 0 12px 0;
     font-size: 1rem;
     font-weight: 800;
@@ -586,8 +594,13 @@
     text-shadow: 0 0 12px rgba(255, 141, 161, 0.35);
 }
 #api-presets-modal #api-presets-list {
-    max-height: min(360px, 50vh);
-    overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     border: 1px solid rgba(255, 141, 161, 0.38);
     background: rgba(0, 0, 0, 0.38);
     padding: 8px 8px 6px;
@@ -669,6 +682,7 @@
     opacity: 0.95;
 }
 #api-presets-modal .api-presets-modal-footer {
+    flex-shrink: 0;
     display: flex;
     gap: 8px;
     margin-top: 12px;
@@ -688,10 +702,12 @@
 @media (max-width: 480px) {
     #api-presets-modal .api-presets-modal-window {
         max-width: min(340px, 88vw);
+        max-height: calc(100vh - 24px);
+        max-height: min(88dvh, 100dvh - 24px);
         padding: 12px 12px 10px;
+        padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
     }
     #api-presets-modal #api-presets-list {
-        max-height: min(260px, 42vh);
         padding: 6px 6px 4px;
     }
     #api-presets-modal .api-preset-manage-row {
