@@ -548,8 +548,18 @@ function setApiSettingsView(view) {
         const el = document.getElementById(ids[key]);
         if (el) el.hidden = key !== v;
     });
-    const ttsModal = document.getElementById('tts-preset-modal');
-    if (ttsModal) ttsModal.classList.remove('open');
+    if (typeof window.closeTtsPresetManageModal === 'function') {
+        window.closeTtsPresetManageModal();
+    } else {
+        const ttsModal = document.getElementById('tts-preset-modal');
+        if (ttsModal) ttsModal.style.display = 'none';
+    }
+    if (typeof window.closeIgPresetManageModal === 'function') {
+        window.closeIgPresetManageModal();
+    } else {
+        const igModal = document.getElementById('ig-presets-modal');
+        if (igModal) igModal.style.display = 'none';
+    }
     const apiPresetModal = document.getElementById('api-presets-modal');
     if (apiPresetModal) {
         closeApiPresetManageModal();
@@ -867,21 +877,22 @@ function openApiManageModal() {
         const btns = document.createElement('div');
         btns.className = 'api-preset-manage-btns';
 
-        const applyBtn = document.createElement('button');
-        applyBtn.type = 'button';
-        applyBtn.className = 'btn btn-small api-preset-manage-btn';
-        applyBtn.textContent = '应用';
-        applyBtn.onclick = function(){ applyApiPreset(p.name); closeApiPresetManageModal(); };
-
         const renameBtn = document.createElement('button');
         renameBtn.type = 'button';
         renameBtn.className = 'btn btn-small api-preset-manage-btn';
         renameBtn.textContent = '重命名';
         renameBtn.onclick = function(){
             const newName = prompt('输入新名称：', p.name);
-            if (!newName) return;
+            if (newName == null) return;
+            const trimmed = newName.trim();
+            if (!trimmed) return;
+            if (trimmed === p.name) return;
             const all = _getApiPresets();
-            all[idx].name = newName;
+            if (all.some((x, i) => i !== idx && x.name === trimmed)) {
+                if (typeof showToast === 'function') showToast('已存在同名预设');
+                return;
+            }
+            all[idx].name = trimmed;
             _saveApiPresets(all);
             openApiManageModal();
             populateApiSelect();
@@ -893,35 +904,13 @@ function openApiManageModal() {
         delBtn.textContent = '删除';
         delBtn.onclick = function(){ if(!confirm('确定删除 "'+p.name+'" ?')) return; const all=_getApiPresets(); all.splice(idx,1); _saveApiPresets(all); openApiManageModal(); populateApiSelect(); };
 
-        btns.appendChild(applyBtn); btns.appendChild(renameBtn); btns.appendChild(delBtn);
+        btns.appendChild(renameBtn); btns.appendChild(delBtn);
 
         row.appendChild(left); row.appendChild(btns);
         list.appendChild(row);
     });
     modal.style.display = 'flex';
     lockApiPresetModalBehindScroll();
-}
-
-function exportApiPresets() {
-    const presets = _getApiPresets();
-    const blob = new Blob([JSON.stringify(presets, null, 2)], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'api_presets.json'; document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
-}
-function importApiPresets() {
-    const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.accept = 'application/json';
-    inp.onchange = function(e){
-        const f = e.target.files[0];
-        if (!f) return;
-        const r = new FileReader();
-        r.onload = function(){ try { const data = JSON.parse(r.result); if (Array.isArray(data)) { _saveApiPresets(data); populateApiSelect(); openApiManageModal(); } else alert('文件格式不正确'); } catch(e){ alert('导入失败：'+e.message); } };
-        r.readAsText(f);
-    };
-    inp.click();
 }
 
 function _getBubblePresets() {
@@ -1353,15 +1342,11 @@ function setupPresetFeatures() {
     const applyBtn = document.getElementById('api-apply-preset');
     const select = document.getElementById('api-preset-select');
     const modalClose = document.getElementById('api-close-modal');
-    const importBtn = document.getElementById('api-import-presets');
-    const exportBtn = document.getElementById('api-export-presets');
 
     if (saveBtn) saveBtn.addEventListener('click', saveCurrentApiAsPreset);
     if (manageBtn) manageBtn.addEventListener('click', openApiManageModal);
     if (applyBtn) applyBtn.addEventListener('click', function(){ const v=select.value; if(!v) return showToast('请选择预设'); applyApiPreset(v); });
     if (modalClose) modalClose.addEventListener('click', closeApiPresetManageModal);
-    if (importBtn) importBtn.addEventListener('click', importApiPresets);
-    if (exportBtn) exportBtn.addEventListener('click', exportApiPresets);
     
     const bubbleApplyBtn = document.getElementById('apply-preset-btn');
     const bubbleSaveBtn = document.getElementById('save-preset-btn');

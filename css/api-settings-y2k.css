@@ -241,13 +241,15 @@
  */
 #api-settings-screen .kkt-item-control select,
 #api-settings-screen #api-preset-select,
-#api-settings-screen #tts-preset-select {
+#api-settings-screen #tts-preset-select,
+#api-settings-screen #ig-preset-select {
     color-scheme: dark;
     accent-color: var(--api-y2k-pink);
 }
 #api-settings-screen .kkt-item-control select option,
 #api-settings-screen #api-preset-select option,
-#api-settings-screen #tts-preset-select option {
+#api-settings-screen #tts-preset-select option,
+#api-settings-screen #ig-preset-select option {
     background-color: var(--api-y2k-black);
     color: #f5f0f2;
 }
@@ -431,9 +433,9 @@
     border-radius: 3px;
 }
 
-/* 预设管理区域 */
-#api-settings-screen .api-presets-embedded .api-y2k-preset-box,
+/* 预设管理区域（主 API / TTS 共用 api-y2k-tts-preset 框） */
 #api-settings-screen #api-presets-control,
+#api-settings-screen #ig-presets-control,
 #api-settings-screen .api-y2k-tts-preset {
     background: var(--api-y2k-black) !important;
     background-color: var(--api-y2k-black) !important;
@@ -453,12 +455,14 @@
     text-shadow: 0 0 8px rgba(255, 141, 161, 0.35);
 }
 #api-settings-screen .api-y2k-tts-preset .btn.btn-small,
-#api-settings-screen .api-y2k-tts-preset #tts-apply-preset {
+#api-settings-screen .api-y2k-tts-preset #tts-apply-preset,
+#api-settings-screen .api-y2k-tts-preset #api-apply-preset,
+#api-settings-screen .api-y2k-tts-preset #ig-apply-preset {
     position: relative;
     z-index: 1;
 }
-#api-settings-screen .api-presets-embedded .api-y2k-preset-box::before,
 #api-settings-screen #api-presets-control::before,
+#api-settings-screen #ig-presets-control::before,
 #api-settings-screen .api-y2k-tts-preset::before {
     content: '';
     position: absolute;
@@ -467,7 +471,8 @@
     pointer-events: none;
 }
 #api-settings-screen #api-preset-select,
-#api-settings-screen #tts-preset-select {
+#api-settings-screen #tts-preset-select,
+#api-settings-screen #ig-preset-select {
     background: rgba(255, 255, 255, 0.08) !important;
     background-color: rgba(0, 0, 0, 0.35) !important;
     border: 1px solid rgba(255, 141, 161, 0.45) !important;
@@ -477,10 +482,6 @@
     font-size: 14px;
     width: 100%;
     box-sizing: border-box;
-}
-#api-settings-screen #api-presets-control label {
-    color: rgba(255, 240, 245, 0.92) !important;
-    font-weight: 700;
 }
 #api-settings-screen #temperature-value {
     color: var(--api-y2k-pink) !important;
@@ -542,9 +543,8 @@
     overscroll-behavior: none;
 }
 
-/* ─── API 预设管理弹窗：与 API 页 Y2K 粉黑风一致 ───
-   （DOM 挂 body 上）相对视口铺满，避免在 .api-view-sub 等 overflow 层内时 iOS 出现直角蒙层与圆角内容错位 */
-#api-presets-modal.api-presets-modal-backdrop {
+/* ─── API / TTS 预设管理弹窗：同套 Y2K 粉黑（DOM 均挂 body 下） ─── */
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal).api-presets-modal-backdrop {
     box-sizing: border-box;
     align-items: center;
     justify-content: center;
@@ -564,7 +564,7 @@
     right: 0;
     bottom: 0;
 }
-#api-presets-modal .api-presets-modal-window {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-presets-modal-window {
     position: relative;
     width: 100%;
     max-width: min(480px, 88vw);
@@ -573,7 +573,6 @@
     box-sizing: border-box;
     background: var(--api-y2k-black);
     border: 2px solid var(--api-y2k-pink);
-    /* iOS 上单独开一层，圆角+外发光与桌面一致；加内缘线避免和背景糊成一片 */
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
     transform: translateZ(0);
@@ -584,7 +583,7 @@
         inset 0 0 14px rgba(0, 0, 0, 0.6);
     overflow: hidden;
 }
-#api-presets-modal .api-presets-modal-window::before {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-presets-modal-window::before {
     content: '';
     position: absolute;
     top: 0;
@@ -595,13 +594,13 @@
     pointer-events: none;
     border-radius: 14px;
 }
-#api-presets-modal .api-presets-modal-title,
-#api-presets-modal #api-presets-list,
-#api-presets-modal .api-presets-modal-footer {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-presets-modal-title,
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) :is(#api-presets-list, #tts-preset-list, #ig-preset-list),
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-presets-modal-footer {
     position: relative;
     z-index: 1;
 }
-#api-presets-modal .api-presets-modal-title {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-presets-modal-title {
     margin: 0 0 12px 0;
     font-size: 1rem;
     font-weight: 800;
@@ -609,7 +608,7 @@
     color: var(--api-y2k-pink);
     text-shadow: 0 0 12px rgba(255, 141, 161, 0.35);
 }
-#api-presets-modal #api-presets-list {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) :is(#api-presets-list, #tts-preset-list, #ig-preset-list) {
     max-height: min(360px, 50vh);
     overflow: auto;
     -webkit-overflow-scrolling: touch;
@@ -623,20 +622,20 @@
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 141, 161, 0.45) rgba(0, 0, 0, 0.2);
 }
-#api-presets-modal #api-presets-list::-webkit-scrollbar {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) :is(#api-presets-list, #tts-preset-list, #ig-preset-list)::-webkit-scrollbar {
     width: 6px;
 }
-#api-presets-modal #api-presets-list::-webkit-scrollbar-thumb {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) :is(#api-presets-list, #tts-preset-list, #ig-preset-list)::-webkit-scrollbar-thumb {
     background: rgba(255, 141, 161, 0.45);
     border-radius: 3px;
 }
-#api-presets-modal .api-preset-manage-empty {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-empty {
     margin: 10px 4px 12px;
     text-align: center;
     font-size: 13px;
     color: rgba(255, 240, 245, 0.45);
 }
-#api-presets-modal .api-preset-manage-row {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-row {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
@@ -645,26 +644,26 @@
     padding: 10px 4px 10px 2px;
     border-bottom: 1px solid rgba(255, 141, 161, 0.14);
 }
-#api-presets-modal .api-preset-manage-row:last-child {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-row:last-child {
     border-bottom: none;
 }
-#api-presets-modal .api-preset-manage-name {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-name {
     font-weight: 700;
     color: #f5f0f2;
     line-height: 1.35;
     word-break: break-word;
 }
-#api-presets-modal .api-preset-manage-sub {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-sub {
     font-size: 12px;
     color: rgba(255, 240, 245, 0.55);
     margin-top: 4px;
     line-height: 1.35;
 }
-#api-presets-modal .api-preset-manage-info {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-info {
     flex: 1;
     min-width: 0;
 }
-#api-presets-modal .api-preset-manage-btns {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-btns {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
@@ -673,7 +672,7 @@
     justify-content: flex-end;
     align-items: center;
 }
-#api-presets-modal .api-preset-manage-btn {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-btn {
     white-space: nowrap;
     width: auto !important;
     flex: 0 0 auto;
@@ -686,22 +685,22 @@
     box-shadow: 0 0 0 1px rgba(255, 141, 161, 0.15) inset;
     -webkit-tap-highlight-color: transparent;
 }
-#api-presets-modal .api-preset-manage-btn--del {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-btn--del {
     color: #ffc9cf !important;
     border-color: rgba(255, 150, 160, 0.95) !important;
     background: rgba(40, 12, 18, 0.6) !important;
 }
-#api-presets-modal .api-preset-manage-btn:active {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-btn:active {
     transform: scale(0.98);
     opacity: 0.95;
 }
-#api-presets-modal .api-presets-modal-footer {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-presets-modal-footer {
     display: flex;
     gap: 8px;
     margin-top: 12px;
     justify-content: center;
 }
-#api-presets-modal .api-presets-modal-close {
+:is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-presets-modal-close {
     width: auto;
     min-width: 120px;
     padding: 9px 22px;
@@ -713,45 +712,45 @@
 }
 
 @media (max-width: 480px) {
-    #api-presets-modal .api-presets-modal-window {
+    :is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-presets-modal-window {
         max-width: min(300px, 82vw);
         padding: 9px 10px 8px;
         border-radius: 14px;
     }
-    #api-presets-modal .api-presets-modal-title {
+    :is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-presets-modal-title {
         margin: 0 0 8px 0;
         font-size: 0.9rem;
     }
-    #api-presets-modal #api-presets-list {
+    :is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) :is(#api-presets-list, #tts-preset-list, #ig-preset-list) {
         max-height: min(210px, 34vh);
         padding: 5px 5px 3px;
         border-radius: 8px;
     }
-    #api-presets-modal .api-preset-manage-row {
+    :is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-row {
         flex-direction: column;
         align-items: stretch;
         gap: 6px;
         padding: 8px 2px 8px 0;
     }
-    #api-presets-modal .api-preset-manage-sub {
+    :is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-sub {
         font-size: 11px;
     }
-    #api-presets-modal .api-preset-manage-btns {
+    :is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-btns {
         justify-content: space-between;
         width: 100%;
     }
-    #api-presets-modal .api-preset-manage-btn,
-    #api-presets-modal .api-preset-manage-btn--del {
+    :is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-btn,
+    :is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-preset-manage-btn--del {
         flex: 1 1 0;
         min-width: 0;
         padding: 6px 4px;
         font-size: 11px;
         justify-content: center;
     }
-    #api-presets-modal .api-presets-modal-footer {
+    :is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-presets-modal-footer {
         margin-top: 8px;
     }
-    #api-presets-modal .api-presets-modal-close {
+    :is(#api-presets-modal, #tts-preset-modal, #ig-presets-modal) .api-presets-modal-close {
         min-width: 96px;
         padding: 8px 16px;
         font-size: 14px;

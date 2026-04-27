@@ -756,59 +756,123 @@ const TTSModule = (() => {
         openPresetManager();
     }
 
+    function _getApiSettingsMainScrollEl() {
+        const s = document.getElementById('api-settings-screen');
+        return s && s.querySelector(':scope > .content');
+    }
+
+    let _ttsPresetModalScrollEl = null;
+    let _ttsPresetModalScrollTop = 0;
+    let _ttsPresetModalBodyLock = false;
+    let _ttsPresetModalTouchBlock = null;
+
+    function _onTtsPresetModalTouchMove(e) {
+        const list = document.getElementById('tts-preset-list');
+        if (list && list.contains(e.target)) {
+            return;
+        }
+        e.preventDefault();
+    }
+
+    function lockTtsPresetModalBehindScroll() {
+        if (_ttsPresetModalBodyLock) {
+            return;
+        }
+        _ttsPresetModalBodyLock = true;
+        const el = _getApiSettingsMainScrollEl();
+        _ttsPresetModalScrollEl = el;
+        if (el) {
+            _ttsPresetModalScrollTop = el.scrollTop;
+            el.classList.add('api-presets-modal-open-lock');
+        }
+        const modal = document.getElementById('tts-preset-modal');
+        if (modal) {
+            _ttsPresetModalTouchBlock = _onTtsPresetModalTouchMove;
+            modal.addEventListener('touchmove', _ttsPresetModalTouchBlock, { passive: false });
+        }
+    }
+
+    function closeTtsPresetManageModal() {
+        const modal = document.getElementById('tts-preset-modal');
+        if (modal) {
+            if (_ttsPresetModalTouchBlock) {
+                modal.removeEventListener('touchmove', _ttsPresetModalTouchBlock, { passive: false });
+                _ttsPresetModalTouchBlock = null;
+            }
+            modal.style.display = 'none';
+        }
+        const el = _ttsPresetModalScrollEl;
+        if (el) {
+            el.classList.remove('api-presets-modal-open-lock');
+            if (_ttsPresetModalBodyLock) {
+                el.scrollTop = _ttsPresetModalScrollTop;
+            }
+        }
+        _ttsPresetModalBodyLock = false;
+        _ttsPresetModalScrollEl = null;
+    }
+    if (typeof window !== 'undefined') {
+        window.closeTtsPresetManageModal = closeTtsPresetManageModal;
+    }
+
     /**
-     * 打开预设管理弹窗：展示当前所有预设及垃圾桶删除按钮
+     * 打开预设管理弹窗：与主 API 预设管理同套 UI（Y2K 粉黑 + body 下 fixed）
      */
     function openPresetManager() {
         const modal = document.getElementById('tts-preset-modal');
         const list = document.getElementById('tts-preset-list');
-        const empty = document.getElementById('tts-preset-empty');
-        if (!modal || !list || !empty) return;
+        if (!modal || !list) return;
 
         list.innerHTML = '';
         const presets = _getPresets();
         if (!presets.length) {
-            empty.style.display = 'block';
+            list.innerHTML = '<p class="api-preset-manage-empty">暂无已保存的 TTS 预设。</p>';
         } else {
-            empty.style.display = 'none';
-            presets.forEach(p => {
+            presets.forEach((p, idx) => {
                 const row = document.createElement('div');
-                row.className = 'tts-preset-row';
+                row.className = 'api-preset-manage-row';
                 row.innerHTML = `
-                    <span class="tts-preset-name">${p.name}</span>
-                    <button type="button" class="tts-preset-delete-btn" aria-label="删除预设">
-                        🗑
-                    </button>
+                    <div class="api-preset-manage-info">
+                        <div class="api-preset-manage-name">${p.name}</div>
+                    </div>
+                    <div class="api-preset-manage-btns">
+                        <button type="button" class="btn btn-small api-preset-manage-btn" aria-label="重命名">重命名</button>
+                        <button type="button" class="btn btn-small api-preset-manage-btn api-preset-manage-btn--del" aria-label="删除预设">删除</button>
+                    </div>
                 `;
-                const delBtn = row.querySelector('.tts-preset-delete-btn');
+                const renameBtn = row.querySelector('.api-preset-manage-btn:not(.api-preset-manage-btn--del)');
+                renameBtn.addEventListener('click', () => {
+                    const newName = prompt('输入新名称：', p.name);
+                    if (newName == null) return;
+                    const trimmed = newName.trim();
+                    if (!trimmed) return;
+                    if (trimmed === p.name) return;
+                    const all = _getPresets();
+                    if (all.some((x, i) => i !== idx && x.name === trimmed)) {
+                        if (typeof showToast === 'function') showToast('已存在同名预设');
+                        return;
+                    }
+                    all[idx] = { ...all[idx], name: trimmed };
+                    _savePresets(all);
+                    populatePresetSelect();
+                    const sel = document.getElementById('tts-preset-select');
+                    if (sel && sel.value === p.name) sel.value = trimmed;
+                    openPresetManager();
+                });
+                const delBtn = row.querySelector('.api-preset-manage-btn--del');
                 delBtn.addEventListener('click', () => {
                     if (!confirm('确定是否删除？')) return;
-                    const updated = _getPresets().filter(item => item.name !== p.name);
+                    const updated = _getPresets().filter((item) => item.name !== p.name);
                     _savePresets(updated);
                     populatePresetSelect();
-                    openPresetManager(); // 重新渲染列表
+                    openPresetManager();
                 });
                 list.appendChild(row);
             });
         }
 
-        modal.classList.add('open');
-
-        const closeBtn = document.getElementById('tts-preset-close');
-        if (closeBtn && !closeBtn._ttsBound) {
-            closeBtn._ttsBound = true;
-            closeBtn.addEventListener('click', () => {
-                modal.classList.remove('open');
-            });
-        }
-        if (!modal._ttsOverlayBound) {
-            modal._ttsOverlayBound = true;
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    modal.classList.remove('open');
-                }
-            });
-        }
+        modal.style.display = 'flex';
+        lockTtsPresetModalBehindScroll();
     }
 
     /* ──────────────────────────────────────────────────────────────
@@ -892,6 +956,16 @@ const TTSModule = (() => {
         _bind('tts-save-preset',     'click', () => savePreset());
         _bind('tts-apply-preset',    'click', () => applyPreset());
         _bind('tts-delete-preset',   'click', () => deleteCurrentPreset());
+        _bind('tts-preset-close',    'click', () => closeTtsPresetManageModal());
+        const ttsPresetModal = document.getElementById('tts-preset-modal');
+        if (ttsPresetModal && !ttsPresetModal._ttsBackdropClickBound) {
+            ttsPresetModal._ttsBackdropClickBound = true;
+            ttsPresetModal.addEventListener('click', (e) => {
+                if (e.target === ttsPresetModal) {
+                    closeTtsPresetManageModal();
+                }
+            });
+        }
         // 所有 TTS 表单变更即时写入 localStorage，确保刷新不丢失
         const ids = ['tts-global-switch', 'tts-api-url-select', 'tts-api-key', 'tts-group-id', 'tts-model-select', 'tts-default-voice-id'];
         ids.forEach(id => {
@@ -987,6 +1061,7 @@ const TTSModule = (() => {
         savePreset,
         applyPreset,
         deleteCurrentPreset,
+        closeTtsPresetManageModal,
 
         // 直接暴露 state 供调试（只读用途）
         _state: state,

@@ -518,6 +518,7 @@ const ImageGenModule = (() => {
         } else {
             _setVal('ig-api-model', savedModel);
         }
+        populateIgPresetSelect();
     }
 
     /**
@@ -623,6 +624,177 @@ const ImageGenModule = (() => {
             provider: _getVal('ig-api-provider')  || 'openai',
             size:     _getVal('ig-image-size')    || '1024x1024',
         };
+    }
+
+    function _getIgPresets() {
+        if (typeof db === 'undefined' || !Array.isArray(db.imageGenPresets)) return [];
+        return db.imageGenPresets;
+    }
+
+    function _setIgPresets(arr) {
+        if (typeof db === 'undefined') return;
+        db.imageGenPresets = Array.isArray(arr) ? arr : [];
+        if (typeof saveData === 'function') saveData();
+    }
+
+    function populateIgPresetSelect() {
+        const sel = document.getElementById('ig-preset-select');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">— 选择生图预设 —</option>';
+        _getIgPresets().forEach((p) => {
+            if (!p || !p.name) return;
+            const opt = document.createElement('option');
+            opt.value = p.name;
+            opt.textContent = p.name;
+            sel.appendChild(opt);
+        });
+    }
+
+    function saveIgPreset() {
+        const name = prompt('请输入预设名称：');
+        if (!name || !name.trim()) return;
+        saveFromUI();
+        const cfg = { ...getConfig() };
+        const trimmed = name.trim();
+        const presets = _getIgPresets().slice();
+        const idx = presets.findIndex((p) => p.name === trimmed);
+        const entry = { name: trimmed, data: cfg };
+        if (idx >= 0) presets[idx] = entry;
+        else presets.push(entry);
+        _setIgPresets(presets);
+        populateIgPresetSelect();
+        const sel = document.getElementById('ig-preset-select');
+        if (sel) sel.value = trimmed;
+        if (typeof showToast === 'function') showToast('生图预设已保存！');
+    }
+
+    function applyIgPreset() {
+        const sel = document.getElementById('ig-preset-select');
+        if (!sel || !sel.value) {
+            if (typeof showToast === 'function') showToast('请先选择一个预设');
+            return;
+        }
+        const entry = _getIgPresets().find((p) => p.name === sel.value);
+        if (!entry || !entry.data) return;
+        if (typeof db === 'undefined') return;
+        db.imageGenSettings = { ...(getConfig() || {}), ...entry.data };
+        if (typeof saveData === 'function') saveData();
+        loadToUI();
+        if (typeof showToast === 'function') showToast('生图预设已应用！');
+    }
+
+    function openIgManageModal() {
+        const modal = document.getElementById('ig-presets-modal');
+        const list = document.getElementById('ig-preset-list');
+        if (!modal || !list) return;
+
+        list.innerHTML = '';
+        const presets = _getIgPresets();
+        if (!presets.length) {
+            list.innerHTML = '<p class="api-preset-manage-empty">暂无已保存的生图预设。</p>';
+        } else {
+            presets.forEach((p, idx) => {
+                const row = document.createElement('div');
+                row.className = 'api-preset-manage-row';
+                row.innerHTML = `
+                    <div class="api-preset-manage-info">
+                        <div class="api-preset-manage-name">${p.name}</div>
+                    </div>
+                    <div class="api-preset-manage-btns">
+                        <button type="button" class="btn btn-small api-preset-manage-btn" aria-label="重命名">重命名</button>
+                        <button type="button" class="btn btn-small api-preset-manage-btn api-preset-manage-btn--del" aria-label="删除预设">删除</button>
+                    </div>
+                `;
+                const renameBtn = row.querySelector('.api-preset-manage-btn:not(.api-preset-manage-btn--del)');
+                renameBtn.addEventListener('click', () => {
+                    const newName = prompt('输入新名称：', p.name);
+                    if (newName == null) return;
+                    const trimmed = newName.trim();
+                    if (!trimmed) return;
+                    if (trimmed === p.name) return;
+                    const all = _getIgPresets();
+                    if (all.some((x, i) => i !== idx && x.name === trimmed)) {
+                        if (typeof showToast === 'function') showToast('已存在同名预设');
+                        return;
+                    }
+                    all[idx] = { ...all[idx], name: trimmed };
+                    _setIgPresets(all);
+                    populateIgPresetSelect();
+                    const s = document.getElementById('ig-preset-select');
+                    if (s && s.value === p.name) s.value = trimmed;
+                    openIgManageModal();
+                });
+                const delBtn = row.querySelector('.api-preset-manage-btn--del');
+                delBtn.addEventListener('click', () => {
+                    if (!confirm('确定是否删除？')) return;
+                    const updated = _getIgPresets().filter((item) => item.name !== p.name);
+                    _setIgPresets(updated);
+                    populateIgPresetSelect();
+                    openIgManageModal();
+                });
+                list.appendChild(row);
+            });
+        }
+
+        modal.style.display = 'flex';
+        lockIgPresetModalBehindScroll();
+    }
+
+    function _getApiSettingsMainScrollEl() {
+        const s = document.getElementById('api-settings-screen');
+        return s && s.querySelector(':scope > .content');
+    }
+
+    let _igPresetModalScrollEl = null;
+    let _igPresetModalScrollTop = 0;
+    let _igPresetModalBodyLock = false;
+    let _igPresetModalTouchBlock = null;
+
+    function _onIgPresetModalTouchMove(e) {
+        const list = document.getElementById('ig-preset-list');
+        if (list && list.contains(e.target)) {
+            return;
+        }
+        e.preventDefault();
+    }
+
+    function lockIgPresetModalBehindScroll() {
+        if (_igPresetModalBodyLock) return;
+        _igPresetModalBodyLock = true;
+        const el = _getApiSettingsMainScrollEl();
+        _igPresetModalScrollEl = el;
+        if (el) {
+            _igPresetModalScrollTop = el.scrollTop;
+            el.classList.add('api-presets-modal-open-lock');
+        }
+        const modal = document.getElementById('ig-presets-modal');
+        if (modal) {
+            _igPresetModalTouchBlock = _onIgPresetModalTouchMove;
+            modal.addEventListener('touchmove', _igPresetModalTouchBlock, { passive: false });
+        }
+    }
+
+    function closeIgPresetManageModal() {
+        const modal = document.getElementById('ig-presets-modal');
+        if (modal) {
+            if (_igPresetModalTouchBlock) {
+                modal.removeEventListener('touchmove', _igPresetModalTouchBlock, { passive: false });
+                _igPresetModalTouchBlock = null;
+            }
+            modal.style.display = 'none';
+        }
+        const el = _igPresetModalScrollEl;
+        if (el) {
+            el.classList.remove('api-presets-modal-open-lock');
+            if (_igPresetModalBodyLock) {
+                el.scrollTop = _igPresetModalScrollTop;
+            }
+        }
+        _igPresetModalBodyLock = false;
+        _igPresetModalScrollEl = null;
+    }
+    if (typeof window !== 'undefined') {
+        window.closeIgPresetManageModal = closeIgPresetManageModal;
     }
 
     function _syncIgRefSlot(frame, preview) {
@@ -827,6 +999,32 @@ const ImageGenModule = (() => {
                 }
             });
         }
+
+        const igSavePreset = document.getElementById('ig-save-preset');
+        if (igSavePreset) {
+            igSavePreset.addEventListener('click', () => saveIgPreset());
+        }
+        const igApplyPreset = document.getElementById('ig-apply-preset');
+        if (igApplyPreset) {
+            igApplyPreset.addEventListener('click', () => applyIgPreset());
+        }
+        const igManagePreset = document.getElementById('ig-manage-preset');
+        if (igManagePreset) {
+            igManagePreset.addEventListener('click', () => openIgManageModal());
+        }
+        const igPresetClose = document.getElementById('ig-preset-close');
+        if (igPresetClose) {
+            igPresetClose.addEventListener('click', () => closeIgPresetManageModal());
+        }
+        const igPresetModal = document.getElementById('ig-presets-modal');
+        if (igPresetModal && !igPresetModal._igBackdropClickBound) {
+            igPresetModal._igBackdropClickBound = true;
+            igPresetModal.addEventListener('click', (e) => {
+                if (e.target === igPresetModal) {
+                    closeIgPresetManageModal();
+                }
+            });
+        }
     }
 
     function _setVal(id, val, prop = 'value') {
@@ -872,6 +1070,10 @@ const ImageGenModule = (() => {
         initApiSection,
         fetchAndPopulateImageModels,
         testReferenceImageWithFile,
+        populateIgPresetSelect,
+        saveIgPreset,
+        applyIgPreset,
+        closeIgPresetManageModal,
         PHOTO_REGEX,
     };
 })();

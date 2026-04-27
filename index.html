@@ -655,22 +655,18 @@
                     </button>
                 </form>
     
-                <!-- 预设管理 -->
-                <div class="api-presets-embedded" style="margin-top:20px;">
-                    <div id="api-presets-control" class="api-y2k-preset-box" style="padding:12px; border-radius:8px;">
-                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-                            <label style="min-width:40px; color:#666; font-size: 14px;">预设</label>
-                            <select id="api-preset-select" style="flex:1; padding:6px; border-radius:6px; border:1px solid #ddd;">
-                                <option value="">— 选择 —</option>
-                            </select>
-                            <button id="api-apply-preset" class="btn btn-primary btn-small" style="padding: 6px 12px;">应用</button>
-                        </div>
-                        <div style="display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
-                            <button id="api-save-preset" class="btn btn-small" style="flex: 1;">另存为</button>
-                            <button id="api-manage-presets" class="btn btn-small" style="flex: 1;">管理</button>
-                            <button id="api-import-presets" class="btn btn-small" style="flex: 1;">导入</button>
-                            <button id="api-export-presets" class="btn btn-small" style="flex: 1;">导出</button>
-                        </div>
+                <!-- 预设管理（布局与 TTS 预设管理一致：标题 + 下拉+应用 + 另存为/管理） -->
+                <div id="api-presets-control" class="api-y2k-tts-preset" style="margin-top:14px; padding:12px; border-radius:8px;">
+                    <p class="api-y2k-tts-preset-title" style="font-size:12px; margin:0 0 8px 0; font-weight:600;">API 预设管理</p>
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                        <select id="api-preset-select" style="flex:1; padding:6px; border-radius:6px; border:1px solid #ddd; font-size:13px;">
+                            <option value="">— 选择 API 预设 —</option>
+                        </select>
+                        <button type="button" id="api-apply-preset" class="btn btn-primary btn-small" style="padding:6px 12px; white-space:nowrap;">应用</button>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" id="api-save-preset" class="btn btn-small" style="flex:1;">另存为</button>
+                        <button type="button" id="api-manage-presets" class="btn btn-small" style="flex:1;">管理</button>
                     </div>
                 </div>
                 </div>
@@ -740,6 +736,19 @@
                                     <option value="512x512">512×512（省钱小图）</option>
                                 </select>
                             </div>
+                        </div>
+                    </div>
+                    <div id="ig-presets-control" class="api-y2k-tts-preset" style="margin-top:14px; padding:12px; border-radius:8px;">
+                        <p class="api-y2k-tts-preset-title" style="font-size:12px; margin:0 0 8px 0; font-weight:600;">生图预设管理</p>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                            <select id="ig-preset-select" style="flex:1; padding:6px; border-radius:6px; border:1px solid #ddd; font-size:13px;">
+                                <option value="">— 选择生图预设 —</option>
+                            </select>
+                            <button type="button" id="ig-apply-preset" class="btn btn-primary btn-small" style="padding:6px 12px; white-space:nowrap;">应用</button>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" id="ig-save-preset" class="btn btn-small" style="flex:1;">另存为</button>
+                            <button type="button" id="ig-manage-preset" class="btn btn-small" style="flex:1;">管理</button>
                         </div>
                     </div>
                     <p class="api-y2k-field-label">测试用提示词（可选）</p>
@@ -837,18 +846,6 @@
 
                     <!-- 测试按钮 -->
                     <button type="button" id="tts-test-btn" class="tts-test-btn">测试 TTS 功能</button>
-                </div>
-                <div id="tts-preset-modal" class="modal-overlay tts-preset-modal">
-                    <div class="modal-window tts-preset-window">
-                        <div class="tts-preset-header">
-                            <h3 class="tts-preset-title">TTS 预设管理</h3>
-                            <button type="button" id="tts-preset-close" class="tts-preset-close-btn" aria-label="关闭">
-                                ✕
-                            </button>
-                        </div>
-                        <div id="tts-preset-empty" class="tts-preset-empty">暂无已保存的 TTS 预设。</div>
-                        <div id="tts-preset-list" class="tts-preset-list"></div>
-                    </div>
                 </div>
                 </div>
 
@@ -3684,6 +3681,26 @@
         <div id="api-presets-list"></div>
         <div class="api-presets-modal-footer">
             <button id="api-close-modal" type="button" class="btn btn-primary btn-small api-presets-modal-close">关闭</button>
+        </div>
+    </div>
+</div>
+<!-- TTS 预设管理：与 API 预设管理同结构，挂 body 避免 iOS 上 fixed 落在 overflow 子树内 -->
+<div id="tts-preset-modal" class="api-presets-modal-backdrop" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;">
+    <div class="api-presets-modal-window">
+        <h3 class="api-presets-modal-title">TTS 预设管理</h3>
+        <div id="tts-preset-list"></div>
+        <div class="api-presets-modal-footer">
+            <button type="button" id="tts-preset-close" class="btn btn-primary btn-small api-presets-modal-close">关闭</button>
+        </div>
+    </div>
+</div>
+<!-- 生图预设管理：与 API/TTS 同结构，挂 body -->
+<div id="ig-presets-modal" class="api-presets-modal-backdrop" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;">
+    <div class="api-presets-modal-window">
+        <h3 class="api-presets-modal-title">生图预设管理</h3>
+        <div id="ig-preset-list"></div>
+        <div class="api-presets-modal-footer">
+            <button type="button" id="ig-preset-close" class="btn btn-primary btn-small api-presets-modal-close">关闭</button>
         </div>
     </div>
 </div>

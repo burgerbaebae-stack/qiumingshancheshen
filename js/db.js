@@ -95,8 +95,8 @@ const globalSettingKeys = [
     'globalCssPresets', 'fontPresets', 'homeSignature', 'forumPosts', 'forumBindings', 'pomodoroTasks', 'pomodoroSettings', 'insWidgetSettings', 'homeWidgetSettings',
     'chatFolders', 'fontSizeScale', 'activePersonaId', 'moreProfileCardBg', 'statusBarPresets', 'themeSettings', 'themePresets', 'savedKeyboardHeight',
     'globalSendSound', 'globalReceiveSound', 'multiMsgSoundEnabled', 'soundPresets', 'galleryPresets',
-    'cotSettings', 'cotPresets', 'hasSeenVideoCallDisclaimer', 'hasSeenVideoCallAvatarHint',
-    'imageGenSettings'
+    'cotSettings', 'cotPresets',     'hasSeenVideoCallDisclaimer', 'hasSeenVideoCallAvatarHint',
+    'imageGenSettings', 'imageGenPresets'
 ];
 
 const appVersion = "1.8.5";
@@ -514,7 +514,8 @@ const loadData = async () => {
             cotPresets: JSON.parse(JSON.stringify(DEFAULT_COT_PRESETS)),
             hasSeenVideoCallDisclaimer: false,
             hasSeenVideoCallAvatarHint: false,
-            imageGenSettings: {}
+            imageGenSettings: {},
+            imageGenPresets: []
         };
         db[key] = settings[key] !== undefined ? settings[key] : (defaultValue[key] !== undefined ? JSON.parse(JSON.stringify(defaultValue[key])) : undefined);
     });
@@ -668,6 +669,7 @@ const dataStorage = {
         categorizedSizes.apiAndCore += stringify(db.apiPresets);
         categorizedSizes.apiAndCore += stringify(db.cotSettings);
         categorizedSizes.apiAndCore += stringify(db.cotPresets);
+        categorizedSizes.apiAndCore += stringify(db.imageGenPresets);
 
         const totalSize = Object.values(categorizedSizes).reduce((sum, size) => sum + size, 0);
 
