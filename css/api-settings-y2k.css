@@ -536,6 +536,12 @@
     flex: 1;
 }
 
+/* 弹层打开时由 JS 加 class；配合 body position:fixed 防 iOS 底层跟滑 */
+html.api-preset-modal-open {
+    overflow: hidden;
+    height: 100%;
+}
+
 /* ─── API 预设管理弹窗：与 API 页 Y2K 粉黑风一致 ─── */
 #api-presets-modal.api-presets-modal-backdrop {
     box-sizing: border-box;
@@ -544,19 +550,19 @@
     background: rgba(5, 5, 8, 0.65);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+    overscroll-behavior: none;
 }
 #api-presets-modal .api-presets-modal-window {
     position: relative;
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: min(520px, 90vw);
-    /* 限制整窗高度，列表在内部滚动，避免小屏下列项被父级 overflow 裁掉却无法滑动 */
-    /* dvh 在部分移动浏览器中扣掉地址栏，比 100vh 更准；有回退 */
-    max-height: min(88vh, 92vh);
-    max-height: min(88dvh, 92dvh);
-    padding: 16px 16px 14px;
-    padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+    max-width: min(480px, 90vw);
+    /* 不拉满一屏：按内容+列表上限收缩，避免「一大坨」 */
+    max-height: min(68vh, 560px);
+    max-height: min(68dvh, 560px);
+    padding: 14px 14px 12px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
     border-radius: 16px;
     box-sizing: border-box;
     background: var(--api-y2k-black);
@@ -566,6 +572,7 @@
         0 16px 48px rgba(0, 0, 0, 0.55),
         inset 0 0 14px rgba(0, 0, 0, 0.6);
     overflow: hidden;
+    flex-shrink: 0;
 }
 #api-presets-modal .api-presets-modal-window::before {
     content: '';
@@ -594,13 +601,16 @@
     text-shadow: 0 0 12px rgba(255, 141, 161, 0.35);
 }
 #api-presets-modal #api-presets-list {
-    flex: 1 1 auto;
+    /* 显式限高 + 内滚；勿用 flex:1 拉满 88dvh，否则整窗会像全屏大板子 */
+    flex: 0 1 auto;
     min-height: 0;
-    max-height: none;
+    max-height: min(280px, 42vh);
+    max-height: min(280px, 42dvh);
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    touch-action: pan-y;
     border: 1px solid rgba(255, 141, 161, 0.38);
     background: rgba(0, 0, 0, 0.38);
     padding: 8px 8px 6px;
@@ -700,15 +710,30 @@
 }
 
 @media (max-width: 480px) {
+    /* 顶对齐，避免整窗 vertical center 时上半截被刘海/顶栏「裁掉」 */
+    #api-presets-modal.api-presets-modal-backdrop {
+        align-items: flex-start;
+        justify-content: center;
+        padding: max(10px, env(safe-area-inset-top, 0px)) 12px max(10px, env(safe-area-inset-bottom, 0px));
+    }
     #api-presets-modal .api-presets-modal-window {
-        max-width: min(340px, 88vw);
-        max-height: calc(100vh - 24px);
-        max-height: min(88dvh, 100dvh - 24px);
-        padding: 12px 12px 10px;
-        padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+        max-width: min(300px, 90vw);
+        max-height: min(62dvh, calc(100dvh - 32px));
+        max-height: min(62vh, calc(100vh - 32px));
+        padding: 10px 10px 8px;
+        padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    }
+    #api-presets-modal .api-presets-modal-title {
+        font-size: 0.95rem;
+        margin-bottom: 8px;
     }
     #api-presets-modal #api-presets-list {
+        max-height: min(200px, 34dvh);
+        max-height: min(200px, 34vh);
         padding: 6px 6px 4px;
+    }
+    #api-presets-modal .api-presets-modal-footer {
+        margin-top: 8px;
     }
     #api-presets-modal .api-preset-manage-row {
         flex-direction: column;
