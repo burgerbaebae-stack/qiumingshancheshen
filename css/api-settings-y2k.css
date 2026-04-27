@@ -536,6 +536,12 @@
     flex: 1;
 }
 
+/* API 预设弹层打开时：锁住背后 #api-settings-screen 主内容区（真正滚动的是 main.content，不是 body；iOS Safari 需如此才不全屏跟滑） */
+#api-settings-screen > .content.api-presets-modal-open-lock {
+    overflow: hidden !important;
+    overscroll-behavior: none;
+}
+
 /* ─── API 预设管理弹窗：与 API 页 Y2K 粉黑风一致 ─── */
 #api-presets-modal.api-presets-modal-backdrop {
     box-sizing: border-box;
@@ -544,6 +550,8 @@
     background: rgba(5, 5, 8, 0.65);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+    /* 减少弹层在 Safari 上把滑动手势传给背后可滚动区 */
+    overscroll-behavior: none;
 }
 #api-presets-modal .api-presets-modal-window {
     position: relative;
@@ -554,7 +562,12 @@
     box-sizing: border-box;
     background: var(--api-y2k-black);
     border: 2px solid var(--api-y2k-pink);
+    /* iOS 上单独开一层，圆角+外发光与桌面一致；加内缘线避免和背景糊成一片 */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
     box-shadow:
+        inset 0 0 0 1px rgba(255, 141, 161, 0.28),
         0 0 24px rgba(255, 141, 161, 0.28),
         0 16px 48px rgba(0, 0, 0, 0.55),
         inset 0 0 14px rgba(0, 0, 0, 0.6);
@@ -588,6 +601,9 @@
 #api-presets-modal #api-presets-list {
     max-height: min(360px, 50vh);
     overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
     border: 1px solid rgba(255, 141, 161, 0.38);
     background: rgba(0, 0, 0, 0.38);
     padding: 8px 8px 6px;

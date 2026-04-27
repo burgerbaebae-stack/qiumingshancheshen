@@ -551,7 +551,9 @@ function setApiSettingsView(view) {
     const ttsModal = document.getElementById('tts-preset-modal');
     if (ttsModal) ttsModal.classList.remove('open');
     const apiPresetModal = document.getElementById('api-presets-modal');
-    if (apiPresetModal) apiPresetModal.style.display = 'none';
+    if (apiPresetModal) {
+        closeApiPresetManageModal();
+    }
 }
 
 function resetApiSettingsToHub() {
@@ -718,6 +720,63 @@ function setupApiSettingsApp() {
 }
 
 // --- 预设管理 ---
+/** 背后可滚动区（本页是 main.content，非 body；iOS Safari 需在弹层时锁住） */
+let _apiPresetModalScrollEl = null;
+let _apiPresetModalScrollTop = 0;
+let _apiPresetModalBodyLock = false;
+let _apiPresetModalTouchBlock = null;
+
+function _getApiSettingsScrollEl() {
+    const s = document.getElementById('api-settings-screen');
+    return s && s.querySelector(':scope > .content');
+}
+
+function _onApiPresetModalTouchMove(e) {
+    const list = document.getElementById('api-presets-list');
+    if (list && list.contains(e.target)) {
+        return;
+    }
+    e.preventDefault();
+}
+
+function lockApiPresetModalBehindScroll() {
+    if (_apiPresetModalBodyLock) {
+        return;
+    }
+    _apiPresetModalBodyLock = true;
+    const el = _getApiSettingsScrollEl();
+    _apiPresetModalScrollEl = el;
+    if (el) {
+        _apiPresetModalScrollTop = el.scrollTop;
+        el.classList.add('api-presets-modal-open-lock');
+    }
+    const modal = document.getElementById('api-presets-modal');
+    if (modal) {
+        _apiPresetModalTouchBlock = _onApiPresetModalTouchMove;
+        modal.addEventListener('touchmove', _apiPresetModalTouchBlock, { passive: false });
+    }
+}
+
+function closeApiPresetManageModal() {
+    const modal = document.getElementById('api-presets-modal');
+    if (modal) {
+        if (_apiPresetModalTouchBlock) {
+            modal.removeEventListener('touchmove', _apiPresetModalTouchBlock, { passive: false });
+            _apiPresetModalTouchBlock = null;
+        }
+        modal.style.display = 'none';
+    }
+    const el = _apiPresetModalScrollEl;
+    if (el) {
+        el.classList.remove('api-presets-modal-open-lock');
+        if (_apiPresetModalBodyLock) {
+            el.scrollTop = _apiPresetModalScrollTop;
+        }
+    }
+    _apiPresetModalBodyLock = false;
+    _apiPresetModalScrollEl = null;
+}
+
 function _getApiPresets() {
     return db.apiPresets || [];
 }
@@ -812,7 +871,7 @@ function openApiManageModal() {
         applyBtn.type = 'button';
         applyBtn.className = 'btn btn-small api-preset-manage-btn';
         applyBtn.textContent = '应用';
-        applyBtn.onclick = function(){ applyApiPreset(p.name); modal.style.display='none'; };
+        applyBtn.onclick = function(){ applyApiPreset(p.name); closeApiPresetManageModal(); };
 
         const renameBtn = document.createElement('button');
         renameBtn.type = 'button';
@@ -840,6 +899,7 @@ function openApiManageModal() {
         list.appendChild(row);
     });
     modal.style.display = 'flex';
+    lockApiPresetModalBehindScroll();
 }
 
 function exportApiPresets() {
@@ -1299,7 +1359,7 @@ function setupPresetFeatures() {
     if (saveBtn) saveBtn.addEventListener('click', saveCurrentApiAsPreset);
     if (manageBtn) manageBtn.addEventListener('click', openApiManageModal);
     if (applyBtn) applyBtn.addEventListener('click', function(){ const v=select.value; if(!v) return showToast('请选择预设'); applyApiPreset(v); });
-    if (modalClose) modalClose.addEventListener('click', function(){ document.getElementById('api-presets-modal').style.display='none'; });
+    if (modalClose) modalClose.addEventListener('click', closeApiPresetManageModal);
     if (importBtn) importBtn.addEventListener('click', importApiPresets);
     if (exportBtn) exportBtn.addEventListener('click', exportApiPresets);
     
