@@ -552,7 +552,6 @@ function setApiSettingsView(view) {
     if (ttsModal) ttsModal.classList.remove('open');
     const apiPresetModal = document.getElementById('api-presets-modal');
     if (apiPresetModal) apiPresetModal.style.display = 'none';
-    unlockBodyForApiPresetModal();
 }
 
 function resetApiSettingsToHub() {
@@ -788,36 +787,6 @@ async function applyApiPreset(name) {
     }
 }
 
-/* API 预设管理弹层：iOS Safari 上锁底层页面滚动，避免跟手套滚到底层 */
-let _apiPresetModalBodyScrollY = 0;
-function lockBodyForApiPresetModal() {
-    if (document.body.classList.contains('api-preset-modal-open')) return;
-    _apiPresetModalBodyScrollY = window.scrollY || document.documentElement.scrollTop || 0;
-    document.documentElement.classList.add('api-preset-modal-open');
-    document.body.classList.add('api-preset-modal-open');
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${_apiPresetModalBodyScrollY}px`;
-    document.body.style.left = '0';
-    document.body.style.right = '0';
-    document.body.style.width = '100%';
-}
-function unlockBodyForApiPresetModal() {
-    if (!document.body.classList.contains('api-preset-modal-open')) return;
-    document.documentElement.classList.remove('api-preset-modal-open');
-    document.body.classList.remove('api-preset-modal-open');
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.left = '';
-    document.body.style.right = '';
-    document.body.style.width = '';
-    window.scrollTo(0, _apiPresetModalBodyScrollY);
-}
-function closeApiPresetModal() {
-    const modal = document.getElementById('api-presets-modal');
-    if (modal) modal.style.display = 'none';
-    unlockBodyForApiPresetModal();
-}
-
 function openApiManageModal() {
     const modal = document.getElementById('api-presets-modal');
     const list = document.getElementById('api-presets-list');
@@ -843,7 +812,7 @@ function openApiManageModal() {
         applyBtn.type = 'button';
         applyBtn.className = 'btn btn-small api-preset-manage-btn';
         applyBtn.textContent = '应用';
-        applyBtn.onclick = function(){ applyApiPreset(p.name); closeApiPresetModal(); };
+        applyBtn.onclick = function(){ applyApiPreset(p.name); modal.style.display='none'; };
 
         const renameBtn = document.createElement('button');
         renameBtn.type = 'button';
@@ -870,7 +839,6 @@ function openApiManageModal() {
         row.appendChild(left); row.appendChild(btns);
         list.appendChild(row);
     });
-    lockBodyForApiPresetModal();
     modal.style.display = 'flex';
 }
 
@@ -1331,7 +1299,7 @@ function setupPresetFeatures() {
     if (saveBtn) saveBtn.addEventListener('click', saveCurrentApiAsPreset);
     if (manageBtn) manageBtn.addEventListener('click', openApiManageModal);
     if (applyBtn) applyBtn.addEventListener('click', function(){ const v=select.value; if(!v) return showToast('请选择预设'); applyApiPreset(v); });
-    if (modalClose) modalClose.addEventListener('click', closeApiPresetModal);
+    if (modalClose) modalClose.addEventListener('click', function(){ document.getElementById('api-presets-modal').style.display='none'; });
     if (importBtn) importBtn.addEventListener('click', importApiPresets);
     if (exportBtn) exportBtn.addEventListener('click', exportApiPresets);
     

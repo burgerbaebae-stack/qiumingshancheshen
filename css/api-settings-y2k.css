@@ -536,12 +536,6 @@
     flex: 1;
 }
 
-/* 弹层打开时由 JS 加 class；配合 body position:fixed 防 iOS 底层跟滑 */
-html.api-preset-modal-open {
-    overflow: hidden;
-    height: 100%;
-}
-
 /* ─── API 预设管理弹窗：与 API 页 Y2K 粉黑风一致 ─── */
 #api-presets-modal.api-presets-modal-backdrop {
     box-sizing: border-box;
@@ -550,19 +544,12 @@ html.api-preset-modal-open {
     background: rgba(5, 5, 8, 0.65);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    overscroll-behavior: none;
 }
 #api-presets-modal .api-presets-modal-window {
     position: relative;
-    display: flex;
-    flex-direction: column;
     width: 100%;
-    max-width: min(480px, 90vw);
-    /* 不拉满一屏：按内容+列表上限收缩，避免「一大坨」 */
-    max-height: min(68vh, 560px);
-    max-height: min(68dvh, 560px);
+    max-width: min(480px, 88vw);
     padding: 14px 14px 12px;
-    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
     border-radius: 16px;
     box-sizing: border-box;
     background: var(--api-y2k-black);
@@ -572,7 +559,6 @@ html.api-preset-modal-open {
         0 16px 48px rgba(0, 0, 0, 0.55),
         inset 0 0 14px rgba(0, 0, 0, 0.6);
     overflow: hidden;
-    flex-shrink: 0;
 }
 #api-presets-modal .api-presets-modal-window::before {
     content: '';
@@ -592,7 +578,6 @@ html.api-preset-modal-open {
     z-index: 1;
 }
 #api-presets-modal .api-presets-modal-title {
-    flex-shrink: 0;
     margin: 0 0 12px 0;
     font-size: 1rem;
     font-weight: 800;
@@ -601,16 +586,8 @@ html.api-preset-modal-open {
     text-shadow: 0 0 12px rgba(255, 141, 161, 0.35);
 }
 #api-presets-modal #api-presets-list {
-    /* 显式限高 + 内滚；勿用 flex:1 拉满 88dvh，否则整窗会像全屏大板子 */
-    flex: 0 1 auto;
-    min-height: 0;
-    max-height: min(280px, 42vh);
-    max-height: min(280px, 42dvh);
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    touch-action: pan-y;
+    max-height: min(360px, 50vh);
+    overflow: auto;
     border: 1px solid rgba(255, 141, 161, 0.38);
     background: rgba(0, 0, 0, 0.38);
     padding: 8px 8px 6px;
@@ -692,7 +669,6 @@ html.api-preset-modal-open {
     opacity: 0.95;
 }
 #api-presets-modal .api-presets-modal-footer {
-    flex-shrink: 0;
     display: flex;
     gap: 8px;
     margin-top: 12px;
@@ -710,36 +686,28 @@ html.api-preset-modal-open {
 }
 
 @media (max-width: 480px) {
-    /* 顶对齐，避免整窗 vertical center 时上半截被刘海/顶栏「裁掉」 */
-    #api-presets-modal.api-presets-modal-backdrop {
-        align-items: flex-start;
-        justify-content: center;
-        padding: max(10px, env(safe-area-inset-top, 0px)) 12px max(10px, env(safe-area-inset-bottom, 0px));
-    }
     #api-presets-modal .api-presets-modal-window {
-        max-width: min(300px, 90vw);
-        max-height: min(62dvh, calc(100dvh - 32px));
-        max-height: min(62vh, calc(100vh - 32px));
-        padding: 10px 10px 8px;
-        padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+        max-width: min(300px, 82vw);
+        padding: 9px 10px 8px;
+        border-radius: 14px;
     }
     #api-presets-modal .api-presets-modal-title {
-        font-size: 0.95rem;
-        margin-bottom: 8px;
+        margin: 0 0 8px 0;
+        font-size: 0.9rem;
     }
     #api-presets-modal #api-presets-list {
-        max-height: min(200px, 34dvh);
-        max-height: min(200px, 34vh);
-        padding: 6px 6px 4px;
-    }
-    #api-presets-modal .api-presets-modal-footer {
-        margin-top: 8px;
+        max-height: min(210px, 34vh);
+        padding: 5px 5px 3px;
+        border-radius: 8px;
     }
     #api-presets-modal .api-preset-manage-row {
         flex-direction: column;
         align-items: stretch;
-        gap: 8px;
-        padding: 10px 2px 10px 0;
+        gap: 6px;
+        padding: 8px 2px 8px 0;
+    }
+    #api-presets-modal .api-preset-manage-sub {
+        font-size: 11px;
     }
     #api-presets-modal .api-preset-manage-btns {
         justify-content: space-between;
@@ -749,9 +717,17 @@ html.api-preset-modal-open {
     #api-presets-modal .api-preset-manage-btn--del {
         flex: 1 1 0;
         min-width: 0;
-        padding: 7px 6px;
-        font-size: 12px;
+        padding: 6px 4px;
+        font-size: 11px;
         justify-content: center;
+    }
+    #api-presets-modal .api-presets-modal-footer {
+        margin-top: 8px;
+    }
+    #api-presets-modal .api-presets-modal-close {
+        min-width: 96px;
+        padding: 8px 16px;
+        font-size: 14px;
     }
 }
 
