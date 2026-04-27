@@ -542,7 +542,8 @@
     overscroll-behavior: none;
 }
 
-/* ─── API 预设管理弹窗：与 API 页 Y2K 粉黑风一致 ─── */
+/* ─── API 预设管理弹窗：与 API 页 Y2K 粉黑风一致 ───
+   （DOM 挂 body 上）相对视口铺满，避免在 .api-view-sub 等 overflow 层内时 iOS 出现直角蒙层与圆角内容错位 */
 #api-presets-modal.api-presets-modal-backdrop {
     box-sizing: border-box;
     align-items: center;
@@ -550,8 +551,18 @@
     background: rgba(5, 5, 8, 0.65);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    /* 减少弹层在 Safari 上把滑动手势传给背后可滚动区 */
     overscroll-behavior: none;
+    outline: none;
+    border: none;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
 }
 #api-presets-modal .api-presets-modal-window {
     position: relative;

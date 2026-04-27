@@ -672,15 +672,6 @@
                             <button id="api-export-presets" class="btn btn-small" style="flex: 1;">导出</button>
                         </div>
                     </div>
-                    <div id="api-presets-modal" class="api-presets-modal-backdrop" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;">
-                        <div class="api-presets-modal-window">
-                            <h3 class="api-presets-modal-title">API 预设管理</h3>
-                            <div id="api-presets-list"></div>
-                            <div class="api-presets-modal-footer">
-                                <button id="api-close-modal" type="button" class="btn btn-primary btn-small api-presets-modal-close">关闭</button>
-                            </div>
-                        </div>
-                    </div>
                 </div>
                 </div>
 
@@ -3686,6 +3677,16 @@
 <div id="global-css-presets-modal" class="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);justify-content:center;align-items:center;z-index:9999;"><div class="modal-window" style="max-width:520px;background:var(--panel-bg,#fff);padding:14px;border-radius:10px;box-shadow:0 12px 36px rgba(10,10,20,0.12);"><h3 style="margin:0 0 10px 0;font-size:16px;">管理全局CSS预设</h3><div id="global-css-presets-list" style="max-height:340px; overflow:auto; margin-bottom:12px;"></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" id="global-css-close-modal" class="btn btn-primary" style="padding:8px 12px;border-radius:8px;">关闭</button></div></div></div>
 <div id="font-presets-modal" class="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);justify-content:center;align-items:center;z-index:9999;"><div class="modal-window" style="max-width:520px;background:var(--panel-bg,#fff);padding:14px;border-radius:10px;box-shadow:0 12px 36px rgba(10,10,20,0.12);"><h3 style="margin:0 0 10px 0;font-size:16px;">管理字体预设</h3><div id="font-presets-list" style="max-height:340px; overflow:auto; margin-bottom:12px;"></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" id="font-close-modal" class="btn btn-primary" style="padding:8px 12px;border-radius:8px;">关闭</button></div></div></div>
 <div id="sound-presets-modal" class="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);justify-content:center;align-items:center;z-index:9999;"><div class="modal-window" style="max-width:520px;background:var(--panel-bg,#fff);padding:14px;border-radius:10px;box-shadow:0 12px 36px rgba(10,10,20,0.12);"><h3 style="margin:0 0 10px 0;font-size:16px;">管理提示音预设</h3><div id="sound-presets-list" style="max-height:340px; overflow:auto; margin-bottom:12px;"></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" id="sound-close-modal" class="btn btn-primary" style="padding:8px 12px;border-radius:8px;">关闭</button></div></div></div>
+<!-- API 预设管理：必须挂在 body 下，勿放在 .api-view-sub 等 overflow 滚动层内，否则 iOS Safari 上 position:fixed 相对滚动容器会出现直角外框与圆角卡片错位 -->
+<div id="api-presets-modal" class="api-presets-modal-backdrop" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;">
+    <div class="api-presets-modal-window">
+        <h3 class="api-presets-modal-title">API 预设管理</h3>
+        <div id="api-presets-list"></div>
+        <div class="api-presets-modal-footer">
+            <button id="api-close-modal" type="button" class="btn btn-primary btn-small api-presets-modal-close">关闭</button>
+        </div>
+    </div>
+</div>
 <input type="file" id="import-data-input" accept=".ee" style="display: none;">
 <div id="storage-screen" class="screen"></div>
 <input type="file" id="character-card-input" accept="image/png,application/json" style="display: none;">
