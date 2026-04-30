@@ -44,13 +44,14 @@
     top: 0; left: 0; right: 0;
     z-index: 10;
     box-sizing: border-box;
-    min-height: calc(80px + env(safe-area-inset-top, 0px));
+    /* 与私聊顶栏 chat.css #chat-room-header-default 一致：取 max(15px, safe-area)，勿再累加 inset */
+    min-height: calc(64px + max(15px, env(safe-area-inset-top, 0px)));
     height: auto;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     padding:
-        calc(16px + env(safe-area-inset-top, 0px))
+        max(15px, env(safe-area-inset-top, 0px))
         calc(16px + env(safe-area-inset-right, 0px))
         0
         calc(16px + env(safe-area-inset-left, 0px));
@@ -387,13 +388,14 @@
 .theater-sub-topbar {
     flex-shrink: 0;
     box-sizing: border-box;
-    min-height: calc(64px + env(safe-area-inset-top, 0px));
+    /* 顶缘与私聊顶栏同款 safe-area 规则 */
+    min-height: calc(50px + max(15px, env(safe-area-inset-top, 0px)));
     height: auto;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding:
-        calc(12px + env(safe-area-inset-top, 0px))
+        max(15px, env(safe-area-inset-top, 0px))
         calc(16px + env(safe-area-inset-right, 0px))
         12px
         calc(16px + env(safe-area-inset-left, 0px));
