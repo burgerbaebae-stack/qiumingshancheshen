@@ -149,11 +149,26 @@ function scheduleDayBuildFavoritedJournalsText(char) {
     return fav.map(j => `《${j.title}》\n${j.content}`).join('\n\n---\n\n');
 }
 
-function scheduleDayYesterdayArchiveHint(char) {
+/** 供生成/变更：最近 N 个自然日已归档的采用便签（整页原文，不截断行）；按 dateKey 升序拼接 */
+function scheduleDayBuildRecentArchivePromptBlock(char, maxDays = 7) {
+    scheduleDayEnsureChar(char);
     const ar = char.schedule.archive || [];
     if (!ar.length) return '';
-    const last = ar[ar.length - 1];
-    return (last && last.text) ? last.text.trim() : '';
+    const n = Math.max(1, Math.min(30, parseInt(maxDays, 10) || 7));
+    const slice = ar.slice(-n);
+    const sorted = slice.slice().sort((a, b) => {
+        const dk = (x) => ((x && x.dateKey) || '').trim();
+        return dk(a).localeCompare(dk(b), 'en');
+    });
+    const blocks = sorted
+        .map((entry) => {
+            const key = ((entry && entry.dateKey) || '').trim();
+            const text = ((entry && entry.text) || '').trim();
+            if (!text) return '';
+            return key ? `【${key}】\n${text}` : text;
+        })
+        .filter(Boolean);
+    return blocks.length ? blocks.join('\n\n') : '';
 }
 
 function scheduleDayBuildGenerationUserPrompt(char) {
@@ -161,7 +176,7 @@ function scheduleDayBuildGenerationUserPrompt(char) {
     const hist = scheduleDayBuildHistorySnippet(char);
     const pending = scheduleDayBuildPendingTripsBlock(char);
     const fav = scheduleDayBuildFavoritedJournalsText(char);
-    const yest = scheduleDayYesterdayArchiveHint(char);
+    const recentArchive = scheduleDayBuildRecentArchivePromptBlock(char, 7);
     const today = scheduleDayLocalDateKey();
     const nowLine = scheduleDayFormatLocalNow();
     const personaChar = char.persona || '';
@@ -186,16 +201,20 @@ function scheduleDayBuildGenerationUserPrompt(char) {
             `1. 主干须来自：角色人设、作息与身份、下方勾选的世界书、**及（若有）最近聊天与待办**；是「自己的事务清单」，不是无剧情支撑的陪护流水账。\n` +
             `2. 与身份相关的计划里，若今日确有外出/事务，其中至少 **2 行**与对方（${char.myName}）**无直接因果**的地盘/工作/私事；若今日纯属居家休整，可合并表述，**不强求**凑满两条。\n` +
             `3. 若提供「最近聊天记录」：**须优先**与对话中**正在发生或已约定**的节点一致（时段、地点、会面、连线、共同参与等），可依此**增删、改写**便签行，**禁止**便签与对话明显矛盾。**避免**把过多行写成仅照护/甜宠而无其它主干；无剧情硬需求的腻歪勿单独铺陈。\n` +
-            `4. 若提供「昨日已采用日程」：避免同日重复同一类主线（可换地点、换待办名目）。\n` +
+            `4. 若提供「近七日已采用日程」：仅用于把握**节律与延续**，**不是**差旅或事项次数的配额表。**禁止**写的是：与**近两日便签内容**在无新的事实或剧情推进前提下，再次出现**泛泛同构**的同套主线占位（结构、措辞几近重复）。**允许且鼓励**的是：与近七日便签、最近聊天或待办中**既成事实、约定、未完事项**在因果上相扣时，在今日便签中写出**下一环节**或同一外事线、同一生活线的**合理延展**（多日连贯），此属正常推进，**不**视为机械雷同。\n` +
             `5. 时段与人设作息大致相容即可；**勿为凑字数虚构与身份无关的碎戏**。\n` +
             `6. **日程粒度（重要·剧情优先）**：**若**聊天记录或待办中已**明确约定**某日某时段的**会面、视频/语音连线、共同参与**，**必须**在该时段便签中体现，**并入**该行的「地点｜主事」**合并为一条短语**（主事内点明即可），**禁止**为躲「少排通话」类规则而整段不写。**无此约定时**：便签宜侧重**线下/地盘/实体链条上**的具象事务（出行、工作块、训练、当面会面、**实物**送礼与快递、待办行程等），**不是**聊天或空泛联络预告；仍**禁止**单独成行——例行视频/语音、例行晚安或固定情话仪式、**即时消息里就能完成的关心与叮嘱**（饮食作息、泛泛健康关切、空泛问安等）、无对应**外部动作**的联络；**亦禁止**单开一行仅「打视频/语音」而无地点或情境的空头凑数。**允许**与对方有关的**外部行动**（同城订购送达、赴约见面、代办事、接送、当面交接）。统计「与对方有关的行数」时：有剧情约定的合并行可计；无约定的腻歪联络不计、勿硬塞。\n` +
-            `7. **内容丰富度（通用）**：宜**多样交错**，避免全天同一单调主线。**禁止**为凑多样而**机械地天天出差/天天航班**；跨城、飞行、异地据点仅在人设与世界书真有支撑、或**待办行程/昨日便签未重复**时再写，**本地常驻地事务仍是默认主轴**。**爱好、锻炼、社交壳、地盘私事**可穿插；与设定相容即可，勿扩写叙事。`
+            `7. **丰富度与外出**：宜**多样交错**，避免全天单一空洞主线。**禁止**无事由支撑的套路化「天天航班」或**仅为换花样**而硬叠**新的、与当前叙事无关的**跨城戏。**若**人设或世界书支撑流动公干、多据点或多地事务，则可安排**跨城、在途或外地驻留**；**外出时长与是否加休闲或合并多事由于同一次出行**均由角色身份与**当前叙事**合理展开，**不设**周次数、间隔日数、固定「出差天数」等配额，**避免**把日程写成周期性固定栏目。若近七日便签已能看出**同一趟外事尚未收束**，后续日继续写**在目的地或返程前后**的行程很自然，**勿**为「换花样」无端截断该线。**本地常驻地事务**在无事由时仍可作常见主轴，但与「永远不出差」不矛盾；**爱好、锻炼、社交壳、地盘私事**可穿插，与设定相容即可，勿扩写叙事。`
     );
     parts.push(`\n【角色人设】\n${personaChar || '（未填写）'}`);
     parts.push(`\n【对方人设（${char.myName}）】\n${personaUser || '（未填写）'}`);
     if (wb) parts.push(`\n【世界书（全文）】\n${wb}`);
     else parts.push(`\n【世界书】\n（未勾选或未绑定）`);
-    if (yest) parts.push(`\n【昨日已采用日程（勿重复主线）】\n${yest}`);
+    if (recentArchive) {
+        parts.push(
+            `\n【近7日已采用日程（每块为当日最终采用便签全文，按日期排序；供节律与连贯参考，非配额表）】\n${recentArchive}`
+        );
+    }
     if (pending) {
         parts.push(
             `\n【待办行程（用户维护；须合理安排进便签。日期为今日或已过的须写进今日或「此刻前」已发生侧；未到日期的可写准备/出发类计划，勿编造已抵达）】\n${pending}`
@@ -218,7 +237,7 @@ async function scheduleDayCallGenerate(char) {
             {
                 role: 'system',
                 content:
-                    '你只输出日程便签：每行「时段|地点|主事」两竖线三栏；短短语、无叙事无心理无对话；对此刻之后的行用计划语气。须与 user 中的聊天记录、待办约定一致：已约定之会面或视频/语音连线须写入并并入当行主事，不得回避。无此约定时便签侧重线下/地盘/实体链具象事务，勿排例行视频/语音与即时问安等灌水行。勿机械天天出差。不要前言后语或规则复述。'
+                    '你只输出日程便签：每行「时段|地点|主事」两竖线三栏；短短语、无叙事无心理无对话；对此刻之后的行用计划语气。须与 user 中的聊天记录、待办、（若有）近七日已归档便签一致；已约定之会面或视频/语音连线须写入并并入该时段一行主事，不得回避。剧情约定者优先；便签可多日连贯推进同一生活线或外事线。勿机械天天航班或无事由灌水式跨城；无人设与世界书支撑的模板化差旅勿写。不设出差次数或间隔 KPI。勿排例行视频/语音与即时问安灌水行。不要前言后语或规则复述。'
             },
             { role: 'user', content: userContent }
         ],
@@ -238,7 +257,7 @@ function scheduleDayBuildChangeUserPrompt(char, currentStickyText) {
     const timedHist = scheduleDayBuildHistorySnippetTimed(char);
     const pending = scheduleDayBuildPendingTripsBlock(char);
     const fav = scheduleDayBuildFavoritedJournalsText(char);
-    const yest = scheduleDayYesterdayArchiveHint(char);
+    const recentArchive = scheduleDayBuildRecentArchivePromptBlock(char, 7);
     const today = scheduleDayLocalDateKey();
     const nowLine = scheduleDayFormatLocalNow();
     const personaChar = char.persona || '';
@@ -257,7 +276,7 @@ function scheduleDayBuildChangeUserPrompt(char, currentStickyText) {
             `全文篇幅与模式 A 相同（便签体、软上限约 1000 字）；与对方（${char.myName}）有关的 **具象事务** 行不宜超过 2 行或约 35%（取更严）。\n` +
             `【禁止】段落体、引号对话、心理描写、单条内多件长串。\n` +
             `【日程粒度】与模式 A 第 6 条一致：**剧情与对话、待办约定优先**——已约定之会面或视频/语音连线须写入并**合并于该时段一行**；**禁止**与带时间戳对话矛盾。无约定时便签侧重线下/地盘/实体链具象事务，仍禁例行视频/语音行、晚安仪式与即时问安等灌水行；勿单开空头「仅连线」行。旧便签与上述冲突者须**修订**。\n` +
-            `【丰富度】与模式 A 第 7 条一致：多样但不机械；**禁止**无动因的天天出差；本地为主，跨城仅在有支撑或待办时合理出现。`
+            `【丰富度】与模式 A 第 7 条一致：多样但不机械；**禁止**无事由支撑的套路化天天航班或硬叠无关跨城；人设与世界书支撑的跨地、多日驻留与连贯外事线均可；不设差旅 KPI；本地可作常见主轴。`
     );
     parts.push(`\n【当前便签全文】（须在此基础上修订，输出**完整新的一页**）\n${sticky || '（当前为空，请主要依据对话与人设生成今日便签）'}`);
     parts.push(`\n【最近对话（前缀 [HH:mm] 为消息发送的本地时刻；推断中断、赖床推迟、改签等时**优先采信**）】\n${timedHist || '（无）'}`);
@@ -265,7 +284,11 @@ function scheduleDayBuildChangeUserPrompt(char, currentStickyText) {
     parts.push(`\n【对方人设（${char.myName}）】\n${personaUser || '（未填写）'}`);
     if (wb) parts.push(`\n【世界书（全文）】\n${wb}`);
     else parts.push(`\n【世界书】\n（未勾选或未绑定）`);
-    if (yest) parts.push(`\n【昨日已采用日程（勿重复主线）】\n${yest}`);
+    if (recentArchive) {
+        parts.push(
+            `\n【近7日已采用日程（每块为当日最终采用便签全文，按日期排序；供节律与连贯参考，非配额表）】\n${recentArchive}`
+        );
+    }
     if (pending) parts.push(`\n【待办行程】\n${pending}`);
     if (fav) parts.push(`\n【已收藏日记】\n${fav}`);
     parts.push(`\n请**只输出**完整便签正文行（不要前言、不要后记、不要解释规则）。`);
@@ -283,7 +306,7 @@ async function scheduleDayCallChangeGenerate(char, currentStickyText) {
             {
                 role: 'system',
                 content:
-                    '你只输出日程便签：每行「时段|地点|主事」两竖线三栏。日程变更须输出全日完整便签。须与 user 中带时间戳对话及待办一致：已约定之会面或连线须写入并合并当行。无约定时侧重线下/地盘/实体链具象事务，勿排例行视频与即时问安灌水行。勿机械天天出差。无叙事无心理无对话。不要前言后语。'
+                    '你只输出日程便签：每行「时段|地点|主事」两竖线三栏。日程变更须输出全日完整便签。须与 user 中带时间戳对话、待办、（若有）近七日已归档便签一致：已约定之会面或连线须写入并合并于该时段一行；可延续多日同一生活线或外事线；勿机械天天航班或无事由灌水式跨城。不设差旅 KPI。勿排例行视频与即时问安灌水行。无叙事无心理无对话。不要前言后语。'
             },
             { role: 'user', content: userContent }
         ],

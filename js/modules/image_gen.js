@@ -8,6 +8,13 @@ const ImageGenModule = (() => {
         return (typeof db !== 'undefined' && db.imageGenSettings) ? db.imageGenSettings : {};
     }
 
+    function getConfigWithOptions(options = {}) {
+        const cfg = { ...getConfig() };
+        const overrides = options.overrides || options;
+        if (overrides && overrides.size) cfg.size = overrides.size;
+        return cfg;
+    }
+
     function isEnabled() {
         const cfg = getConfig();
         return !!(cfg.enabled && cfg.url && cfg.key && cfg.model);
@@ -102,18 +109,22 @@ const ImageGenModule = (() => {
      * @param {*} char
      * @param {ImageGenRefMode} [refMode='lock']
      */
-    function buildImageGenPrompt(sceneText, char, refMode = 'lock') {
+    function buildImageGenPrompt(sceneText, char, refMode = 'lock', options = {}) {
         const scene = (sceneText || '').trim();
         if (!scene) return '';
         const mode = refMode || 'lock';
+        const theaterEmpty = options && options.theaterEmptyMirror === true;
         const sceneSuffix = mode === 'scene'
             ? '\n\n【生图约束】本画面为无真人或全身人像的场景/物体；勿因参考角色设定而在画面中加入未在描述中出现的真人。仅按上文描述生成。'
             : mode === 'partial'
                 ? '\n\n【生图约束】严格按上文取景；若仅描述身体局部（如手、指、腕等），画面中不得出现面部或完整人像，勿补全全身或正脸。'
                 : '';
-        const sceneWithSuffix = scene + sceneSuffix;
+        let sceneWithSuffix = scene + sceneSuffix;
+        if (theaterEmpty) {
+            sceneWithSuffix += '\n\n【剧场背景｜硬性空镜】仅无人环境、空间、建筑、自然或静物与光影氛围；不得出现任何人脸、人体、手、剪影、背影、动漫或立绘式角色；叙事或对白里提到的角色不得在画面中以任何可辨认实体出现。勿拼接角色立绘。';
+        }
 
-        const picked = pickCharacterRefForMode(char, mode);
+        const picked = theaterEmpty ? pickCharacterRefForMode(char, 'scene') : pickCharacterRefForMode(char, mode);
         if (picked) {
             if (picked.kind === 'face') {
                 return [
@@ -122,8 +133,12 @@ const ImageGenModule = (() => {
                 ].join('\n');
             }
             if (picked.kind === 'style') {
+                const styleLeadTheater =
+                    '【剧场空镜｜槽②仅画风】附图**只**用于统一画风：笔触、色彩倾向、光影与材质气质（如二次元/写实/3D 等），**不是**本帧要画的场景或画面主体。禁止照搬、拼贴或换底式复用参考图：不得复制参考图的构图、透视、景物布局、标志性物体；画面内容**必须完全依下方文字**重新生成。若附图含人物，生成图中不得出现该人物。';
+                const styleLeadDefault =
+                    '【参考图说明】附图仅作渲染风格、光影与材质气质参考（如高精度 3D 游戏 CG），不是本帧要绘制的主体。请严格按下列文字生成画面，勿照搬参考图中的具体物体、人物或构图；若附图含人物，本生成图中不得出现该人物。若正文出现人物，其**装扮与神态**须完全依正文，勿复用参考图中人物的表情、衣着与配饰。正文以文字为准：';
                 return [
-                    '【参考图说明】附图仅作渲染风格、光影与材质气质参考（如高精度 3D 游戏 CG），不是本帧要绘制的主体。请严格按下列文字生成画面，勿照搬参考图中的具体物体、人物或构图；若附图含人物，本生成图中不得出现该人物。若正文出现人物，其**装扮与神态**须完全依正文，勿复用参考图中人物的表情、衣着与配饰。正文以文字为准：',
+                    theaterEmpty ? styleLeadTheater : styleLeadDefault,
                     sceneWithSuffix
                 ].join('\n');
             }
@@ -134,6 +149,9 @@ const ImageGenModule = (() => {
                 ].join('\n');
             }
         }
+        if (theaterEmpty) {
+            return sceneWithSuffix;
+        }
         const hint = (char && char.imageGenNoRefHint != null && String(char.imageGenNoRefHint).trim())
             ? String(char.imageGenNoRefHint).trim()
             : (char && char.imageAppearanceAnchor) ? String(char.imageAppearanceAnchor).trim() : '';
@@ -142,8 +160,8 @@ const ImageGenModule = (() => {
     }
 
     /** Gemini 多模态：参考图 data URL + 文本提示 */
-    async function generateWithReferenceDataUrl(dataUrl, textPrompt, signal) {
-        const cfg = getConfig();
+    async function generateWithReferenceDataUrl(dataUrl, textPrompt, signal, options = {}) {
+        const cfg = getConfigWithOptions(options);
         let { url, key, model } = cfg;
         if (!url || !key || !model || !dataUrl || !textPrompt) throw new Error('生图配置不完整');
         if (url.endsWith('/')) url = url.slice(0, -1);
@@ -209,22 +227,24 @@ const ImageGenModule = (() => {
      * @param {AbortSignal|null} signal
      * @param {ImageGenRefMode} [refMode='lock'] 按模式选用槽①/②/③ 之一作为多模态参考（每次一张）
      */
-    async function generateImageForCharacter(char, sceneText, signal, refMode = 'lock') {
+    async function generateImageForCharacter(char, sceneText, signal, refMode = 'lock', options = {}) {
         const mode = refMode || 'lock';
-        const prompt = buildImageGenPrompt(sceneText, char, mode);
-        const picked = pickCharacterRefForMode(char, mode);
+        const prompt = buildImageGenPrompt(sceneText, char, mode, options);
+        const picked = (options && options.theaterEmptyMirror)
+            ? pickCharacterRefForMode(char, 'scene')
+            : pickCharacterRefForMode(char, mode);
         if (picked) {
-            const cfg = getConfig();
+            const cfg = getConfigWithOptions(options);
             if (_isGeminiConfig(cfg)) {
-                return await generateWithReferenceDataUrl(picked.url, prompt, signal);
+                return await generateWithReferenceDataUrl(picked.url, prompt, signal, options);
             }
             if (_supportsOpenAIReferenceEdit(cfg)) {
-                return await generateOpenAIWithReferenceDataUrl(picked.url, prompt, signal);
+                return await generateOpenAIWithReferenceDataUrl(picked.url, prompt, signal, options);
             }
             console.warn('[ImageGen] 已设置本模式参考图，但当前模型非 Gemini 且非 gpt-image / dall-e-2 等可垫图模型，将仅使用文字生图。');
-            return await generateImage(prompt, signal);
+            return await generateImage(prompt, signal, options);
         }
-        return await generateImage(prompt, signal);
+        return await generateImage(prompt, signal, options);
     }
 
     /**
@@ -233,8 +253,8 @@ const ImageGenModule = (() => {
      *   - OpenAI images/generations 风格：data[0].b64_json 或 data[0].url
      *   - Gemini generateContent 风格：candidates[0].content.parts[0].inlineData.data
      */
-    async function generateImage(prompt, signal) {
-        const cfg = getConfig();
+    async function generateImage(prompt, signal, options = {}) {
+        const cfg = getConfigWithOptions(options);
         let { url, key, model } = cfg;
         if (!url || !key || !model || !prompt) throw new Error('生图配置不完整');
         if (url.endsWith('/')) url = url.slice(0, -1);
@@ -396,8 +416,8 @@ const ImageGenModule = (() => {
     /**
      * OpenAI 兼容垫图：POST /v1/images/edits（multipart），与官方 gpt-image、聚合站透传方式一致
      */
-    async function generateOpenAIWithReferenceDataUrl(dataUrl, textPrompt, signal) {
-        const cfg = getConfig();
+    async function generateOpenAIWithReferenceDataUrl(dataUrl, textPrompt, signal, options = {}) {
+        const cfg = getConfigWithOptions(options);
         let { url, key, model } = cfg;
         if (!url || !key || !model || !dataUrl || !textPrompt) throw new Error('生图配置不完整');
         if (!_supportsOpenAIReferenceEdit(cfg)) {

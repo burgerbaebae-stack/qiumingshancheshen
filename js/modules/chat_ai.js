@@ -7,9 +7,13 @@ const TIME_PERCEPTION_GAP_MS = 7 * 60 * 1000;
 /**
  * 从当前 chat.history 裁剪并过滤，得到与发 API 一致的历史切片（可多次调用，如插入时间感知条后需重算）。
  */
-function buildFilteredHistorySliceForAi(chat) {
+function buildFilteredHistorySliceForAi(chat, options = {}) {
+    const { excludeTheater = false } = options;
     let historySlice = chat.history.slice(-chat.maxMemory);
     historySlice = filterHistoryForAI(chat, historySlice);
+    if (excludeTheater) {
+        historySlice = historySlice.filter(m => m.mode !== 'theater');
+    }
     historySlice = historySlice.filter(m => !m.isContextDisabled);
     historySlice = historySlice.filter(m => {
         if (m.isThinking) return false;
@@ -34,6 +38,19 @@ function findTimePerceptionBAnchorMessage(historySlice, beforeIdx, chatType) {
         }
     }
     return null;
+}
+
+/** 在 chat.history 顺序下，anchor 与 firstUser 之间是否存在剧场消息（含边界条）；用于避免线下连贯却被误判「久未线上联系」。 */
+function historyHasTheaterBetween(chat, anchorMsg, firstUserMsg) {
+    if (!chat || !Array.isArray(chat.history) || !anchorMsg || !firstUserMsg) return false;
+    const h = chat.history;
+    const ia = h.findIndex(m => m.id === anchorMsg.id);
+    const iu = h.findIndex(m => m.id === firstUserMsg.id);
+    if (ia < 0 || iu < 0 || iu <= ia) return false;
+    for (let k = ia + 1; k < iu; k++) {
+        if (h[k] && h[k].mode === 'theater') return true;
+    }
+    return false;
 }
 
 /**
@@ -72,6 +89,9 @@ function tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySl
     if (firstUser && typeof firstUser.timestamp !== 'number') return null;
     const anchor = findTimePerceptionBAnchorMessage(historySlice, runStart, chatType);
     if (!anchor || typeof anchor.timestamp !== 'number') return null;
+    // 私聊切片已含剧场：锚点可能是剧场内 assistant；两人线下共处不应注入「线上沉默间隔」。
+    if (anchor.mode === 'theater' || firstUser.mode === 'theater') return null;
+    if (historyHasTheaterBetween(chat, anchor, firstUser)) return null;
     const timeDiff = firstUser.timestamp - anchor.timestamp;
     if (timeDiff <= TIME_PERCEPTION_GAP_MS) return null;
     // 同轮首条用户话已打过标 / 或紧挨前已有 B 双条时不再插（避免 API 失败后重点要回复叠两套）
@@ -234,11 +254,12 @@ async function getAiReply(chatId, chatType, isBackground = false) {
 
         // 添加聊天记录提示
         systemPrompt += "\n\n以下为当前聊天记录：\n";
-        
-        let historySlice = buildFilteredHistorySliceForAi(chat);
+
+        const excludeTheaterFromAi = chatType !== 'private';
+        let historySlice = buildFilteredHistorySliceForAi(chat, { excludeTheater: excludeTheaterFromAi });
 
         /* 时间感知相关（均受总开关等条件约束，此处只列分工）：
-         * 1) 两消息间隔·B：对方最后一条 → 本轮首条用户话，>7 分钟则插灰条 + 入库短 [system: 已过去X]；长「系统通知+性格亲密度等」只拼在**当次**请求、不入库。与(2)互斥。
+         * 1) 两消息间隔·B：对方最后一条 → 本轮首条用户话，>7 分钟则插灰条 + 入库短 [system: 已过去X]；长「系统通知+性格亲密度等」只拼在**当次**请求、不入库。私聊若锚点与首条之间存在剧场片段（chat.history 区间），则不插 B（线下共处不按线上失联算）。与(2)互斥。
          * 2) 迟点要回复：私聊、点要回复时墙钟距该条>7 分钟，仅当次 API 拼文；与(1)互斥（优先后者）。
          * 3) 无新消息继续：末条 assistant + 开续写 → 频道续写。末条非 user 则不走(1)。
          * 4) 后台 isBackground 另一套；前台 B 在 isBackground 不执行。
@@ -262,7 +283,7 @@ async function getAiReply(chatId, chatType, isBackground = false) {
 
         const timePerceptionBGapForThisRequest = tryInsertTimePerceptionHistoryB(chat, chatType, isBackground, historySlice, needsReplyLatencyTimePerceptionPrivate);
         if (timePerceptionBGapForThisRequest != null) {
-            historySlice = buildFilteredHistorySliceForAi(chat);
+            historySlice = buildFilteredHistorySliceForAi(chat, { excludeTheater: excludeTheaterFromAi });
             try {
                 if (typeof saveData === 'function') await saveData();
             } catch (e) {
@@ -308,7 +329,7 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                 const bgTimeGapStr = formatTimeGap(bgTimeDiff);
                 contents.push({
                     role: 'user',
-                    parts: [{ text: `[系统通知：距离上次互动已经过去了${bgTimeGapStr}。请严格结合你的【角色设定】、【与当前用户的关系亲密度】与【当前的聊天上下文内容和氛围】，综合判断是否需要对这段时间的流逝作出反应以及是否自然地延续对话（例如：若是闲聊，可自然延续话题或者发起新话题，若是之前在争吵，请延续情绪或主动破冰），绝对不要每次都机械地抱怨或提及对方消失了多久，保持活人的真实沟通节奏。]` }]
+                    parts: [{ text: `[系统通知：距离上次互动已经过去了${bgTimeGapStr}。请严格结合你的【角色设定】、【与当前用户的关系亲密度】与【当前的聊天上下文内容和氛围】，综合判断是否需要对这段时间的流逝作出反应以及是否自然地延续对话（例如：若是闲聊，可自然延续话题或者发起新话题，若是之前在争吵或闹别扭，请延续当时的情绪张力（含争吵、嘴硬、晾着、简短回复等），不必因时间流逝就自动切换成道歉、哄人或和好；仅在人设与当前氛围自然到位时再转折。），绝对不要每次都机械地抱怨或提及对方消失了多久，保持活人的真实沟通节奏。]` }]
                 });
             }
 
@@ -399,7 +420,7 @@ async function getAiReply(chatId, chatType, isBackground = false) {
                 const bgTimeGapStr = formatTimeGap(bgTimeDiff);
                 messages.push({
                     role: 'user',
-                    content: `[系统通知：距离上次互动已经过去了${bgTimeGapStr}。请严格结合你的【角色设定】、【与当前用户的关系亲密度】与【当前的聊天上下文内容和氛围】，综合判断是否需要对这段时间的流逝作出反应以及是否自然地延续对话（例如：若是闲聊，可自然延续话题或者发起新话题，若是之前在争吵，请延续情绪或主动破冰），绝对不要每次都机械地抱怨或提及对方消失了多久，保持活人的真实沟通节奏。]`
+                    content: `[系统通知：距离上次互动已经过去了${bgTimeGapStr}。请严格结合你的【角色设定】、【与当前用户的关系亲密度】与【当前的聊天上下文内容和氛围】，综合判断是否需要对这段时间的流逝作出反应以及是否自然地延续对话（例如：若是闲聊，可自然延续话题或者发起新话题，若是之前在争吵或闹别扭，请延续当时的情绪张力（含冷战、嘴硬、晾着、简短回复等），不必因时间流逝就自动切换成道歉、哄人或和好；仅在人设与当前氛围自然到位时再转折。），绝对不要每次都机械地抱怨或提及对方消失了多久，保持活人的真实沟通节奏。]`
                 });
             }
 

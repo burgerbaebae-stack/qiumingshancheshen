@@ -137,21 +137,22 @@ function renderMessages(isLoadMore = false, forceScrollToBottom = false) {
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
     if (!chat || !chat.history) return;
     const oldScrollHeight = messageArea.scrollHeight;
-    const totalMessages = chat.history.length;
+    const visibleHistory = chat.history.filter(m => !(m && m.mode === 'theater'));
+    const totalMessages = visibleHistory.length;
     
     // 确保 MESSAGES_PER_PAGE 存在
     const pageSize = (typeof MESSAGES_PER_PAGE !== 'undefined') ? MESSAGES_PER_PAGE : 20;
 
     const end = totalMessages - (currentPage - 1) * pageSize;
     const start = Math.max(0, end - pageSize);
-    const messagesToRender = chat.history.slice(start, end);
+    const messagesToRender = visibleHistory.slice(start, end);
     if (!isLoadMore) messageArea.innerHTML = '';
     const fragment = document.createDocumentFragment();
     
     let lastMsgTime = 0;
     
     if (start > 0) {
-        lastMsgTime = chat.history[start - 1].timestamp;
+        lastMsgTime = visibleHistory[start - 1].timestamp;
     }
 
     messagesToRender.forEach((msg, index) => {
@@ -182,7 +183,7 @@ function renderMessages(isLoadMore = false, forceScrollToBottom = false) {
             let currentIndexInHistory = start + index;
             
             for (let i = currentIndexInHistory - 1; i >= 0; i--) {
-                const candidate = chat.history[i];
+                const candidate = visibleHistory[i];
                 if (!invisibleRegex.test(candidate.content)) {
                     prevMsg = candidate;
                     break;
@@ -237,6 +238,7 @@ function loadMoreMessages() {
 }
 
 function createMessageBubbleElement(message, isContinuous = false) {
+    if (message && message.mode === 'theater') return null;
     const chat = (currentChatType === 'private') ? db.characters.find(c => c.id === currentChatId) : db.groups.find(g => g.id === currentChatId);
     // 这里需要把 isThinking 从 message 里解构出来
     let {role, content, timestamp, id, transferStatus, giftStatus, senderId, quote, isWithdrawn, originalContent, isStatusUpdate, isThinking} = message;
@@ -1112,6 +1114,7 @@ window.sendPayResponse = async function(msgId, action) {
 
 
 function addMessageBubble(message, targetChatId, targetChatType) {
+    if (message && message.mode === 'theater') return;
     if (targetChatId !== currentChatId || targetChatType !== currentChatType) {
         const senderChat = (targetChatType === 'private')
             ? db.characters.find(c => c.id === targetChatId)

@@ -1,0 +1,854 @@
+/* 线下剧情文游模式样式：由 js/modules/theater.js 的 injectStyles 拆分而来。 */
+#theater-screen {
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    background: linear-gradient(to top, #241432, #42254e);
+}
+#theater-screen::before {
+    content: "";
+    position: absolute;
+    top: -10%; left: -10%;
+    width: 100%; height: 100%;
+    background: 
+        radial-gradient(circle at 10% 10%, rgba(255, 126, 179, 0.3) 0%, transparent 40%),
+        radial-gradient(circle at 25% 15%, rgba(255, 126, 179, 0.2) 0%, transparent 35%),
+        radial-gradient(circle at 15% 30%, rgba(255, 126, 179, 0.25) 0%, transparent 40%),
+        radial-gradient(circle at 35% 30%, rgba(255, 126, 179, 0.15) 0%, transparent 45%);
+    filter: blur(40px);
+    pointer-events: none;
+    z-index: 0;
+}
+#theater-screen::after {
+    content: "";
+    position: absolute;
+    bottom: -30%; right: -30%;
+    width: 90%; height: 90%;
+    background: radial-gradient(ellipse at center, rgba(251,215,134,0.2) 0%, transparent 60%);
+    filter: blur(60px);
+    pointer-events: none;
+    z-index: 0;
+    font-family: "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+#theater-screen .theater-bg-layer {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    transform: scale(1.02);
+    transition: background-image .6s ease, opacity .4s ease;
+    pointer-events: none;
+}
+.theater-topbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    height: 80px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 16px 16px 0;
+    box-sizing: border-box;
+    background: linear-gradient(180deg, rgba(0,0,0,.65) 0%, transparent 100%);
+    transition: opacity 0.4s ease;
+}
+#theater-screen.reading-mode .theater-topbar,
+#theater-screen.reading-mode .theater-history-fab,
+#theater-screen.reading-mode .theater-input-toggle-btn,
+#theater-screen.reading-mode .theater-input-panel,
+#theater-screen.reading-mode .theater-scratch-btn {
+    opacity: 0;
+    pointer-events: none;
+}
+.theater-icon-btn {
+    background: transparent;
+    color: rgba(255,255,255,0.9);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 300;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+.theater-icon-btn:active { transform: scale(0.9); opacity: 0.7; }
+.theater-topbar-spacer { width: 40px; }
+.theater-topbar .theater-title-wrap { flex: 1; text-align: center; margin-top: 4px; }
+.theater-title { font-size: 15px; font-weight: 500; letter-spacing: 0.15em; text-shadow: 0 2px 6px rgba(0,0,0,.6); opacity: 0.9; }
+.theater-range { display: none; }
+
+.theater-stage {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+}
+.theater-sprite, .theater-user-sprite {
+    position: absolute;
+    bottom: 0;
+    max-height: 85vh;
+    max-width: 75%;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 30px rgba(0,0,0,.4));
+    display: none;
+    transition: opacity .4s ease, filter .4s ease, transform .4s cubic-bezier(0.1, 0.8, 0.2, 1);
+}
+.theater-sprite { left: 2%; object-position: bottom left; transform-origin: bottom left; }
+.theater-user-sprite { right: 2%; object-position: bottom right; transform-origin: bottom right; }
+.theater-sprite.visible, .theater-user-sprite.visible { display: block; }
+.theater-empty { display: none !important; }
+
+/* 对话卡片：上移悬空 + 浅色糖果玻璃；底部渐变淡出，给左右图标与输入条留白 */
+/* 对话卡片须在猫爪之上，否则会整块挡点击；输入展开时面板要高于对话卡片 */
+.theater-dialogue-area {
+    position: absolute;
+    z-index: 14;
+    pointer-events: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 92px;
+    min-height: 0;
+    max-height: min(42vh, 340px);
+    padding: 28px 18px 42px;
+    box-sizing: border-box;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, transparent 42%),
+        linear-gradient(
+            168deg,
+            rgba(210, 175, 255, 0.42) 0%,
+            rgba(155, 115, 205, 0.34) 38%,
+            rgba(118, 82, 160, 0.26) 68%,
+            rgba(95, 62, 125, 0.08) 88%,
+            transparent 100%
+        );
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow:
+        0 12px 36px rgba(65, 35, 95, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 必须写这一条：否则上面的 display:flex 会盖掉 [hidden] 的默认隐藏，刷新后进剧场会出现「空对话框壳」且点不动 */
+#theater-screen .theater-dialogue-area[hidden] {
+    display: none !important;
+    pointer-events: none !important;
+}
+
+.theater-dialogue-area.narration {
+    border-color: rgba(255, 230, 210, 0.35);
+    background:
+        linear-gradient(180deg, rgba(255, 248, 235, 0.16) 0%, transparent 45%),
+        linear-gradient(
+            168deg,
+            rgba(255, 205, 185, 0.38) 0%,
+            rgba(210, 165, 155, 0.28) 45%,
+            rgba(165, 125, 135, 0.14) 78%,
+            transparent 100%
+        );
+}
+
+.theater-speaker {
+    position: absolute;
+    top: -15px;
+    left: 20px;
+    background: linear-gradient(135deg, rgba(255, 246, 252, 0.94), rgba(232, 218, 255, 0.9));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    border-left: 4px solid rgba(255, 126, 179, 0.95);
+    border-radius: 10px 18px 10px 10px;
+    padding: 7px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #4a3558;
+    box-shadow: 0 6px 18px rgba(90, 45, 110, 0.28);
+}
+.theater-dialogue-area.user-line .theater-speaker {
+    left: auto;
+    right: 20px;
+    border-left: none;
+    border-right: 4px solid rgba(120, 165, 255, 0.95);
+    border-radius: 12px 10px 10px 12px;
+}
+
+.theater-text {
+    flex: 1;
+    min-height: 0;
+    pointer-events: auto;
+    white-space: pre-wrap;
+    font-size: 16px;
+    line-height: 1.78;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.96);
+    text-shadow: 0 1px 3px rgba(35, 18, 55, 0.45);
+    max-height: min(26vh, 220px);
+    overflow-y: auto;
+    padding-right: 4px;
+    margin-top: 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.theater-dialogue-area.narration .theater-speaker {
+    display: none;
+}
+.theater-dialogue-area.narration .theater-text {
+    color: rgba(255, 251, 242, 0.94);
+    text-align: justify;
+    font-size: 15px;
+    line-height: 1.9;
+    padding: 10px 8px;
+    margin-top: 0;
+    border-top: 1px dashed rgba(255, 255, 255, 0.22);
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.18);
+}
+
+.theater-next-hint {
+    position: absolute;
+    right: 20px;
+    bottom: 14px;
+    width: 12px;
+    height: 12px;
+    border-right: 2px solid rgba(251, 215, 134, 0.85);
+    border-bottom: 2px solid rgba(251, 215, 134, 0.85);
+    transform: rotate(45deg);
+    animation: theaterNextBreathe 1.5s infinite ease-in-out;
+    font-size: 0;
+    color: transparent;
+    pointer-events: none;
+}
+@keyframes theaterNextBreathe {
+    0%, 100% { transform: translateY(0) rotate(45deg); opacity: 0.3; }
+    50% { transform: translateY(4px) rotate(45deg); opacity: 0.9; }
+}
+
+/* 自由猫爪 */
+/* 叠在对话卡片之下：重叠区域由对话承接点击（推进剧情）；猫爪可拖到无重叠处操作 */
+#theater-screen .theater-scratch-btn {
+    position: absolute;
+    z-index: 11;
+    right: 52px;
+    top: clamp(272px, 50vh, 436px);
+    bottom: auto;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 10px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: none;
+    overflow: visible;
+    -webkit-tap-highlight-color: transparent;
+    transform-origin: center bottom;
+    transition: opacity 0.3s;
+}
+#theater-screen .theater-scratch-btn:active { opacity: .88; }
+#theater-screen .theater-scratch-btn img {
+    display: block;
+    width: 56px;
+    height: 56px;
+    max-width: none;
+    max-height: none;
+    object-fit: contain;
+    opacity: 0.85;
+    filter: drop-shadow(0 0 8px rgba(255,255,255,0.4)) brightness(1.1);
+    transform: rotate(-15deg);
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+#theater-screen .theater-scratch-ripple-host {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    overflow: visible;
+}
+#theater-screen .theater-scratch-btn.paw-bounce { animation: pawBounce .42s cubic-bezier(.36,.07,.19,.97) forwards; }
+#theater-screen .theater-scratch-btn.loading img { animation: theaterScratchBreath 1.25s infinite; }
+@keyframes theaterScratchBreath {
+    0%, 100% { opacity: .72; transform: rotate(-15deg) scale(1); }
+    50% { opacity: .95; transform: rotate(-15deg) scale(1.06); }
+}
+
+/* 左下角无圈历史 */
+.theater-history-fab {
+    position: absolute; z-index: 18;
+    left: 16px; bottom: 24px;
+    width: 40px; height: 40px;
+    background: transparent; border: none; padding: 0;
+    color: rgba(255,255,255,0.85);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+    transition: opacity 0.2s, transform 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+.theater-history-fab:active { transform: scale(0.9); opacity: 0.7; }
+.theater-history-fab svg { width: 24px; height: 24px; }
+
+/* 右下角无圈铅笔 */
+.theater-input-toggle-btn {
+    position: absolute; z-index: 19;
+    right: 16px; bottom: 24px;
+    width: 40px; height: 40px;
+    background: transparent; border: none; padding: 0;
+    color: rgba(255,255,255,0.9); font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+    transition: opacity 0.2s, transform 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+.theater-input-toggle-btn:active { transform: scale(0.9); opacity: 0.7; }
+
+.theater-input-panel {
+    position: absolute;
+    z-index: 16;
+    left: 64px; right: 64px; bottom: 24px;
+    background: transparent;
+    padding: 0;
+    border: none;
+    transform: translateY(20px);
+    opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;
+}
+.theater-input-panel.active { transform: translateY(0); opacity: 1; pointer-events: auto; z-index: 22; }
+.theater-input-wrap {
+    width: 100%;
+}
+#theater-input {
+    width: 100%;
+    min-height: 40px;
+    max-height: 120px;
+    resize: none;
+    pointer-events: auto;
+    background: rgba(26, 22, 32, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+    padding: 10px 16px;
+    color: rgba(255,255,255,0.95);
+    font-size: 15px;
+    line-height: 1.5;
+    box-sizing: border-box;
+    outline: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+#theater-input:focus { border-color: rgba(255,255,255,0.3); }
+#theater-input::-webkit-scrollbar { display: none; }
+
+.theater-sub-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: radial-gradient(circle at top right, rgba(255, 126, 179, 0.15), transparent 50%),
+                radial-gradient(circle at bottom left, rgba(251, 215, 134, 0.15), transparent 50%),
+                rgba(22, 14, 29, 0.85);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: none;
+    visibility: hidden;
+}
+.theater-sub-screen.active { transform: translateY(0); pointer-events: auto; visibility: visible; }
+
+.theater-sub-topbar {
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    border-bottom: 1px dashed rgba(255,255,255,0.15);
+}
+.theater-sub-topbar .theater-title { font-size: 16px; font-weight: 600; letter-spacing: 0.1em; }
+
+.theater-sub-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 20px 40px;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 剧情回顾：横向场次切换（仅浏览，不改进行中场次） */
+.theater-history-session-strip {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    margin: -8px -20px 0;
+    padding: 10px 20px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: rgba(22, 14, 29, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.theater-history-session-chip {
+    flex: 0 0 auto;
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.theater-history-session-chip:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.28);
+}
+.theater-history-session-chip.active {
+    background: rgba(255, 126, 179, 0.22);
+    border-color: rgba(255, 126, 179, 0.55);
+    color: #fff;
+}
+.theater-history-range-tag {
+    display: block;
+    width: max-content;
+    background: rgba(255,255,255,0.1);
+    border: 1px dashed rgba(255,255,255,0.3);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.8);
+    margin: 24px auto 16px;
+    position: relative;
+}
+.theater-history-range-tag::before {
+    content: '';
+    position: absolute;
+    left: -16px; top: 50%;
+    transform: translateY(-50%);
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.5);
+}
+.theater-history-timeline {
+    position: relative;
+    padding-left: 20px;
+}
+.theater-history-timeline::before {
+    content: '';
+    position: absolute;
+    left: 4px; top: 0; bottom: 0;
+    width: 1px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.3) 50%, transparent 50%);
+    background-size: 1px 8px;
+}
+.theater-log-item {
+    position: relative;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px 12px 12px 4px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: slideUpFade 0.4s ease forwards;
+    opacity: 0;
+    transform: translateY(10px);
+}
+.theater-log-item.narration {
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px;
+    border-style: dashed;
+}
+.theater-history-timeline .theater-log-item.theater-log-item-replayable[data-theater-msg-id] {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.theater-history-timeline .theater-log-item.theater-log-item-replayable:active {
+    transform: translateY(2px);
+    opacity: 0.9;
+}
+@keyframes slideUpFade { to { opacity: 1; transform: translateY(0); } }
+.theater-log-item::before {
+    content: '';
+    position: absolute;
+    left: -20px; top: 18px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 126, 179, 0.9);
+    box-shadow: 0 0 8px rgba(255, 126, 179, 0.8);
+}
+.theater-log-name {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: rgba(255,255,255,0.9);
+    border-left: 2px solid #fff;
+}
+.theater-log-text { font-size: 14px; line-height: 1.6; color: rgba(255,255,255,0.85); white-space: pre-wrap; }
+
+.theater-polaroid-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.theater-polaroid-card {
+    background: #fff;
+    padding: 8px 8px 32px 8px;
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    position: relative;
+    transform: rotate(-2deg);
+    transition: transform 0.3s;
+    cursor: pointer;
+}
+.theater-polaroid-card:nth-child(2) { transform: rotate(2deg); }
+.theater-polaroid-card:active { transform: scale(0.95); }
+.theater-polaroid-card::before {
+    content: '';
+    position: absolute; top: -6px; left: 50%;
+    transform: translateX(-50%);
+    width: 24px; height: 12px;
+    background: rgba(255,255,255,0.4);
+    border: 1px solid rgba(0,0,0,0.1);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.theater-polaroid-img-wrap {
+    aspect-ratio: 3/4;
+    background: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+}
+.theater-polaroid-img-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
+.theater-polaroid-empty {
+    color: #a0a0a0; font-size: 24px; display: flex; flex-direction: column; align-items: center;
+}
+.theater-polaroid-empty span { font-size: 10px; margin-top: 8px; color: #888; }
+.theater-polaroid-label {
+    position: absolute; bottom: 8px; left: 0; right: 0;
+    text-align: center; color: #666; font-size: 13px; font-weight: 500; font-family: "PingFang SC", sans-serif;
+}
+
+.theater-form-row { margin: 20px 0; display: flex; align-items: center; justify-content: space-between; }
+.theater-form-row label { font-size: 14px; opacity: 0.9; }
+.theater-toggle {
+    position: relative;
+    width: 48px; height: 26px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+.theater-toggle.on { background: linear-gradient(90deg, #ff7eb3, #c471ed);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3), 0 0 12px rgba(196, 113, 237, 0.4); }
+.theater-toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 20px; height: 20px;
+    background: linear-gradient(135deg, #fff, #f8e5ff);
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3), inset -2px -2px 4px rgba(200, 150, 255, 0.3);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.theater-toggle.on::after { transform: translateX(22px); }
+input.theater-hidden-cb { display: none; }
+
+.theater-action-btn {
+    display: block; width: 100%;
+    padding: 14px; margin-bottom: 14px;
+    background: linear-gradient(135deg, rgba(255, 126, 179, 0.85), rgba(196, 113, 237, 0.85));
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    color: #fff; font-size: 16px; font-weight: 700;
+    box-shadow: 0 6px 16px rgba(196, 113, 237, 0.4), inset 0 2px 6px rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.theater-action-btn.btn-danger {
+    background: linear-gradient(135deg, rgba(120, 80, 140, 0.8), rgba(90, 60, 110, 0.8));
+    box-shadow: 0 6px 16px rgba(70, 50, 90, 0.3), inset 0 2px 4px rgba(255,255,255,0.2);
+}
+.theater-action-btn:active {
+    transform: scale(0.94) translateY(2px);
+    box-shadow: 0 2px 8px rgba(200, 150, 255, 0.3), inset 0 2px 4px rgba(255,255,255,0.4);
+}
+.theater-action-btn.btn-danger:active {
+    box-shadow: 0 2px 8px rgba(255, 100, 100, 0.3), inset 0 2px 4px rgba(255,255,255,0.4);
+}
+.theater-bg-status {
+    position: absolute;
+    z-index: 7;
+    left: 50%; transform: translateX(-50%);
+    top: 80px;
+    max-width: 220px;
+    padding: 9px 11px;
+    border-radius: 14px;
+    background: rgba(12,12,18,.58);
+    border: 1px solid rgba(255,255,255,.16);
+    font-size: 12px;
+    line-height: 1.45;
+    backdrop-filter: blur(8px);
+    text-align: center;
+}
+.theater-bg-status button {
+    margin-top: 6px;
+    border: 0;
+    border-radius: 10px;
+    padding: 6px 9px;
+    background: rgba(255,255,255,.9);
+    color: #201b26;
+    font-weight: 700;
+}
+.theater-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+.theater-gallery-card {
+    position: relative;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    border-radius: 8px;
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+.theater-gallery-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.theater-gallery-card button {
+    position: absolute; right: 4px; bottom: 4px;
+    padding: 4px 8px; border-radius: 6px; border: none;
+    background: rgba(0,0,0,0.6); color: #fff; font-size: 11px;
+}
+.theater-file-input-hidden { display: none; }
+
+/* 设置页：立绘位置微调滑块 */
+.theater-sprite-tune {
+    margin: 12px 0 26px;
+    padding: 14px 14px 18px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+.theater-tune-head {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    opacity: 0.88;
+    margin-bottom: 12px;
+    line-height: 1.45;
+}
+.theater-tune-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.theater-tune-card {
+    padding: 10px 10px 12px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.theater-tune-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    opacity: 0.95;
+}
+.theater-slider-label {
+    display: block;
+    font-size: 11px;
+    opacity: 0.85;
+    margin-top: 10px;
+}
+.theater-tune-card .theater-slider-label:first-of-type {
+    margin-top: 0;
+}
+.theater-range-input {
+    width: 100%;
+    margin-top: 5px;
+    accent-color: #e8b4ff;
+}
+
+/* 剧情回顾：卡片编辑与半屏编辑层 */
+.theater-log-edit-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: rgba(255, 255, 255, 0.88);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    transition: transform 0.15s ease, opacity 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.theater-log-edit-btn .theater-log-edit-icon {
+    display: block;
+    flex-shrink: 0;
+    opacity: 0.95;
+}
+.theater-log-edit-btn:active {
+    transform: scale(0.92);
+    opacity: 0.85;
+}
+.theater-log-item-replayable .theater-log-text {
+    padding-right: 40px;
+}
+
+.theater-history-edit-sheet {
+    position: absolute;
+    inset: 0;
+    z-index: 32;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    pointer-events: none;
+}
+.theater-history-edit-sheet[hidden] {
+    display: none !important;
+}
+.theater-history-edit-sheet:not([hidden]) {
+    pointer-events: auto;
+}
+.theater-history-edit-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(12, 8, 18, 0.52);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+.theater-history-edit-panel {
+    position: relative;
+    max-height: min(52vh, 440px);
+    min-height: 240px;
+    padding: 14px 16px 18px;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    border-radius: 22px 22px 0 0;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-bottom: none;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, transparent 38%),
+        linear-gradient(
+            168deg,
+            rgba(210, 175, 255, 0.38) 0%,
+            rgba(118, 82, 160, 0.28) 55%,
+            rgba(42, 28, 58, 0.92) 100%
+        );
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    box-shadow: 0 -8px 36px rgba(40, 22, 62, 0.45);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.theater-history-edit-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.theater-history-edit-head #theater-history-edit-title {
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.95);
+}
+.theater-history-edit-head .theater-history-edit-close {
+    flex-shrink: 0;
+}
+.theater-history-edit-textarea {
+    flex: 1;
+    min-height: 120px;
+    width: 100%;
+    resize: none;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(14, 12, 22, 0.72);
+    color: rgba(255, 255, 255, 0.94);
+    font-size: 15px;
+    line-height: 1.55;
+    outline: none;
+    font-family: inherit;
+}
+.theater-history-edit-textarea:focus {
+    border-color: rgba(255, 186, 220, 0.45);
+}
+.theater-history-edit-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+.theater-history-edit-cancel,
+.theater-history-edit-save {
+    padding: 11px 22px;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.15s ease, opacity 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.theater-history-edit-cancel {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.88);
+}
+.theater-history-edit-save {
+    background: linear-gradient(135deg, rgba(255, 126, 179, 0.88), rgba(196, 113, 237, 0.88));
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(196, 113, 237, 0.35);
+}
+.theater-history-edit-cancel:active,
+.theater-history-edit-save:active {
+    transform: scale(0.96);
+}

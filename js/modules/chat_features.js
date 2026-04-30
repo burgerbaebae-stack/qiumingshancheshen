@@ -305,6 +305,7 @@ function sendMyGift(description) {
 
 function setupTimeSkipSystem() {
     const timeSkipBtn = document.getElementById('time-skip-btn');
+    const theaterModeBtn = document.getElementById('theater-mode-btn');
     const timeSkipModal = document.getElementById('time-skip-modal');
     const timeSkipForm = document.getElementById('time-skip-form');
     const timeSkipInput = document.getElementById('time-skip-input');
@@ -313,6 +314,16 @@ function setupTimeSkipSystem() {
         timeSkipForm.reset();
         timeSkipModal.classList.add('visible');
     });
+
+    if (theaterModeBtn) {
+        theaterModeBtn.addEventListener('click', () => {
+            if (window.TheaterMode && typeof window.TheaterMode.open === 'function') {
+                window.TheaterMode.open();
+                return;
+            }
+            showToast('线下剧情模块未加载');
+        });
+    }
     timeSkipModal.addEventListener('click', (e) => {
         if (e.target === timeSkipModal) timeSkipModal.classList.remove('visible');
     });

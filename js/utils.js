@@ -12,7 +12,7 @@ function getRandomValue(str) {
 
 // 图片压缩工具
 async function compressImage(file, options = {}) {
-    const { quality = 0.8, maxWidth = 800, maxHeight = 800 } = options;
+    const { quality = 0.8, maxWidth = 800, maxHeight = 800, preserveAlpha = false } = options;
 
     if (file.type === 'image/gif') {
         return new Promise((resolve, reject) => {
@@ -52,13 +52,20 @@ async function compressImage(file, options = {}) {
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
 
-                if (file.type === 'image/png') {
+                const isPngOrWebp = file.type === 'image/png' || file.type === 'image/webp';
+                if (isPngOrWebp && !preserveAlpha) {
                     ctx.fillStyle = '#FFFFFF';
                     ctx.fillRect(0, 0, width, height);
                 }
 
                 ctx.drawImage(img, 0, 0, width, height);
-                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+
+                let compressedDataUrl;
+                if (preserveAlpha && isPngOrWebp) {
+                    compressedDataUrl = canvas.toDataURL('image/png');
+                } else {
+                    compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                }
                 resolve(compressedDataUrl);
             };
         };
