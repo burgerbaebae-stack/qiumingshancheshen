@@ -25,9 +25,7 @@ const TheaterMode = (() => {
         drag: null,
         historyReplay: false,
         /** 剧情回顾页当前浏览的场次（仅 UI，不改变 activeSessionId / AI 上下文） */
-        historyBrowseSessionId: null,
-        /** debug-56605f：剧情回顾打开序号，用于检测 rAF 乱序 */
-        historyDbgSeq: 0
+        historyBrowseSessionId: null
     };
 
     function $(id) {
@@ -500,25 +498,9 @@ const TheaterMode = (() => {
             $(SETTINGS_SCREEN_ID).classList.remove('active');
         });
         history.querySelector('#theater-history-back').addEventListener('click', () => {
-            // #region agent log
-            fetch('http://127.0.0.1:7540/ingest/2f027be0-fce7-46b5-a8e3-9193a116129e', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '56605f' },
-                body: JSON.stringify({
-                    sessionId: '56605f',
-                    runId: 'dbg-history-layout',
-                    hypothesisId: 'H-close-reopen',
-                    location: 'theater.js:historyBack',
-                    message: 'historyBack before inactive',
-                    data: { historyDbgSeq: state.historyDbgSeq },
-                    timestamp: Date.now()
-                })
-            }).catch(() => {});
-            // #endregion
             closeTheaterHistoryEdit();
             state.historyBrowseSessionId = null;
             $(HISTORY_SCREEN_ID).classList.remove('active');
-            dbgHistoryLayout('historyBack after inactive', state.historyDbgSeq);
         });
         gallery.querySelector('#theater-gallery-back').addEventListener('click', () => {
             $(GALLERY_SCREEN_ID).classList.remove('active');
@@ -537,14 +519,7 @@ const TheaterMode = (() => {
     }
 
     function open() {
-        // #region agent log
-        const _tOpen0 = performance.now();
-        const _ep0 = performance.now();
-        // #endregion
         ensureScreen();
-        // #region agent log
-        const _msEnsure = Math.round(performance.now() - _ep0);
-        // #endregion
         patchTheaterDomIfNeeded();
         const chat = currentChat();
         if (!chat) {
@@ -563,45 +538,12 @@ const TheaterMode = (() => {
         state.sessionId = session ? session.id : null;
         state.playbackKind = null;
         // 与日记/日程一致：先切屏、再关扩展面板；重渲染与 Dexie 落库勿塞进首帧（见 schedule_day：bulkPut 可卡主线程很久）。
-        // #region agent log
-        const _sw0 = performance.now();
-        // #endregion
         switchScreen(SCREEN_ID);
         if (typeof showPanel === 'function') showPanel('none');
-        // #region agent log
-        const _msSwitch = Math.round(performance.now() - _sw0);
-        const _msUntilSwitch = Math.round(performance.now() - _tOpen0);
-        // #endregion
         requestAnimationFrame(() => {
-            // #region agent log
-            const _r0 = performance.now();
-            // #endregion
             renderAll(chat);
-            // #region agent log
-            const _msRenderAll = Math.round(performance.now() - _r0);
-            const _data = {
-                msUntilSwitch: _msUntilSwitch,
-                msFromRafToRenderEnd: Math.round(performance.now() - _r0),
-                msEnsureWrap: _msEnsure,
-                msRenderAll: _msRenderAll,
-                msSwitch: _msSwitch,
-                historyLen: (chat.history || []).length,
-                hasSession: !!session,
-                fix: 'switchFirst+panelAfter+rAF_renderAll+idleSave'
-            };
-            try { console.log('[TheaterDebug] open_phases', _data); } catch (e) { /* ignore */ }
-            fetch('http://127.0.0.1:7540/ingest/2f027be0-fce7-46b5-a8e3-9193a116129e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1e7660'},body:JSON.stringify({sessionId:'1e7660',location:'theater.js:open',message:'open_phases',data:_data,timestamp:Date.now(),runId:'post-fix-v3',hypothesisId:'H-perceived'})}).catch(()=>{});
-            // #endregion
             const persist = () => {
-                // #region agent log
-                const _sv0 = performance.now();
-                // #endregion
                 if (typeof saveData === 'function') saveData();
-                // #region agent log
-                const _idleSaveMs = Math.round(performance.now() - _sv0);
-                try { console.log('[TheaterDebug] open_idle_save', { msSaveCall: _idleSaveMs }); } catch (e) { /* ignore */ }
-                fetch('http://127.0.0.1:7540/ingest/2f027be0-fce7-46b5-a8e3-9193a116129e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1e7660'},body:JSON.stringify({sessionId:'1e7660',location:'theater.js:open',message:'open_idle_save',data:{msSaveCall:_idleSaveMs},timestamp:Date.now(),runId:'post-fix-v3',hypothesisId:'H3-saveData'})}).catch(()=>{});
-                // #endregion
             };
             if (typeof requestIdleCallback === 'function') {
                 requestIdleCallback(persist, { timeout: 2500 });
@@ -1063,12 +1005,31 @@ const TheaterMode = (() => {
                 : `你是角色 ${chat.realName || chat.name}。`;
         const blockSpeakerExample = chat.remarkName || chat.realName || chat.name || '角色';
         const writingInjections = buildTheaterWritingInjections(chat);
+        const tn = theaterState(chat).settings;
+        const theaterFullNovel = !!tn.theaterAiFullNovelMode;
+        const protagonistNameExample = chat.myName || '我';
+        const charSpeakerJson = JSON.stringify(blockSpeakerExample);
+        const mySpeakerJson = JSON.stringify(protagonistNameExample);
+        const blocksJsonExampleInner = theaterFullNovel
+            ? `    {"type": "narration", "text": "日光斜进窗缝，风里有一点初夏的黏稠。"},\n`
+            + `    {"type": "dialogue", "speaker": ${charSpeakerJson}, "text": "醒了？"},\n`
+            + `    {"type": "dialogue", "speaker": ${mySpeakerJson}, "text": "……再五分钟。"},\n`
+            + `    {"type": "narration", "text": "你往被子里缩了缩，耳根却躲不开他的笑意。"},\n`
+            + `    {"type": "dialogue", "speaker": ${charSpeakerJson}, "text": "行，替你记着。"}`
+            : `    {"type": "narration", "text": "秋风扫过林梢，碎金般的光落在步道上。"},\n`
+            + `    {"type": "narration", "text": "他侧过身，指腹蹭过袖扣，像在斟酌措辞。"},\n`
+            + `    {"type": "dialogue", "speaker": ${charSpeakerJson}, "text": "还能在干嘛？"},\n`
+            + `    {"type": "dialogue", "speaker": ${charSpeakerJson}, "text": "刚去给那帮没长眼的货色结了笔账。"}`;
+        const fullNovelDialogueRule = theaterFullNovel
+            ? `\n【全真主笔｜dialogue 与白条】本条与上文【本轮主笔·全真小说】一致：凡主控**说出口**的台词必须使用 \`{"type":"dialogue","speaker":${mySpeakerJson},...}\`，**speaker** 须与约定中「${protagonistNameExample}」（即设置里「我的名字」）字面一致，见下示例；不得以叙述「你说道……」带过整句可听对白。**每轮**须有主控的 dialogue（嘟囔、气音、半截话均可），并与对方对白交错，除非本节刻意「静音」并在 \`sessionState\` 里说明。\n`
+            : '';
+
         const theaterPrompt = `${basePrompt}
 
 【线下剧场模式｜最高优先级】
 当前不是线上即时聊天，而是与「${chat.myName}」面对面相处的线下剧情。请从最近上下文自然衔接，不要重开局。
 
-${writingInjections ? `${writingInjections}\n\n` : ''}写作规则：
+${writingInjections ? `${writingInjections}\n\n` : ''}${fullNovelDialogueRule}写作规则：
 1. 使用小说体推进，旁白负责环境、动作、细节、氛围和必要的心理暗流；角色对白须符合人设与关系。**主控称谓、己方是否全真由 AI 主笔见上文方块标题段，须严格遵守。**
 2. 不要写成微信短消息，不要输出聊天格式，不要使用线上消息拆条规则。
 3. 【分块｜必读】前端按 JSON 里 blocks 的每一条展示一屏，用户点一次「继续」进下一条。禁止把多句旁白或多句对白塞进同一个 "text" 里。
@@ -1077,16 +1038,13 @@ ${writingInjections ? `${writingInjections}\n\n` : ''}写作规则：
    · 对白 dialogue：每条一般只写一句（一口气）。若连续两个极短问句可合并为一条，禁止把四句以上发言塞进一条 text。
    · 无【篇幅偏好】或仅短打时，一轮常见约 6～15 条作参考；**有较长篇幅目标时条数须明显增加**（可远高于 15），以先满足总长为准。
 4. 输出必须是 JSON 对象，不要 Markdown，不要代码块。
-5. JSON 结构如下（注意同一轮内多个块）：
+5. JSON 结构如下（注意同一轮内多个块）；**示例仅供格式与 speaker 占位，情节勿照搬**：
 {
   "blocks": [
-    {"type": "narration", "text": "秋风扫过林梢，碎金般的光落在步道上。"},
-    {"type": "narration", "text": "他侧过身，指腹蹭过袖扣，像在斟酌措辞。"},
-    {"type": "dialogue", "speaker": "${blockSpeakerExample}", "text": "还能在干嘛？"},
-    {"type": "dialogue", "speaker": "${blockSpeakerExample}", "text": "刚去给那帮没长眼的货色结了笔账。"}
+${blocksJsonExampleInner}
   ],
   "scenePrompt": "详细空镜背景生图提示词",
-  "sessionState": "当前地点、时间、双方相对位置、气氛和剧情进度摘要"
+  "sessionState": "地点、与用户本地时刻硬锚相容的钟点或时段、双方站位、进度与气氛摘要（刻度级时间优先写在此；勿在每一段旁白机械重复报时钟点）"
 }
 6. scenePrompt 专门用于生成竖屏「无人空镜」背景图，文案要尽量具体，便于生图模型落实：写清地点、空间结构、时间天气、光线方向与冷暖、主要物体、材质、色彩、氛围、镜头角度、前中后景和留白。在以上内容的前提下遵守：只描述环境与静物，不要写、不要暗示画面里会出现本场景中的指定角色或可辨认的具体人物（面目清晰的人像、半身全身剪影、漫画立绘式人物均属禁忌）；不要为后续垫脸而把角色外貌写进 scenePrompt；可写远景里模糊的人群或车辆轮廓。
 `;
@@ -1423,49 +1381,6 @@ ${writingInjections ? `${writingInjections}\n\n` : ''}写作规则：
         });
     }
 
-    function dbgHistoryLayout(phase, mySeq) {
-        const phone = document.querySelector('.phone-screen');
-        const sub = $(HISTORY_SCREEN_ID);
-        const scr = $('theater-history-body');
-        const ta = $('theater-input');
-        const panel = $('theater-input-panel');
-        const pr = phone ? phone.getBoundingClientRect() : null;
-        const sr = sub ? sub.getBoundingClientRect() : null;
-        const cr = scr ? scr.getBoundingClientRect() : null;
-        const rootStyle = getComputedStyle(document.documentElement);
-        // #region agent log
-        fetch('http://127.0.0.1:7540/ingest/2f027be0-fce7-46b5-a8e3-9193a116129e', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '56605f' },
-            body: JSON.stringify({
-                sessionId: '56605f',
-                runId: 'dbg-history-layout',
-                hypothesisId: 'H-layout-gap',
-                location: 'theater.js:dbgHistoryLayout',
-                message: phase,
-                data: {
-                    mySeq,
-                    latestSeq: state.historyDbgSeq,
-                    rafStale: mySeq !== state.historyDbgSeq,
-                    phoneH: pr ? Math.round(pr.height) : null,
-                    subH: sr ? Math.round(sr.height) : null,
-                    subBottomGap: pr && sr ? Math.round(pr.bottom - sr.bottom) : null,
-                    subTransform: sub ? getComputedStyle(sub).transform : null,
-                    subActive: !!(sub && sub.classList.contains('active')),
-                    scrollClientH: scr ? scr.clientHeight : null,
-                    scrollScrollH: scr ? scr.scrollHeight : null,
-                    scrollTop: scr ? scr.scrollTop : null,
-                    panelHeightVar: rootStyle.getPropertyValue('--panel-height').trim(),
-                    inputActive: !!(panel && panel.classList.contains('active')),
-                    inputInlineHeight: ta ? (ta.style.height || '') : '',
-                    vvH: typeof window.visualViewport !== 'undefined' ? Math.round(window.visualViewport.height) : null
-                },
-                timestamp: Date.now()
-            })
-        }).catch(() => {});
-        // #endregion
-    }
-
     /** 再次打开子屏时跳过从 translateY(100%) 的过渡，否则 .phone-screen 白底会长时间露出（见 debug H-layout-gap） */
     function snapTheaterSubScreenOpen(el) {
         if (!el) return;
@@ -1493,48 +1408,14 @@ ${writingInjections ? `${writingInjections}\n\n` : ''}写作规则：
         lazyEnsureSubScreens();
         ensureHistoryEditSheet($(HISTORY_SCREEN_ID));
         state.historyBrowseSessionId = null;
-        state.historyDbgSeq += 1;
-        const mySeq = state.historyDbgSeq;
-        // #region agent log
-        fetch('http://127.0.0.1:7540/ingest/2f027be0-fce7-46b5-a8e3-9193a116129e', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '56605f' },
-            body: JSON.stringify({
-                sessionId: '56605f',
-                runId: 'dbg-history-layout',
-                hypothesisId: 'H-rAF-order',
-                location: 'theater.js:openHistory',
-                message: 'openHistory',
-                data: { mySeq },
-                timestamp: Date.now()
-            })
-        }).catch(() => {});
-        // #endregion
         snapTheaterSubScreenOpen($(HISTORY_SCREEN_ID));
         const bodyEarly = $('theater-history-body');
         if (bodyEarly) {
             bodyEarly.innerHTML = '<div class="theater-log-item theater-history-loading" role="status">加载中…</div>';
         }
-        dbgHistoryLayout('afterLoadingInnerHTML', mySeq);
         requestAnimationFrame(() => {
-            // #region agent log
-            fetch('http://127.0.0.1:7540/ingest/2f027be0-fce7-46b5-a8e3-9193a116129e', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '56605f' },
-                body: JSON.stringify({
-                    sessionId: '56605f',
-                    runId: 'dbg-history-layout',
-                    hypothesisId: 'H-rAF-order',
-                    location: 'theater.js:openHistory:rAF',
-                    message: 'rAF before mount',
-                    data: { mySeq, latestSeq: state.historyDbgSeq, rafStale: mySeq !== state.historyDbgSeq },
-                    timestamp: Date.now()
-                })
-            }).catch(() => {});
-            // #endregion
             mountHistoryScreen(chat);
             if (resolveShownHistorySession(chat)) scrollTheaterHistoryToBottom();
-            dbgHistoryLayout('afterMountHistory', mySeq);
         });
     }
 
@@ -1916,7 +1797,7 @@ ${writingInjections ? `${writingInjections}\n\n` : ''}写作规则：
         const msgById = new Map(timelineMsgs.map(m => [m.id, m]));
 
         const items = timelineMsgs
-            .map((m, i) => {
+            .map((m) => {
                 const label = m.role === 'user' ? (chat.myName || '我') : (chat.remarkName || chat.realName || '角色');
                 const isNarration = m.role === 'assistant' && m.theaterBlocks && m.theaterBlocks.every(b => String(b.type || '').toLowerCase() !== 'dialogue');
                 let detail = m.content || '';
@@ -1925,7 +1806,7 @@ ${writingInjections ? `${writingInjections}\n\n` : ''}写作规则：
                 }
                 const idAttr = encodeURIComponent(m.id);
                 return `
-                    <div class="theater-log-item theater-log-item-replayable ${isNarration ? 'narration' : ''}" data-theater-msg-id="${idAttr}" data-role="${m.role === 'user' ? 'user' : 'assistant'}" style="animation-delay: ${i * 0.05}s" tabindex="0">
+                    <div class="theater-log-item theater-log-item-replayable ${isNarration ? 'narration' : ''}" data-theater-msg-id="${idAttr}" data-role="${m.role === 'user' ? 'user' : 'assistant'}" tabindex="0">
                         <button type="button" class="theater-log-edit-btn" data-theater-msg-id="${idAttr}" aria-label="编辑" title="编辑">
                             <svg class="theater-log-edit-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M17 3a2.828 2.828 0 1 1 4 4L7 21l-4 1 1-4L17 3z"/>

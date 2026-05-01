@@ -484,6 +484,12 @@
     background: linear-gradient(to bottom, rgba(255,255,255,0.3) 50%, transparent 50%);
     background-size: 1px 8px;
 }
+/* 剧情回顾：全局 .theater-log-item 默认 opacity:0 + 错峰 animation-delay，首屏只剩竖线与底部标签，像长时间空白 */
+.theater-history-timeline > .theater-log-item {
+    opacity: 1;
+    transform: translateY(0);
+    animation: none;
+}
 .theater-log-item {
     position: relative;
     background: rgba(255,255,255,0.06);
