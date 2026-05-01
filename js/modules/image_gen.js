@@ -20,6 +20,37 @@ const ImageGenModule = (() => {
         return !!(cfg.enabled && cfg.url && cfg.key && cfg.model);
     }
 
+    /**
+     * 将生图设置里的 OpenAI 风格 size（如 1024x1536）映射为 Gemini imageConfig.aspectRatio
+     */
+    function _mapOpenAISizeToGeminiAspectRatio(size) {
+        const s = (size || '1024x1024').trim().toLowerCase();
+        switch (s) {
+            case '1024x1024':
+            case '512x512':
+                return '1:1';
+            case '1024x1536':
+                return '2:3';
+            case '1536x1024':
+                return '3:2';
+            case '1024x1792':
+                return '9:16';
+            case '1792x1024':
+                return '16:9';
+            default:
+                return '1:1';
+        }
+    }
+
+    /** Gemini generateContent：文生 / 垫图共用 */
+    function _buildGeminiGenerationConfig(cfg) {
+        const aspectRatio = _mapOpenAISizeToGeminiAspectRatio(cfg && cfg.size);
+        return {
+            responseModalities: ['IMAGE', 'TEXT'],
+            imageConfig: { aspectRatio }
+        };
+    }
+
     // ── 正则：识别「发来的照片」及可选标签；仍兼容旧存档里的「发来的照片/视频」「发来的视频」 ──
     // 可选 ·锁脸 | ·空镜 | ·局部：控制是否使用参考图垫脸（无标签时与历史一致，视为锁脸）
     const PHOTO_REGEX = /\[(?:.+?)发来的(?:照片\/视频|照片|视频)(?:·(锁脸|空镜|局部))?[：:]([\s\S]+?)\]/;
@@ -183,7 +214,7 @@ const ImageGenModule = (() => {
                     { text }
                 ]
             }],
-            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+            generationConfig: _buildGeminiGenerationConfig(cfg)
         };
         const post = () => fetch(endpoint, {
             method: 'POST',
@@ -277,7 +308,7 @@ const ImageGenModule = (() => {
             const endpoint = `${url}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(keyParam)}`;
             const body = {
                 contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+                generationConfig: _buildGeminiGenerationConfig(cfg)
             };
             const post = () => fetch(endpoint, {
                 method: 'POST',
@@ -385,16 +416,6 @@ const ImageGenModule = (() => {
         return false;
     }
 
-    /** gpt-image 系列尺寸与下拉框里 DALL·E3 风格尺寸对齐（上游仅支持 1024 档） */
-    function _mapSizeForOpenAIImageEdit(size) {
-        const s = size || '1024x1024';
-        if (/^(1024x1024|1024x1536|1536x1024)$/.test(s)) return s;
-        if (s === '1024x1792') return '1024x1536';
-        if (s === '1792x1024') return '1536x1024';
-        if (s === '512x512') return '1024x1024';
-        return '1024x1024';
-    }
-
     /**
      * 从 OpenAI /v1/images/generations 或 /v1/images/edits 的 JSON 得到 dataUrl
      */
@@ -433,7 +454,7 @@ const ImageGenModule = (() => {
 
         const authKey = (typeof getRandomValue === 'function') ? getRandomValue(String(key)) : String(key);
         const endpoint = `${url}/v1/images/edits`;
-        const size = _mapSizeForOpenAIImageEdit(cfg.size);
+        const size = cfg.size || '1024x1024';
 
         const r = await fetch(dataUrl);
         const blob = await r.blob();

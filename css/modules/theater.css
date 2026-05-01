@@ -842,6 +842,33 @@ input.theater-hidden-cb { display: none; }
     gap: 12px;
     justify-content: flex-end;
 }
+.theater-history-edit-actions.theater-history-edit-actions-row {
+    justify-content: space-between;
+    align-items: center;
+}
+.theater-history-edit-actions-right {
+    display: flex;
+    gap: 12px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+.theater-history-edit-delete {
+    padding: 11px 16px;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid rgba(255, 120, 132, 0.48);
+    background: rgba(220, 50, 80, 0.14);
+    color: rgba(255, 200, 200, 0.95);
+    flex-shrink: 0;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.theater-history-edit-delete:active {
+    transform: scale(0.96);
+    opacity: 0.9;
+}
 .theater-history-edit-cancel,
 .theater-history-edit-save {
     padding: 11px 22px;
@@ -865,4 +892,105 @@ input.theater-hidden-cb { display: none; }
 .theater-history-edit-cancel:active,
 .theater-history-edit-save:active {
     transform: scale(0.96);
+}
+
+/* 设置页：叙事与篇幅（与立绘微调卡同系） */
+.theater-narrative-panel {
+    margin: 14px 0 20px;
+    padding: 14px 14px 18px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+.theater-narrative-panel .theater-narr-field {
+    margin-top: 12px;
+}
+.theater-narrative-panel .theater-tune-head + .theater-narr-field {
+    margin-top: 10px;
+}
+.theater-narrative-panel .theater-narr-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.92;
+    margin-bottom: 8px;
+    letter-spacing: 0.04em;
+}
+.theater-narr-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(0, 0, 0, 0.18);
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 15px;
+    font-weight: 500;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.theater-narr-input::placeholder {
+    color: rgba(255, 255, 255, 0.38);
+}
+.theater-narr-input:focus {
+    border-color: rgba(255, 186, 220, 0.45);
+    box-shadow: 0 0 0 2px rgba(196, 113, 237, 0.25);
+}
+.theater-segment-row {
+    display: flex;
+    gap: 10px;
+}
+.theater-segment-btn {
+    flex: 1;
+    padding: 10px 8px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.14);
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+.theater-segment-btn.active {
+    background: linear-gradient(135deg, rgba(255, 126, 179, 0.55), rgba(196, 113, 237, 0.5));
+    border-color: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 4px 14px rgba(196, 113, 237, 0.32);
+    color: #fff;
+}
+.theater-segment-btn:active {
+    transform: scale(0.98);
+}
+.theater-narrative-panel .theater-form-row-panel {
+    margin-top: 16px;
+    margin-bottom: 6px;
+}
+.theater-narr-hint {
+    margin: 0 0 4px;
+    font-size: 11px;
+    line-height: 1.48;
+    opacity: 0.74;
+}
+.theater-narr-notes {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 96px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(0, 0, 0, 0.2);
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 14px;
+    line-height: 1.55;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.theater-narr-notes::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
+.theater-narr-notes:focus {
+    border-color: rgba(255, 186, 220, 0.45);
 }

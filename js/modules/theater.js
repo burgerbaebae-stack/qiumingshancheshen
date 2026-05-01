@@ -25,7 +25,9 @@ const TheaterMode = (() => {
         drag: null,
         historyReplay: false,
         /** 剧情回顾页当前浏览的场次（仅 UI，不改变 activeSessionId / AI 上下文） */
-        historyBrowseSessionId: null
+        historyBrowseSessionId: null,
+        /** debug-56605f：剧情回顾打开序号，用于检测 rAF 乱序 */
+        historyDbgSeq: 0
     };
 
     function $(id) {
@@ -56,7 +58,11 @@ const TheaterMode = (() => {
                     spriteOffsetY: 0,
                     spriteScale: 1,
                     userSpriteOffsetY: 0,
-                    userSpriteScale: 1
+                    userSpriteScale: 1,
+                    theaterTargetHanChars: null,
+                    theaterProtagonistPerson: 'third',
+                    theaterAiFullNovelMode: false,
+                    theaterStyleNotes: ''
                 }
             };
         }
@@ -72,11 +78,92 @@ const TheaterMode = (() => {
         if (s.spriteScale === undefined) s.spriteScale = 1;
         if (s.userSpriteOffsetY === undefined) s.userSpriteOffsetY = 0;
         if (s.userSpriteScale === undefined) s.userSpriteScale = 1;
+        if (s.theaterTargetHanChars === undefined) s.theaterTargetHanChars = null;
+        if (s.theaterProtagonistPerson === undefined) s.theaterProtagonistPerson = 'third';
+        if (s.theaterAiFullNovelMode === undefined) s.theaterAiFullNovelMode = false;
+        if (s.theaterStyleNotes === undefined) s.theaterStyleNotes = '';
         return chat.theater;
+    }
+
+    /** 剧场设置驱动的叙事说明，拼入 system。（篇幅为软性目标） */
+    function buildTheaterWritingInjections(chat) {
+        const s = theaterState(chat).settings;
+        const myName = chat.myName || '我';
+        const charDisp = chat.remarkName || chat.realName || chat.name || '角色';
+        const parts = [];
+
+        const person = s.theaterProtagonistPerson === 'second' ? 'second' : 'third';
+        parts.push(person === 'second'
+            ? `【主控视角称谓】叙述「${myName}」时，在旁白里对该角色统一用第二人称「你」，保持小说式旁白节奏、增强代入感。`
+            : `【主控视角称谓】叙述「${myName}」时，在旁白里用第三人称（她/他，须与设定或上文性别一致）；旁白中不要对「${myName}」用「你」。`);
+
+        if (s.theaterAiFullNovelMode) {
+            parts.push(`【本轮主笔·全真小说】本轮你为主笔：须完整写出本节小说——环境、「${myName}」与「${charDisp}」双方可被观察的动作、神态，以及双方对白（均可用 narration / dialogue）；读者可先逐块读完，再在输入框接戏。**若与用户下一条输入冲突，以用户为准。**`);
+        } else {
+            parts.push(`【本轮主笔·己方留白】禁止输出 speaker 为「${myName}」的 dialogue；不要用大段旁白顶替「${myName}」说出口的关键对白和重要抉择。**${myName}** 的戏份以用户在输入框的后续回合为主；可多写环境与「${charDisp}」一侧及为衔接必需的极简动作。**允许**极小笔的瞬时外在反应以保持不断档，勿展开成长串独白式旁白替她代言。`);
+        }
+
+        const n = Number(s.theaterTargetHanChars);
+        if (Number.isFinite(n) && n > 0 && n <= 99999) {
+            const nk = Math.floor(n);
+            parts.push(
+                `【篇幅偏好】本轮正文总信息量请力求约 ${nk} 个汉字上下（或与该量级相当）；充分展开，勿草草收尾。（软性目标，勿灌水。）\n` +
+                `**本条优先于下文「常见条数」等举例：** 总字数由所有 blocks 的 text 相加而得；写得长就应拆成**更多条** blocks，每条仍保持单屏好读，不要单靠「整条写更肥」凑总长，更不要仅用少量短条提前收束。**若目标是 ${nk} 字量级，blocks 条数通常会明显多于日常短回合（可远超十余条）。**`
+            );
+        }
+
+        const notes = String(s.theaterStyleNotes || '').trim();
+        if (notes) parts.push(`【剧场补充】\n${notes}`);
+
+        return parts.filter(Boolean).join('\n\n');
     }
 
     function theaterMessages(chat, sessionId) {
         return (chat.history || []).filter(m => m && m.mode === 'theater' && (!sessionId || m.theaterSessionId === sessionId));
+    }
+
+    /**
+     * 剧情回顾列表：只在 session 记录的全局起止序号窗口内扫描，避免对整条 history filter（消息上万时极慢）。
+     * 无有效范围、窗口无效或窗口内没有正文的，退回 theaterSessionSlice。
+     */
+    function collectTheaterSessionMsgsForHistory(chat, session) {
+        const hist = chat.history || [];
+        const sessionId = session.id;
+        if (!hist.length) return [];
+
+        const sn = Number(session.startIndex);
+        const en = Number(session.endIndex);
+        const hasNumericRange = Number.isFinite(sn) && sn >= 1 && Number.isFinite(en) && en >= sn;
+
+        if (!hasNumericRange) {
+            return theaterSessionSlice(chat, sessionId).msgs;
+        }
+
+        const lo = Math.min(Math.max(0, sn - 1), hist.length - 1);
+        let hi = Math.min(hist.length - 1, Math.max(lo, en - 1));
+        if (!session.endedAt) {
+            for (let i = hi + 1; i < hist.length; i++) {
+                const m = hist[i];
+                if (m && m.mode === 'theater' && m.theaterSessionId === sessionId) hi = i;
+            }
+        }
+
+        if (lo > hi) {
+            return theaterSessionSlice(chat, sessionId).msgs;
+        }
+
+        const msgs = [];
+        for (let i = lo; i <= hi; i++) {
+            const m = hist[i];
+            if (!m || m.mode !== 'theater' || m.theaterSessionId !== sessionId) continue;
+            msgs.push(m);
+        }
+
+        if (!msgs.some(m => !m.theaterBoundary)) {
+            return theaterSessionSlice(chat, sessionId).msgs;
+        }
+
+        return msgs;
     }
 
     /** 单次遍历 history：该场次的剧场消息、非边界首尾全局下标、最后一条含 blocks 的 assistant（供渲染复用）。 */
@@ -413,13 +500,29 @@ const TheaterMode = (() => {
             $(SETTINGS_SCREEN_ID).classList.remove('active');
         });
         history.querySelector('#theater-history-back').addEventListener('click', () => {
+            // #region agent log
+            fetch('http://127.0.0.1:7540/ingest/2f027be0-fce7-46b5-a8e3-9193a116129e', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '56605f' },
+                body: JSON.stringify({
+                    sessionId: '56605f',
+                    runId: 'dbg-history-layout',
+                    hypothesisId: 'H-close-reopen',
+                    location: 'theater.js:historyBack',
+                    message: 'historyBack before inactive',
+                    data: { historyDbgSeq: state.historyDbgSeq },
+                    timestamp: Date.now()
+                })
+            }).catch(() => {});
+            // #endregion
             closeTheaterHistoryEdit();
             state.historyBrowseSessionId = null;
             $(HISTORY_SCREEN_ID).classList.remove('active');
+            dbgHistoryLayout('historyBack after inactive', state.historyDbgSeq);
         });
         gallery.querySelector('#theater-gallery-back').addEventListener('click', () => {
             $(GALLERY_SCREEN_ID).classList.remove('active');
-            $(SETTINGS_SCREEN_ID).classList.add('active');
+            snapTheaterSubScreenOpen($(SETTINGS_SCREEN_ID));
         });
     }
 
@@ -534,18 +637,25 @@ const TheaterMode = (() => {
         autoGrowInput();
     }
 
-    function updateRange(chat, session, slice) {
+    function syncSessionRangeFromSlice(chat, session, slice) {
         const s = slice || theaterSessionSlice(chat, session.id);
         const real = s.msgs.filter(m => !m.theaterBoundary);
-        if (real.length) {
-            const first = s.firstRealIdx >= 0 ? s.firstRealIdx + 1 : session.startIndex;
-            const last = s.lastRealIdx >= 0 ? s.lastRealIdx + 1 : (session.endIndex || first);
-            session.startIndex = first;
-            session.endIndex = last;
-            $('theater-range').textContent = `本次范围：消息 ${first}-${last}`;
+        if (!real.length) return false;
+        const first = s.firstRealIdx >= 0 ? s.firstRealIdx + 1 : session.startIndex;
+        const last = s.lastRealIdx >= 0 ? s.lastRealIdx + 1 : (session.endIndex || first);
+        session.startIndex = first;
+        session.endIndex = last;
+        return true;
+    }
+
+    function updateRange(chat, session, slice) {
+        const s = slice || theaterSessionSlice(chat, session.id);
+        const rangeEl = $('theater-range');
+        if (syncSessionRangeFromSlice(chat, session, s)) {
+            if (rangeEl) rangeEl.textContent = `本次范围：消息 ${session.startIndex}-${session.endIndex}`;
         } else {
             const si = session.startIndex;
-            $('theater-range').textContent = si ? `本次范围：自第 ${si} 条消息起` : '尚未开局';
+            if (rangeEl) rangeEl.textContent = si ? `本次范围：自第 ${si} 条消息起` : '尚未开局';
         }
     }
 
@@ -559,6 +669,15 @@ const TheaterMode = (() => {
         const n = Number(v);
         if (!Number.isFinite(n)) return 1;
         return Math.min(1.55, Math.max(0.45, n));
+    }
+
+    /** 本条对白是否应由「己方」一侧展示（立绘靠右 / user-line）；含 AI 全真轮次里 speaker=myName */
+    function speakerIsTheaterProtagonist(chat, speakerRaw) {
+        if (!chat) return false;
+        const mine = String(chat.myName || '').trim();
+        if (!mine) return false;
+        const sp = String(speakerRaw || '').trim();
+        return sp === mine;
     }
 
     function updateStandees(chat, block, playbackKind) {
@@ -575,7 +694,10 @@ const TheaterMode = (() => {
         const cs = clampSpriteScale(settings.spriteScale);
         const uoy = clampSpriteOffset(settings.userSpriteOffsetY);
         const us = clampSpriteScale(settings.userSpriteScale);
-        if (playbackKind === 'user') {
+        const useUserStandee = playbackKind === 'user'
+            || (playbackKind === 'assistant' && speakerIsTheaterProtagonist(chat, block.speaker));
+
+        if (useUserStandee) {
             if (settings.userSpriteDataUrl) {
                 userImg.src = settings.userSpriteDataUrl;
                 userImg.style.transform = `translateY(${uoy}px) scale(${us})`;
@@ -651,12 +773,15 @@ const TheaterMode = (() => {
             $('theater-speaker').textContent = '';
             return;
         }
+        const isProtagonistLine = block.type === 'dialogue'
+            && (state.playbackKind === 'user' || speakerIsTheaterProtagonist(chat, block.speaker));
+
         $('theater-empty').hidden = true;
         const area = $('theater-dialogue-area');
         area.hidden = false;
         const isNarr = block.type !== 'dialogue';
         area.classList.toggle('narration', isNarr);
-        area.classList.toggle('user-line', state.playbackKind === 'user');
+        area.classList.toggle('user-line', isProtagonistLine);
         if (block.type === 'dialogue') {
             const name = state.playbackKind === 'user'
                 ? (chat ? (chat.myName || '我') : '我')
@@ -931,22 +1056,26 @@ const TheaterMode = (() => {
         if (!url || !key || !model) throw new Error('请先在 api 应用中完成设置');
         if (url.endsWith('/')) url = url.slice(0, -1);
 
-        const basePrompt = typeof generatePrivateSystemPrompt === 'function'
-            ? generatePrivateSystemPrompt(chat)
-            : `你是角色 ${chat.realName || chat.name}。`;
+        const basePrompt = typeof generateTheaterSlimSystemPrompt === 'function'
+            ? generateTheaterSlimSystemPrompt(chat)
+            : typeof generatePrivateSystemPrompt === 'function'
+                ? generatePrivateSystemPrompt(chat)
+                : `你是角色 ${chat.realName || chat.name}。`;
         const blockSpeakerExample = chat.remarkName || chat.realName || chat.name || '角色';
+        const writingInjections = buildTheaterWritingInjections(chat);
         const theaterPrompt = `${basePrompt}
 
 【线下剧场模式｜最高优先级】
 当前不是线上即时聊天，而是与「${chat.myName}」面对面相处的线下剧情。请从最近上下文自然衔接，不要重开局。
 
-写作规则：
-1. 使用第三人称小说体推进，旁白负责环境、动作、细节、氛围和必要心理暗流；角色对白必须符合人设、关系和当前情境。
+${writingInjections ? `${writingInjections}\n\n` : ''}写作规则：
+1. 使用小说体推进，旁白负责环境、动作、细节、氛围和必要的心理暗流；角色对白须符合人设与关系。**主控称谓、己方是否全真由 AI 主笔见上文方块标题段，须严格遵守。**
 2. 不要写成微信短消息，不要输出聊天格式，不要使用线上消息拆条规则。
 3. 【分块｜必读】前端按 JSON 里 blocks 的每一条展示一屏，用户点一次「继续」进下一条。禁止把多句旁白或多句对白塞进同一个 "text" 里。
-   · 旁白 narration：每条约 1～3 个短句，或约 60～130 个汉字；一个镜头或一个叙事节拍拆成一条，不要把整段描写合并成一条。
+   · **总长 vs 条数**：正文总长 = 各条 \`text\` 字数之和。**写得多就应拆成更多 blocks**；每条仍宜单屏好读即可，不是靠单条无尽加长来凑总长。若上文有【篇幅偏好】，须**优先满足其总字数**，勿因「下文常见条数」偏少就短打收束。
+   · 旁白 narration：每条约 1～3 个短句，或约 60～130 个汉字（单屏可读参考，非鼓励把多段旁白硬塞进同一条）；一个镜头或一个叙事节拍拆成一条。
    · 对白 dialogue：每条一般只写一句（一口气）。若连续两个极短问句可合并为一条，禁止把四句以上发言塞进一条 text。
-   · 一轮剧情可以写得很完整，但必须拆成较多 blocks；常见每轮约 6～15 条，按节奏需要可更多。
+   · 无【篇幅偏好】或仅短打时，一轮常见约 6～15 条作参考；**有较长篇幅目标时条数须明显增加**（可远高于 15），以先满足总长为准。
 4. 输出必须是 JSON 对象，不要 Markdown，不要代码块。
 5. JSON 结构如下（注意同一轮内多个块）：
 {
@@ -1009,7 +1138,15 @@ const TheaterMode = (() => {
         for (const p of paras) {
             let start = 0;
             for (let i = 0; i < p.length; i++) {
-                if ('。！？…'.includes(p[i])) {
+                /** 中文省略号常为两个 Unicode「…」（……），勿从中间断开，否则会拆成「…」「…」两段对白 */
+                if (p[i] === '…' && p[i + 1] === '…') {
+                    const piece = p.slice(start, i + 2).trim();
+                    if (piece) out.push(piece);
+                    start = i + 2;
+                    i++;
+                    continue;
+                }
+                if ('。！？'.includes(p[i]) || p[i] === '…') {
                     const piece = p.slice(start, i + 1).trim();
                     if (piece) out.push(piece);
                     start = i + 1;
@@ -1158,13 +1295,6 @@ const TheaterMode = (() => {
         return String(msg.content || '').trim();
     }
 
-    function theaterImageSize() {
-        const cfg = (db && db.imageGenSettings) ? db.imageGenSettings : {};
-        const model = String(cfg.model || '').toLowerCase();
-        if (model.includes('gpt-image')) return '1024x1536';
-        return '1024x1536';
-    }
-
     async function generateBackgroundForMessage(chat, message) {
         if (!window.ImageGenModule || !ImageGenModule.isEnabled()) {
             showBgStatus('未开启生图，已跳过背景生成。', null);
@@ -1182,7 +1312,7 @@ const TheaterMode = (() => {
                 message.scenePrompt,
                 controller.signal,
                 'scene',
-                { size: theaterImageSize(), theaterEmptyMirror: true }
+                { theaterEmptyMirror: true }
             );
             const ts = theaterState(chat);
             ts.backgrounds.push({
@@ -1293,15 +1423,119 @@ const TheaterMode = (() => {
         });
     }
 
+    function dbgHistoryLayout(phase, mySeq) {
+        const phone = document.querySelector('.phone-screen');
+        const sub = $(HISTORY_SCREEN_ID);
+        const scr = $('theater-history-body');
+        const ta = $('theater-input');
+        const panel = $('theater-input-panel');
+        const pr = phone ? phone.getBoundingClientRect() : null;
+        const sr = sub ? sub.getBoundingClientRect() : null;
+        const cr = scr ? scr.getBoundingClientRect() : null;
+        const rootStyle = getComputedStyle(document.documentElement);
+        // #region agent log
+        fetch('http://127.0.0.1:7540/ingest/2f027be0-fce7-46b5-a8e3-9193a116129e', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '56605f' },
+            body: JSON.stringify({
+                sessionId: '56605f',
+                runId: 'dbg-history-layout',
+                hypothesisId: 'H-layout-gap',
+                location: 'theater.js:dbgHistoryLayout',
+                message: phase,
+                data: {
+                    mySeq,
+                    latestSeq: state.historyDbgSeq,
+                    rafStale: mySeq !== state.historyDbgSeq,
+                    phoneH: pr ? Math.round(pr.height) : null,
+                    subH: sr ? Math.round(sr.height) : null,
+                    subBottomGap: pr && sr ? Math.round(pr.bottom - sr.bottom) : null,
+                    subTransform: sub ? getComputedStyle(sub).transform : null,
+                    subActive: !!(sub && sub.classList.contains('active')),
+                    scrollClientH: scr ? scr.clientHeight : null,
+                    scrollScrollH: scr ? scr.scrollHeight : null,
+                    scrollTop: scr ? scr.scrollTop : null,
+                    panelHeightVar: rootStyle.getPropertyValue('--panel-height').trim(),
+                    inputActive: !!(panel && panel.classList.contains('active')),
+                    inputInlineHeight: ta ? (ta.style.height || '') : '',
+                    vvH: typeof window.visualViewport !== 'undefined' ? Math.round(window.visualViewport.height) : null
+                },
+                timestamp: Date.now()
+            })
+        }).catch(() => {});
+        // #endregion
+    }
+
+    /** 再次打开子屏时跳过从 translateY(100%) 的过渡，否则 .phone-screen 白底会长时间露出（见 debug H-layout-gap） */
+    function snapTheaterSubScreenOpen(el) {
+        if (!el) return;
+        el.style.setProperty('transition', 'none');
+        el.classList.add('active');
+        void el.offsetHeight;
+        el.style.removeProperty('transition');
+    }
+
+    /** 进入子界面时收起主界面底部输入，避免叠在回顾/设置等内容上 */
+    function closeTheaterInputPanel() {
+        const inputPanel = $('theater-input-panel');
+        const ta = $('theater-input');
+        if (inputPanel) inputPanel.classList.remove('active');
+        if (ta) {
+            ta.blur();
+            ta.style.height = '';
+        }
+    }
+
     function openHistory() {
         const chat = currentChat();
         if (!chat) return;
+        closeTheaterInputPanel();
         lazyEnsureSubScreens();
         ensureHistoryEditSheet($(HISTORY_SCREEN_ID));
         state.historyBrowseSessionId = null;
-        mountHistoryScreen(chat);
-        $(HISTORY_SCREEN_ID).classList.add('active');
-        if (resolveShownHistorySession(chat)) scrollTheaterHistoryToBottom();
+        state.historyDbgSeq += 1;
+        const mySeq = state.historyDbgSeq;
+        // #region agent log
+        fetch('http://127.0.0.1:7540/ingest/2f027be0-fce7-46b5-a8e3-9193a116129e', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '56605f' },
+            body: JSON.stringify({
+                sessionId: '56605f',
+                runId: 'dbg-history-layout',
+                hypothesisId: 'H-rAF-order',
+                location: 'theater.js:openHistory',
+                message: 'openHistory',
+                data: { mySeq },
+                timestamp: Date.now()
+            })
+        }).catch(() => {});
+        // #endregion
+        snapTheaterSubScreenOpen($(HISTORY_SCREEN_ID));
+        const bodyEarly = $('theater-history-body');
+        if (bodyEarly) {
+            bodyEarly.innerHTML = '<div class="theater-log-item theater-history-loading" role="status">加载中…</div>';
+        }
+        dbgHistoryLayout('afterLoadingInnerHTML', mySeq);
+        requestAnimationFrame(() => {
+            // #region agent log
+            fetch('http://127.0.0.1:7540/ingest/2f027be0-fce7-46b5-a8e3-9193a116129e', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '56605f' },
+                body: JSON.stringify({
+                    sessionId: '56605f',
+                    runId: 'dbg-history-layout',
+                    hypothesisId: 'H-rAF-order',
+                    location: 'theater.js:openHistory:rAF',
+                    message: 'rAF before mount',
+                    data: { mySeq, latestSeq: state.historyDbgSeq, rafStale: mySeq !== state.historyDbgSeq },
+                    timestamp: Date.now()
+                })
+            }).catch(() => {});
+            // #endregion
+            mountHistoryScreen(chat);
+            if (resolveShownHistorySession(chat)) scrollTheaterHistoryToBottom();
+            dbgHistoryLayout('afterMountHistory', mySeq);
+        });
     }
 
     /** 回顾页当前应展示的场次：显式传入优先，其次用户选的 browseId，最后默认解析。 */
@@ -1342,6 +1576,151 @@ const TheaterMode = (() => {
         const ta = $('theater-history-edit-textarea');
         if (ta) ta.value = '';
         if (sheet) sheet.hidden = true;
+    }
+
+    function abortTheaterImageTaskForMessage(messageId) {
+        const c = messageId ? state.imageTasks[messageId] : null;
+        if (!c) return;
+        try {
+            c.abort();
+        } catch (e) { /* ignore */ }
+        delete state.imageTasks[messageId];
+    }
+
+    function purgeTheaterSessionFromChat(chat, session) {
+        const sid = session.id;
+        const ts = theaterState(chat);
+        for (const m of chat.history || []) {
+            if (m && m.theaterSessionId === sid) abortTheaterImageTaskForMessage(m.id);
+        }
+        chat.history = (chat.history || []).filter(m => !(m && m.theaterSessionId === sid));
+        ts.sessions = ts.sessions.filter(s => s.id !== sid);
+        ts.backgrounds = ts.backgrounds.filter(b => b.sessionId !== sid);
+        if (ts.activeSessionId === sid) ts.activeSessionId = null;
+        if (state.historyBrowseSessionId === sid) state.historyBrowseSessionId = null;
+        if (state.sessionId === sid) {
+            state.sessionId = null;
+            state.historyReplay = false;
+            state.playbackKind = null;
+            state.currentBlocks = [];
+            state.currentMessageId = null;
+            state.blockIndex = 0;
+            const area = $('theater-dialogue-area');
+            if (area) area.hidden = true;
+            updateStandees(null, null, null);
+        }
+    }
+
+    /**
+     * 删一条剧场正文（非 boundary）；若为该场首条正文则同时删 start 分界。
+     * 若该场再无正文则整场合规清空（history 中带该 sessionId 的全删 + session/背景/active 对齐）。
+     * @returns {null | { purged: boolean }} null 表示未删除任何内容
+     */
+    function removeOneTheaterHistoryMessage(chat, session, msgId) {
+        const hist = chat.history || [];
+        const msg = hist.find(m => m && m.id === msgId);
+        if (!msg || msg.mode !== 'theater' || msg.theaterSessionId !== session.id) {
+            return null;
+        }
+        if (msg.theaterBoundary) {
+            return null;
+        }
+
+        const sliceBefore = theaterSessionSlice(chat, session.id);
+        const firstReal = sliceBefore.msgs.find(m => !m.theaterBoundary);
+        const isFirstReal = !!(firstReal && firstReal.id === msgId);
+
+        abortTheaterImageTaskForMessage(msgId);
+
+        const idx = hist.findIndex(m => m && m.id === msgId);
+        if (idx < 0) return null;
+
+        hist.splice(idx, 1);
+
+        if (isFirstReal) {
+            const bi = hist.findIndex(m =>
+                m && m.theaterSessionId === session.id && m.theaterBoundary === 'start'
+            );
+            if (bi >= 0) {
+                abortTheaterImageTaskForMessage(hist[bi].id);
+                hist.splice(bi, 1);
+            }
+        }
+
+        const sliceAfter = theaterSessionSlice(chat, session.id);
+        const remainingReal = sliceAfter.msgs.filter(m => !m.theaterBoundary);
+        if (!remainingReal.length) {
+            purgeTheaterSessionFromChat(chat, session);
+            return { purged: true };
+        }
+
+        syncSessionRangeFromSlice(chat, session, sliceAfter);
+        return { purged: false };
+    }
+
+    async function deleteTheaterHistoryEntryFromSheet() {
+        const ctx = historyEditCtx;
+        if (!ctx) return;
+        if (!confirm('确定永久删除本条剧情吗？不可恢复。\n若本条为该场第一段正文，会一并移除剧场开场分界；若删完后整场没有正文，将清空整场。')) return;
+
+        const chat = typeof db !== 'undefined' && db.characters
+            ? db.characters.find(c => c.id === ctx.chatId) : null;
+        if (!chat) {
+            showToast('找不到会话');
+            closeTheaterHistoryEdit();
+            return;
+        }
+        const session = theaterState(chat).sessions.find(s => s.id === ctx.sessionId);
+        const msgProbe = (chat.history || []).find(m => m && m.id === ctx.msgId);
+        if (!session || !msgProbe || msgProbe.mode !== 'theater') {
+            showToast('找不到该条消息或场次已失效');
+            closeTheaterHistoryEdit();
+            return;
+        }
+        if (msgProbe.theaterBoundary) {
+            showToast('无法删除分界占位消息');
+            return;
+        }
+
+        const removedId = ctx.msgId;
+        const sid = ctx.sessionId;
+        const wasReplaySame = state.historyReplay && state.currentMessageId === removedId;
+        const removeResult = removeOneTheaterHistoryMessage(chat, session, ctx.msgId);
+        if (!removeResult) {
+            showToast('删除失败');
+            return;
+        }
+        const { purged } = removeResult;
+
+        if (typeof saveData === 'function') await saveData();
+
+        if (wasReplaySame) {
+            state.historyReplay = false;
+            state.playbackKind = null;
+            state.currentBlocks = [];
+            state.currentMessageId = null;
+            state.blockIndex = 0;
+            const area = $('theater-dialogue-area');
+            if (area) area.hidden = true;
+            updateStandees(null, null, null);
+        }
+
+        mountHistoryScreen(chat, purged ? null : theaterState(chat).sessions.find(s => s.id === sid));
+
+        scrollTheaterHistoryToBottom();
+
+        const scr = $(SCREEN_ID);
+        if (scr && !scr.hidden && currentChat() && currentChat().id === chat.id) {
+            renderAll(chat);
+        }
+
+        closeTheaterHistoryEdit();
+
+        if (wasReplaySame) {
+            showToast(purged ? '本场已清空' : '已删除，请重新点开复盘查看');
+        } else {
+            showToast(purged ? '已清空该场剧情' : '已删除该条剧情');
+        }
     }
 
     async function commitTheaterHistoryEdit() {
@@ -1433,8 +1812,41 @@ const TheaterMode = (() => {
         });
     }
 
+    function wireTheaterHistoryEditDeleteOnce(sheet) {
+        const delBtn = sheet.querySelector('#theater-history-edit-delete');
+        if (!delBtn || delBtn._theaterDeleteBound) return;
+        delBtn._theaterDeleteBound = true;
+        delBtn.addEventListener('click', () => deleteTheaterHistoryEntryFromSheet());
+    }
+
+    /** 老版编辑层无删除钮时补上布局与监听 */
+    function repairHistoryEditActionsForDelete(sheet) {
+        if (!sheet) return;
+        let actions = sheet.querySelector('.theater-history-edit-actions');
+        if (!actions) return;
+        if (!sheet.querySelector('#theater-history-edit-delete')) {
+            actions.classList.add('theater-history-edit-actions-row');
+            const right = document.createElement('div');
+            right.className = 'theater-history-edit-actions-right';
+            while (actions.firstChild) right.appendChild(actions.firstChild);
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.id = 'theater-history-edit-delete';
+            delBtn.className = 'theater-history-edit-delete';
+            delBtn.textContent = '删除整条';
+            actions.appendChild(delBtn);
+            actions.appendChild(right);
+        }
+        wireTheaterHistoryEditDeleteOnce(sheet);
+    }
+
     function ensureHistoryEditSheet(historyRoot) {
-        if (!historyRoot || historyRoot.querySelector('#' + HISTORY_EDIT_SHEET_ID)) return;
+        if (!historyRoot) return;
+        const existed = historyRoot.querySelector('#' + HISTORY_EDIT_SHEET_ID);
+        if (existed) {
+            repairHistoryEditActionsForDelete(existed);
+            return;
+        }
         const sheet = document.createElement('div');
         sheet.id = HISTORY_EDIT_SHEET_ID;
         sheet.className = 'theater-history-edit-sheet';
@@ -1447,9 +1859,12 @@ const TheaterMode = (() => {
                     <button type="button" class="theater-icon-btn theater-history-edit-close" id="theater-history-edit-close" aria-label="关闭">✕</button>
                 </div>
                 <textarea id="theater-history-edit-textarea" class="theater-history-edit-textarea" rows="10" placeholder="修改正文…"></textarea>
-                <div class="theater-history-edit-actions">
-                    <button type="button" class="theater-history-edit-cancel" id="theater-history-edit-cancel">取消</button>
-                    <button type="button" class="theater-history-edit-save" id="theater-history-edit-save">保存</button>
+                <div class="theater-history-edit-actions theater-history-edit-actions-row">
+                    <button type="button" class="theater-history-edit-delete" id="theater-history-edit-delete">删除整条</button>
+                    <div class="theater-history-edit-actions-right">
+                        <button type="button" class="theater-history-edit-cancel" id="theater-history-edit-cancel">取消</button>
+                        <button type="button" class="theater-history-edit-save" id="theater-history-edit-save">保存</button>
+                    </div>
                 </div>
             </div>
         `;
@@ -1462,6 +1877,7 @@ const TheaterMode = (() => {
         sheet.querySelector('#theater-history-edit-save').addEventListener('click', () => {
             commitTheaterHistoryEdit();
         });
+        wireTheaterHistoryEditDeleteOnce(sheet);
     }
 
     function mountHistoryScreen(chat, explicitSession = null) {
@@ -1496,8 +1912,10 @@ const TheaterMode = (() => {
         let rangeText = session.startIndex ? `本次范围：消息 ${session.startIndex}-${session.endIndex || session.startIndex}` : '未开局';
         let rangeTag = `<div class="theater-history-range-tag">${rangeText}</div>`;
 
-        const items = theaterMessages(chat, session.id)
-            .filter(m => !m.theaterBoundary)
+        const timelineMsgs = collectTheaterSessionMsgsForHistory(chat, session).filter(m => !m.theaterBoundary);
+        const msgById = new Map(timelineMsgs.map(m => [m.id, m]));
+
+        const items = timelineMsgs
             .map((m, i) => {
                 const label = m.role === 'user' ? (chat.myName || '我') : (chat.remarkName || chat.realName || '角色');
                 const isNarration = m.role === 'assistant' && m.theaterBlocks && m.theaterBlocks.every(b => String(b.type || '').toLowerCase() !== 'dialogue');
@@ -1568,7 +1986,7 @@ const TheaterMode = (() => {
                         return;
                     }
                     if (!msgId) return;
-                    const msg = theaterMessages(chat, session.id).find(m => m.id === msgId);
+                    const msg = msgById.get(msgId);
                     if (!msg) return;
                     openTheaterHistoryEdit(chat, session, msg);
                     return;
@@ -1585,7 +2003,7 @@ const TheaterMode = (() => {
                     return;
                 }
                 if (!msgId) return;
-                const msg = theaterMessages(chat, session.id).find(m => m.id === msgId);
+                const msg = msgById.get(msgId);
                 if (!msg) return;
                 beginHistoryReplay(chat, msg, session);
             });
@@ -1608,9 +2026,10 @@ const TheaterMode = (() => {
     function openSettings() {
         const chat = currentChat();
         if (!chat) return;
+        closeTheaterInputPanel();
         lazyEnsureSubScreens();
         mountSettingsScreen(chat);
-        $(SETTINGS_SCREEN_ID).classList.add('active');
+        snapTheaterSubScreenOpen($(SETTINGS_SCREEN_ID));
     }
 
     function applyTheaterSettingFileHints(chat) {
@@ -1753,6 +2172,34 @@ const TheaterMode = (() => {
                 </div>
             </div>
 
+            <div class="theater-narrative-panel">
+                <div class="theater-tune-head">叙事与篇幅（写入 AI 提示词，仅影响线下剧场）</div>
+
+                <div class="theater-narr-field">
+                    <label class="theater-narr-label" for="theater-target-chars">目标篇幅（汉字，可选）</label>
+                    <input type="number" inputmode="numeric" class="theater-narr-input" id="theater-target-chars" min="1" max="99999" placeholder="不填则无此项提示">
+                </div>
+
+                <div class="theater-narr-field">
+                    <span class="theater-narr-label">主控在旁白里的指称</span>
+                    <div class="theater-segment-row" role="radiogroup" aria-label="主控称谓">
+                        <button type="button" class="theater-segment-btn ${settings.theaterProtagonistPerson === 'second' ? '' : 'active'}" data-theater-person="third" aria-pressed="${settings.theaterProtagonistPerson !== 'second'}">她 / 他</button>
+                        <button type="button" class="theater-segment-btn ${settings.theaterProtagonistPerson === 'second' ? 'active' : ''}" data-theater-person="second" aria-pressed="${settings.theaterProtagonistPerson === 'second'}">你（代入）</button>
+                    </div>
+                </div>
+
+                <div class="theater-form-row theater-form-row-panel">
+                    <label>本轮 AI 主笔全真小说</label>
+                    <div class="theater-toggle ${settings.theaterAiFullNovelMode ? 'on' : ''}" id="theater-ai-fullnovel" role="switch" aria-checked="${settings.theaterAiFullNovelMode ? 'true' : 'false'}"></div>
+                </div>
+                <p class="theater-narr-hint">开启：双方对白、神态与环境均由 AI 续写，像读小说；你仍可随后在输入框接戏。关闭：不写满己方整场，关键对白主要在输入框由你接力。</p>
+
+                <div class="theater-narr-field">
+                    <label class="theater-narr-label" for="theater-style-notes">文风 / 世界观补充（可选）</label>
+                    <textarea id="theater-style-notes" class="theater-narr-notes" rows="4" maxlength="32000" placeholder="例如：配角如何出场、笔触禁忌、叙事节奏偏好…"></textarea>
+                </div>
+            </div>
+
             <div class="theater-form-row">
                 <label>自动生成背景</label>
                 <div class="theater-toggle ${settings.generateBackground ? 'on' : ''}" id="theater-bg-enabled"></div>
@@ -1776,6 +2223,65 @@ const TheaterMode = (() => {
 
         $('theater-open-gallery').addEventListener('click', openGallery);
         $('theater-end-session').addEventListener('click', endSession);
+
+        const targIn = $('theater-target-chars');
+        if (targIn) {
+            const n0 = Number(settings.theaterTargetHanChars);
+            targIn.value = (Number.isFinite(n0) && n0 > 0) ? String(Math.floor(n0)) : '';
+            const applyChars = () => {
+                const v = String(targIn.value || '').trim();
+                if (!v) {
+                    settings.theaterTargetHanChars = null;
+                    saveData();
+                    return;
+                }
+                const n = parseInt(v, 10);
+                if (Number.isFinite(n) && n > 0 && n <= 99999) {
+                    settings.theaterTargetHanChars = n;
+                } else {
+                    settings.theaterTargetHanChars = null;
+                    targIn.value = '';
+                }
+                saveData();
+            };
+            targIn.addEventListener('change', applyChars);
+        }
+
+        body.querySelectorAll('.theater-segment-btn[data-theater-person]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const p = btn.getAttribute('data-theater-person') === 'second' ? 'second' : 'third';
+                settings.theaterProtagonistPerson = p;
+                body.querySelectorAll('.theater-segment-btn[data-theater-person]').forEach(b => {
+                    const active = b.getAttribute('data-theater-person') === p;
+                    b.classList.toggle('active', active);
+                    b.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+                saveData();
+            });
+        });
+
+        const fullNovEl = $('theater-ai-fullnovel');
+        if (fullNovEl) {
+            fullNovEl.addEventListener('click', () => {
+                fullNovEl.classList.toggle('on');
+                settings.theaterAiFullNovelMode = fullNovEl.classList.contains('on');
+                fullNovEl.setAttribute('aria-checked', settings.theaterAiFullNovelMode ? 'true' : 'false');
+                saveData();
+            });
+        }
+
+        const styleTa = $('theater-style-notes');
+        if (styleTa) {
+            styleTa.value = String(settings.theaterStyleNotes || '');
+            let styT = 0;
+            styleTa.addEventListener('input', () => {
+                clearTimeout(styT);
+                styT = setTimeout(() => {
+                    settings.theaterStyleNotes = styleTa.value;
+                    saveData();
+                }, 450);
+            });
+        }
 
         const charOffEl = $('theater-char-offset-y');
         const charScEl = $('theater-char-scale');
@@ -1867,7 +2373,7 @@ const TheaterMode = (() => {
         if (!chat) return;
         lazyEnsureSubScreens();
         mountGalleryScreen(chat);
-        $(GALLERY_SCREEN_ID).classList.add('active');
+        snapTheaterSubScreenOpen($(GALLERY_SCREEN_ID));
     }
 
     function mountGalleryScreen(chat) {
@@ -1965,7 +2471,8 @@ const TheaterMode = (() => {
         });
         ts.activeSessionId = null;
         await saveData();
-        switchScreen('chat-room-screen');
+        switchScreen(SCREEN_ID);
+        renderAll(chat);
         showToast('本次线下已结束');
     }
 

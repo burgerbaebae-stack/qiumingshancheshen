@@ -1159,13 +1159,14 @@ async function handleRegenerate() {
     await getAiReply(currentChatId, currentChatType);
 }
 
-function generatePrivateSystemPrompt(character) {
+function _collectPrivateWorldBooks(character) {
     const worldBooksBefore = (character.worldBookIds || []).map(id => db.worldBooks.find(wb => wb.id === id && wb.position === 'before')).filter(Boolean).map(wb => wb.content).join('\n');
     const worldBooksAfter = (character.worldBookIds || []).map(id => db.worldBooks.find(wb => wb.id === id && wb.position === 'after')).filter(Boolean).map(wb => wb.content).join('\n');
-    const now = new Date();
-    const currentTime = `${now.getFullYear()}年${pad(now.getMonth() + 1)}月${pad(now.getDate())}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    let prompt = `当前为**线上即时文字消息**场景：你与「${character.myName}」通过**连续多条独立消息**往来，如同真实聊天。你是下文设定中的角色，请以该角色的视角、认知与语气回应；你的输出须与下文中的人设、关系与世界观一致，语气、措辞、亲密距离与互动方式（如是否拌嘴、幽默、寡言或活泼等）均以角色设定与世界书为准，不得用无关角色的模板腔或「万能温柔客服」替代，避免 OOC。剧情中可按人设提及约定、见面、行程等。**若未收到系统或设定中明确的「线下/剧场模式」切换说明**，则始终按线上文字消息表现（与下文输出格式中的多条消息一致）。**在此默认（线上即时文字）模式下**，须遵守下文 **<logic_rules> 第12条**：消息为纯聊天内容，不得输出括号、星号等包裹的心理活动或动作/环境描写；**仅当** system 或设定明确切换为「线下/剧场模式」且该模式另有输出约定时，再按该模式执行（解除或替代第12条的限制）。请勿在对话中强调「聊天软件」「本平台」等元话语。请遵守下列规则：\n`;
-    prompt += `核心规则：\n`;
+    return { worldBooksBefore, worldBooksAfter };
+}
+
+function _buildPrivatePromptTimeScheduleInnerSection(character, currentTime) {
+    let prompt = `核心规则：\n`;
     prompt +=
         `A. 【剧内时间 = 用户本地时间（硬锚，禁止错乱）】**故事里「现在」与发本条时用户设备的本地时刻一致：${currentTime}**（下文日程块若写「用户本地此刻」亦指同一基准）。\n` +
         `- **可见聊天内容**里若出现**具体钟点**（如「十点」「22:35」「快十点了」）或把**当前**说成某一明确时刻，必须与上述本地时刻**相符或连续可理解**（允许略模糊如「刚散会」「这会儿」），**禁止**出现与本地时刻**明显矛盾**的「当下」描述（例如本地为傍晚却声称当下已是深夜十点、或把尚未到来的日程时段说成**已经做完**）。\n` +
@@ -1182,6 +1183,46 @@ function generatePrivateSystemPrompt(character) {
     }
     prompt += `   - 请勿在无话题支撑时琐碎报时、反复追问作息或空洞催睡（除非人设或当前剧情明确需要）。\n`;
     prompt += `   - **应主动记起并可在合适时自然开口**（优先级高于上一行的泛约束）：当本日或临近日能对应**广泛认知的节日、节气、法定假日氛围**等，或你在**我的人设、角色设定、世界书、收藏回忆**中读到的**生日、相识纪念日、对双方有特殊意义的日子**——须像真人一样主动问候、提起或发起小互动，语气符合性格与关系亲密度，避免刻板套话与刷屏式祝福。\n\n`;
+    return prompt;
+}
+
+function _buildPrivatePromptCharacterMemoirSection(character, worldBooksBefore, worldBooksAfter) {
+    let prompt = `角色和对话规则：\n`;
+    if (worldBooksBefore) {
+        prompt += `${worldBooksBefore}\n`;
+    }
+    prompt += `<char_settings>\n`;
+    prompt += `1. 你的角色名是：${character.realName}。我的称呼是：${character.myName}。\n`;
+    prompt += `2. 你的角色设定是：${character.persona || "一个友好、乐于助人的伙伴。"}\n`;
+    if (worldBooksAfter) {
+        prompt += `${worldBooksAfter}\n`;
+    }
+    prompt += `</char_settings>\n\n`;
+    prompt += `<user_settings>\n`;
+    if (character.myPersona) {
+        prompt += `3. 关于我的人设：${character.myPersona}\n`;
+    }
+    prompt += `</user_settings>\n`;
+
+    prompt += `<memoir>\n`;
+    const favoritedJournals = (character.memoryJournals || [])
+        .filter(j => j.isFavorited)
+        .map(j => `标题：${j.title}\n内容：${j.content}`)
+        .join('\n\n---\n\n');
+
+    if (favoritedJournals) {
+        prompt += `【共同回忆】\n这是你需要长期记住的、我们之间发生过的往事背景：\n${favoritedJournals}\n\n`;
+    }
+    prompt += `</memoir>\n\n`;
+    return prompt;
+}
+
+function generatePrivateSystemPrompt(character) {
+    const { worldBooksBefore, worldBooksAfter } = _collectPrivateWorldBooks(character);
+    const now = new Date();
+    const currentTime = `${now.getFullYear()}年${pad(now.getMonth() + 1)}月${pad(now.getDate())}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    let prompt = `当前为**线上即时文字消息**场景：你与「${character.myName}」通过**连续多条独立消息**往来，如同真实聊天。你是下文设定中的角色，请以该角色的视角、认知与语气回应；你的输出须与下文中的人设、关系与世界观一致，语气、措辞、亲密距离与互动方式（如是否拌嘴、幽默、寡言或活泼等）均以角色设定与世界书为准，不得用无关角色的模板腔或「万能温柔客服」替代，避免 OOC。剧情中可按人设提及约定、见面、行程等。**若未收到系统或设定中明确的「线下/剧场模式」切换说明**，则始终按线上文字消息表现（与下文输出格式中的多条消息一致）。**在此默认（线上即时文字）模式下**，须遵守下文 **<logic_rules> 第12条**：消息为纯聊天内容，不得输出括号、星号等包裹的心理活动或动作/环境描写；**仅当** system 或设定明确切换为「线下/剧场模式」且该模式另有输出约定时，再按该模式执行（解除或替代第12条的限制）。请勿在对话中强调「聊天软件」「本平台」等元话语。请遵守下列规则：\n`;
+    prompt += _buildPrivatePromptTimeScheduleInnerSection(character, currentTime);
 
     prompt += `<即时消息形态与节奏>\n`;
     prompt += `当前为即时文字消息对话。你的每一轮输出由若干条符合输出格式的消息组成；条数与长短**不设固定数字区间**，由角色当下状态、话题与人设自然决定——如同真人拿起手机想发几条就发几条。\n\n`;
@@ -1220,33 +1261,7 @@ function generatePrivateSystemPrompt(character) {
     prompt += `**5. 与「即时消息形态与节奏」的关系** 拆条、长短、条数以上文为准；本段只约束内容与心理真实感。\n`;
     prompt += `</角色存在感与主动性>\n\n`;
 
-    prompt += `角色和对话规则：\n`;
-    if (worldBooksBefore) {
-        prompt += `${worldBooksBefore}\n`;
-    }
-    prompt += `<char_settings>\n`;
-    prompt += `1. 你的角色名是：${character.realName}。我的称呼是：${character.myName}。\n`;
-    prompt += `2. 你的角色设定是：${character.persona || "一个友好、乐于助人的伙伴。"}\n`;
-    if (worldBooksAfter) {
-        prompt += `${worldBooksAfter}\n`;
-    }
-    prompt += `</char_settings>\n\n`;
-    prompt += `<user_settings>\n`
-    if (character.myPersona) {
-        prompt += `3. 关于我的人设：${character.myPersona}\n`;
-    }
-    prompt += `</user_settings>\n`
-
-    prompt += `<memoir>\n`
-        const favoritedJournals = (character.memoryJournals || [])
-        .filter(j => j.isFavorited)
-        .map(j => `标题：${j.title}\n内容：${j.content}`)
-        .join('\n\n---\n\n');
-
-    if (favoritedJournals) {
-        prompt += `【共同回忆】\n这是你需要长期记住的、我们之间发生过的往事背景：\n${favoritedJournals}\n\n`;
-    }
-    prompt += `</memoir>\n\n`
+    prompt += _buildPrivatePromptCharacterMemoirSection(character, worldBooksBefore, worldBooksAfter);
     prompt += `<logic_rules>\n`
     prompt += `4. 我的消息中可能会出现特殊格式，请根据其内容和你的角色设定进行回应：
 - [${character.myName}发来了一张图片：]：我给你发送了一张图片，你需要对图片内容做出回应。
@@ -1351,6 +1366,26 @@ p) 求代付: [${character.realName}向${character.myName}发起了代付请求:
     }
     prompt += `</Chatting Guidelines>\n`
     
+    if (character.myName) {
+        prompt = prompt.replace(/\{\{user\}\}/gi, character.myName);
+    }
+
+    return prompt;
+}
+
+function generateTheaterSlimSystemPrompt(character) {
+    const { worldBooksBefore, worldBooksAfter } = _collectPrivateWorldBooks(character);
+    const now = new Date();
+    const currentTime = `${now.getFullYear()}年${pad(now.getMonth() + 1)}月${pad(now.getDate())}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    let prompt = _buildPrivatePromptTimeScheduleInnerSection(character, currentTime);
+    prompt += _buildPrivatePromptCharacterMemoirSection(character, worldBooksBefore, worldBooksAfter);
+    const rn = character.realName || '角色';
+    const mn = character.myName || '用户';
+    prompt += `【线下剧场上下文｜本条 system 接续】\n`;
+    prompt += `- 本节为剧场专用补充；你与「${mn}」的连续剧情须与**下方对话历史**及上文时间锚、日程与内在状态**自然衔接**，勿断档或重开局。\n`;
+    prompt += `- **本轮正文**仅以随后【线下剧场模式】中的 JSON 约定为准（含 blocks）；**不要**输出线上消息的格式外壳（如 [\`${rn}的消息：…]\`、照片/礼物/转账等括号指令），也**不要**单独输出一整行 \`[内在状态：…]\`。处境与心绪延续请融入小说正文或 sessionState。\n`;
+    prompt += `\n`;
+
     if (character.myName) {
         prompt = prompt.replace(/\{\{user\}\}/gi, character.myName);
     }
