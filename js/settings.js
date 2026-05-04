@@ -643,6 +643,8 @@ function setupApiSettingsApp() {
                 models = data.models.map(e => e.name.replace('models/', ''));
             }
 
+            models.sort((a, b) => a.localeCompare(b, 'zh-CN', { numeric: true }));
+
             // 保留当前选中的值（如果仍在列表中）
             const currentVal = modelSelect.value;
             
