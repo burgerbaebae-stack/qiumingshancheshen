@@ -793,6 +793,75 @@ const TheaterMode = (() => {
         if (msg && !state.historyReplay) msg.lastViewedBlockIndex = index;
     }
 
+    /** 从杂讯文本中提取第一个平衡花括号 JSON 对象子串（跳过字符串内的括号） */
+    function extractFirstJsonObjectString(s) {
+        const str = String(s || '');
+        const start = str.indexOf('{');
+        if (start < 0) return null;
+        let depth = 0;
+        let inString = false;
+        let escape = false;
+        for (let i = start; i < str.length; i++) {
+            const c = str[i];
+            if (escape) {
+                escape = false;
+                continue;
+            }
+            if (inString) {
+                if (c === '\\') escape = true;
+                else if (c === '"') inString = false;
+                continue;
+            }
+            if (c === '"') {
+                inString = true;
+                continue;
+            }
+            if (c === '{') depth++;
+            else if (c === '}') {
+                depth--;
+                if (depth === 0) return str.slice(start, i + 1);
+            }
+        }
+        return null;
+    }
+
+    function tryParseTheaterJsonSlice(slice) {
+        if (!slice) return null;
+        try {
+            return JSON.parse(slice);
+        } catch (_) {
+            try {
+                const relaxed = String(slice).replace(/,\s*([\]}])/g, '$1');
+                if (relaxed !== slice) return JSON.parse(relaxed);
+            } catch (_) { /* ignore */ }
+        }
+        return null;
+    }
+
+    /** 将模型返回的 type 别名统一为 narration / dialogue */
+    function coerceTheaterBlockType(type) {
+        const t = String(type || '').trim().toLowerCase();
+        if (
+            t === 'dialogue'
+            || t === 'dialog'
+            || t === 'speech'
+            || t === 'line'
+            || t === 'lines'
+            || t === 'utterance'
+            || t === '台词'
+            || t === '对白'
+        ) return 'dialogue';
+        return 'narration';
+    }
+
+    function theaterPlaintextMayContainInlineDialogue(s) {
+        const t = String(s || '');
+        if (!t) return false;
+        const hasColon = t.includes('：') || /[\u4e00-\u9fff_a-zA-Z0-9]{1,20}:/.test(t);
+        if (!hasColon) return false;
+        return /[\u201c\u2018"\u300c]/.test(t);
+    }
+
     /** 将 assistant 的 content（与 blocksToText 一致的段落）还原为复盘 blocks，避免整条掉进单一旁白条导致无立绘 */
     function assistantContentToReplayBlocks(raw, chat) {
         const text = String(raw || '').replace(/\r\n/g, '\n').trim();
@@ -842,11 +911,14 @@ const TheaterMode = (() => {
         } else if (msg.role === 'assistant' && Array.isArray(msg.theaterBlocks) && msg.theaterBlocks.length) {
             blocks = msg.theaterBlocks.slice();
         }
-        blocks = blocks.map(b => ({
-            type: String(b.type || '').toLowerCase() === 'dialogue' ? 'dialogue' : 'narration',
-            speaker: b.speaker || '',
-            text: String(b.text || '').trim()
-        })).filter(b => b.text);
+        blocks = blocks.map(b => {
+            const ty = coerceTheaterBlockType(b.type);
+            return {
+                type: ty,
+                speaker: b.speaker || '',
+                text: String(b.text || '').trim()
+            };
+        }).filter(b => b.text);
 
         const contentTrim = String(msg.content || '').replace(/\r\n/g, '\n').trim();
 
@@ -1007,7 +1079,7 @@ const TheaterMode = (() => {
         showBgStatus('正在请求剧情…', null);
         try {
             const data = await fetchTheaterReply(chat, session, '');
-            const blocks = normalizeBlocks(data.blocks, data.content, chat);
+            const blocks = data.blocks;
             const content = blocksToText(blocks);
             const message = {
                 id: `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -1128,7 +1200,12 @@ ${blocksJsonExampleInner}
                 generationConfig: { temperature: db.apiSettings.temperature !== undefined ? db.apiSettings.temperature : 0.9 }
             };
             const raw = await fetchAiResponse(db.apiSettings, requestBody, headers, endpoint, { forceNonStream: true });
-            return parseTheaterJson(raw);
+            const parsed = parseTheaterJson(raw);
+            return {
+                blocks: normalizeBlocks(parsed.blocks, null, chat, { modelRaw: raw }),
+                scenePrompt: String(parsed.scenePrompt || '').trim(),
+                sessionState: String(parsed.sessionState || '')
+            };
         }
 
         const messages = [{ role: 'system', content: theaterPrompt }];
@@ -1144,7 +1221,12 @@ ${blocksJsonExampleInner}
             response_format: { type: 'json_object' }
         };
         const raw = await fetchAiResponse(db.apiSettings, requestBody, headers, endpoint, { forceNonStream: true });
-        return parseTheaterJson(raw);
+        const parsed = parseTheaterJson(raw);
+        return {
+            blocks: normalizeBlocks(parsed.blocks, null, chat, { modelRaw: raw }),
+            scenePrompt: String(parsed.scenePrompt || '').trim(),
+            sessionState: String(parsed.sessionState || '')
+        };
     }
 
     function theaterSplitIntoSentences(str) {
@@ -1261,30 +1343,81 @@ ${blocksJsonExampleInner}
 
     function parseTheaterJson(raw) {
         const text = String(raw || '').trim().replace(/```json/gi, '').replace(/```/g, '').trim();
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            const match = text.match(/\{[\s\S]*\}/);
-            if (match) {
-                try { return JSON.parse(match[0]); } catch (_) { /* fallback below */ }
-            }
+        let obj = tryParseTheaterJsonSlice(text);
+        if (!obj) {
+            const slice = extractFirstJsonObjectString(text);
+            obj = tryParseTheaterJsonSlice(slice);
         }
-        return { blocks: [{ type: 'narration', text }], scenePrompt: '', sessionState: '' };
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+            return { blocks: null, scenePrompt: '', sessionState: '' };
+        }
+        let blocks = obj.blocks;
+        if (!Array.isArray(blocks) && obj.data && typeof obj.data === 'object' && Array.isArray(obj.data.blocks)) {
+            blocks = obj.data.blocks;
+        }
+        if (!Array.isArray(blocks) || !blocks.length) {
+            blocks = null;
+        }
+        return {
+            blocks,
+            scenePrompt: obj.scenePrompt != null ? String(obj.scenePrompt) : '',
+            sessionState: obj.sessionState != null ? String(obj.sessionState) : ''
+        };
     }
 
-    function normalizeBlocks(blocks, fallback, chat) {
-        if (Array.isArray(blocks) && blocks.length) {
-            const base = blocks.map(b => ({
-                type: b.type === 'dialogue' ? 'dialogue' : 'narration',
-                speaker: b.speaker || (b.type === 'dialogue' ? (chat.remarkName || chat.realName || chat.name) : ''),
-                text: String(b.text || '').trim()
-            })).filter(b => b.text);
-            return expandTheaterBlocksForDisplay(base);
+    /**
+     * @param {Array|null|undefined} blocks - parseTheaterJson 得到的 blocks；null 表示走纯文本兜底
+     * @param {string|null|undefined} fallback - 备用文本（多数场景可传 null，由 modelRaw 承担）
+     * @param {object} chat
+     * @param {{ modelRaw?: string }} [opts]
+     */
+    function normalizeBlocks(blocks, fallback, chat, opts) {
+        const modelRaw = opts && opts.modelRaw != null ? String(opts.modelRaw) : '';
+        const fallbackStr = String(fallback || '').trim();
+
+        function mapCoerced(arr) {
+            return arr.map(b => {
+                const ty = coerceTheaterBlockType(b.type);
+                return {
+                    type: ty,
+                    speaker: b.speaker || (ty === 'dialogue' ? (chat.remarkName || chat.realName || chat.name) : ''),
+                    text: String(b.text || '').trim()
+                };
+            }).filter(b => b.text);
         }
-        const text = String(fallback || '').trim();
-        if (!text) return [{ type: 'narration', text: '空气短暂地安静下来。' }];
-        const fromFallback = text.split(/\n{2,}/).map(p => ({ type: 'narration', text: p.trim() })).filter(b => b.text);
-        return expandTheaterBlocksForDisplay(fromFallback);
+        function hasDialogue(bs) {
+            return Array.isArray(bs) && bs.some(b => b.type === 'dialogue');
+        }
+
+        if (Array.isArray(blocks) && blocks.length) {
+            const base = mapCoerced(blocks);
+            let expanded = expandTheaterBlocksForDisplay(base);
+            if (hasDialogue(expanded)) return expanded;
+
+            const joined = base.map(b => b.text).join('\n\n');
+            let pick = null;
+            if (theaterPlaintextMayContainInlineDialogue(joined)) {
+                const replayJoined = assistantContentToReplayBlocks(joined, chat);
+                if (hasDialogue(replayJoined)) pick = replayJoined;
+            }
+            if (!pick && modelRaw && modelRaw !== joined && theaterPlaintextMayContainInlineDialogue(modelRaw)) {
+                const replayRaw = assistantContentToReplayBlocks(modelRaw, chat);
+                if (hasDialogue(replayRaw)) pick = replayRaw;
+            }
+            if (pick) return expandTheaterBlocksForDisplay(pick);
+            return expanded;
+        }
+
+        const textSource = (modelRaw.trim() || fallbackStr);
+        if (!textSource) return [{ type: 'narration', text: '空气短暂地安静下来。' }];
+
+        const replay = assistantContentToReplayBlocks(textSource, chat);
+        if (hasDialogue(replay)) return expandTheaterBlocksForDisplay(replay);
+        if (replay.length) return expandTheaterBlocksForDisplay(replay);
+
+        const fromFallback = textSource.split(/\n{2,}/).map(p => ({ type: 'narration', speaker: '', text: p.trim() })).filter(b => b.text);
+        if (fromFallback.length) return expandTheaterBlocksForDisplay(fromFallback);
+        return [{ type: 'narration', text: '空气短暂地安静下来。' }];
     }
 
     function blocksToText(blocks) {
@@ -1699,7 +1832,7 @@ ${blocksJsonExampleInner}
             msg.content = userBlocksToContent(blocks, chat);
             msg.parts = [{ type: 'text', text: msg.content }];
         } else if (msg.role === 'assistant') {
-            const blocks = normalizeBlocks(null, raw, chat);
+            const blocks = normalizeBlocks(null, raw, chat, { modelRaw: raw });
             msg.theaterBlocks = blocks;
             msg.content = blocksToText(blocks);
             msg.parts = [{ type: 'text', text: msg.content }];
