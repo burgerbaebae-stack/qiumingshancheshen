@@ -38,6 +38,39 @@ const TheaterMode = (() => {
         historyBrowseSessionId: null
     };
 
+    /** 立绘滑块透视主界面：pointer 按下计数，与 document 级松开配对 */
+    let theaterTunePeekLocks = 0;
+    let theaterTunePeekGlobalBound = false;
+
+    function bindTheaterTunePeekReleaseOnce() {
+        if (theaterTunePeekGlobalBound) return;
+        theaterTunePeekGlobalBound = true;
+        const releaseOne = () => {
+            theaterTunePeekLocks = Math.max(0, theaterTunePeekLocks - 1);
+            if (theaterTunePeekLocks === 0) {
+                const shell = $(SETTINGS_SCREEN_ID);
+                if (shell) shell.classList.remove('theater-tune-peek');
+            }
+        };
+        document.addEventListener('pointerup', releaseOne);
+        document.addEventListener('pointercancel', releaseOne);
+    }
+
+    function theaterTunePeekPointerDown(e) {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        if (e.isPrimary === false) return;
+        bindTheaterTunePeekReleaseOnce();
+        theaterTunePeekLocks++;
+        const shell = $(SETTINGS_SCREEN_ID);
+        if (shell && shell.classList.contains('active')) shell.classList.add('theater-tune-peek');
+    }
+
+    function clearTheaterTunePeekUi() {
+        theaterTunePeekLocks = 0;
+        const shell = $(SETTINGS_SCREEN_ID);
+        if (shell) shell.classList.remove('theater-tune-peek');
+    }
+
     function $(id) {
         return document.getElementById(id);
     }
@@ -507,6 +540,7 @@ const TheaterMode = (() => {
         ensureHistoryEditSheet(history);
 
         settings.querySelector('#theater-settings-back').addEventListener('click', () => {
+            clearTheaterTunePeekUi();
             $(SETTINGS_SCREEN_ID).classList.remove('active');
         });
         history.querySelector('#theater-history-back').addEventListener('click', () => {
@@ -653,13 +687,21 @@ const TheaterMode = (() => {
 
         if (useUserStandee) {
             if (settings.userSpriteDataUrl) {
-                userImg.src = settings.userSpriteDataUrl;
+                const url = settings.userSpriteDataUrl;
+                if (userImg.dataset.standeeSrc !== url) {
+                    userImg.src = url;
+                    userImg.dataset.standeeSrc = url;
+                }
                 userImg.style.transform = `translateY(${uoy}px) scale(${us})`;
                 userImg.classList.add('visible');
             }
         } else if (playbackKind === 'assistant') {
             if (settings.spriteDataUrl) {
-                charImg.src = settings.spriteDataUrl;
+                const url = settings.spriteDataUrl;
+                if (charImg.dataset.standeeSrc !== url) {
+                    charImg.src = url;
+                    charImg.dataset.standeeSrc = url;
+                }
                 charImg.style.transform = `translateY(${coy}px) scale(${cs})`;
                 charImg.classList.add('visible');
             }
@@ -1924,6 +1966,7 @@ ${blocksJsonExampleInner}
     function openSettings() {
         const chat = currentChat();
         if (!chat) return;
+        clearTheaterTunePeekUi();
         closeTheaterInputPanel();
         lazyEnsureSubScreens();
         mountSettingsScreen(chat);
@@ -2031,6 +2074,7 @@ ${blocksJsonExampleInner}
         const settings = theaterState(live).settings;
         
         body.innerHTML = `
+            <div class="theater-settings-peek-hide">
             <div class="theater-polaroid-grid">
                 <!-- 角色立绘 -->
                 <div class="theater-polaroid-card" id="theater-sprite-card">
@@ -2049,27 +2093,29 @@ ${blocksJsonExampleInner}
                     <input type="file" id="theater-user-sprite-file" class="theater-file-input-hidden" accept="image/*">
                 </div>
             </div>
+            </div>
 
             <div class="theater-sprite-tune">
-                <div class="theater-tune-head">剧中立绘微调（每场可不同图，换图后可再调）</div>
+                <div class="theater-tune-head">剧中立绘微调（每场可不同图，换图后可再调）<span class="theater-tune-peek-hint"> · 拖滑块时隐藏设置底，对照主界面</span></div>
                 <div class="theater-tune-grid">
                     <div class="theater-tune-card">
                         <div class="theater-tune-title">角色</div>
                         <label class="theater-slider-label">上下 <span id="theater-char-off-val">0</span> px</label>
-                        <input type="range" class="theater-range-input" id="theater-char-offset-y" min="-380" max="200" step="2" value="${Number(settings.spriteOffsetY) || 0}">
+                        <input type="range" class="theater-range-input" id="theater-char-offset-y" min="-380" max="200" step="1" value="${Number(settings.spriteOffsetY) || 0}">
                         <label class="theater-slider-label">缩放 <span id="theater-char-sc-val">100</span>%</label>
                         <input type="range" class="theater-range-input" id="theater-char-scale" min="65" max="140" step="1" value="${Math.round((Number(settings.spriteScale) || 1) * 100)}">
                     </div>
                     <div class="theater-tune-card">
                         <div class="theater-tune-title">己方</div>
                         <label class="theater-slider-label">上下 <span id="theater-user-off-val">0</span> px</label>
-                        <input type="range" class="theater-range-input" id="theater-user-offset-y" min="-380" max="200" step="2" value="${Number(settings.userSpriteOffsetY) || 0}">
+                        <input type="range" class="theater-range-input" id="theater-user-offset-y" min="-380" max="200" step="1" value="${Number(settings.userSpriteOffsetY) || 0}">
                         <label class="theater-slider-label">缩放 <span id="theater-user-sc-val">100</span>%</label>
                         <input type="range" class="theater-range-input" id="theater-user-scale" min="65" max="140" step="1" value="${Math.round((Number(settings.userSpriteScale) || 1) * 100)}">
                     </div>
                 </div>
             </div>
 
+            <div class="theater-settings-peek-hide">
             <div class="theater-narrative-panel">
                 <div class="theater-tune-head">叙事与篇幅（写入 AI 提示词，仅影响线下剧场）</div>
 
@@ -2116,6 +2162,7 @@ ${blocksJsonExampleInner}
             <div style="margin-top:32px;">
                 <button type="button" class="theater-action-btn" id="theater-open-gallery">背景图册</button>
                 <button type="button" class="theater-action-btn btn-danger" id="theater-end-session">结束本次线下</button>
+            </div>
             </div>
         `;
 
@@ -2217,39 +2264,59 @@ ${blocksJsonExampleInner}
             if (uSc) uSc.textContent = String(Math.round((Number(settings.userSpriteScale) || 1) * 100));
         };
         refreshTuneLabels();
-        const applyTuneToMain = () => refreshTheaterSpritesOnly(live);
-        if (charOffEl) {
-            charOffEl.addEventListener('input', () => {
-                settings.spriteOffsetY = clampSpriteOffset(+charOffEl.value);
-                refreshTuneLabels();
-                saveData();
-                applyTuneToMain();
+        let tunePreviewRaf = 0;
+        const applyTuneToMain = () => {
+            if (tunePreviewRaf) return;
+            tunePreviewRaf = requestAnimationFrame(() => {
+                tunePreviewRaf = 0;
+                refreshTheaterSpritesOnly(live);
             });
-        }
-        if (charScEl) {
-            charScEl.addEventListener('input', () => {
-                settings.spriteScale = clampSpriteScale(+charScEl.value / 100);
+        };
+        let tuneSaveTimer = 0;
+        const flushTuneSave = () => {
+            if (tuneSaveTimer) {
+                clearTimeout(tuneSaveTimer);
+                tuneSaveTimer = 0;
+            }
+            saveData();
+        };
+        const scheduleTuneSave = () => {
+            if (tuneSaveTimer) clearTimeout(tuneSaveTimer);
+            tuneSaveTimer = setTimeout(flushTuneSave, 480);
+        };
+        const bindTuneRange = (el, applyFromValue) => {
+            if (!el) return;
+            const onInput = () => {
+                applyFromValue();
                 refreshTuneLabels();
-                saveData();
                 applyTuneToMain();
-            });
-        }
-        if (userOffEl) {
-            userOffEl.addEventListener('input', () => {
-                settings.userSpriteOffsetY = clampSpriteOffset(+userOffEl.value);
+                scheduleTuneSave();
+            };
+            el.addEventListener('input', onInput);
+            el.addEventListener('change', () => {
+                applyFromValue();
                 refreshTuneLabels();
-                saveData();
                 applyTuneToMain();
+                flushTuneSave();
             });
-        }
-        if (userScEl) {
-            userScEl.addEventListener('input', () => {
-                settings.userSpriteScale = clampSpriteScale(+userScEl.value / 100);
-                refreshTuneLabels();
-                saveData();
-                applyTuneToMain();
-            });
-        }
+        };
+        bindTuneRange(charOffEl, () => {
+            settings.spriteOffsetY = clampSpriteOffset(+charOffEl.value);
+        });
+        bindTuneRange(charScEl, () => {
+            settings.spriteScale = clampSpriteScale(+charScEl.value / 100);
+        });
+        bindTuneRange(userOffEl, () => {
+            settings.userSpriteOffsetY = clampSpriteOffset(+userOffEl.value);
+        });
+        bindTuneRange(userScEl, () => {
+            settings.userSpriteScale = clampSpriteScale(+userScEl.value / 100);
+        });
+
+        [charOffEl, charScEl, userOffEl, userScEl].forEach(el => {
+            if (!el) return;
+            el.addEventListener('pointerdown', theaterTunePeekPointerDown, true);
+        });
 
         $('theater-sprite-file').addEventListener('change', async (e) => {
             const file = e.target.files && e.target.files[0];

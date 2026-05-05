@@ -186,7 +186,7 @@
 .theater-speaker::before {
     content: "";
     position: absolute;
-    left: 0;
+    left: -4px;
     right: auto;
     top: 100%;
     bottom: auto;
@@ -194,7 +194,7 @@
     width: 440px;
     max-width: min(440px, 96vw);
     height: 44px;
-    transform: scaleX(1.22);
+    transform: scaleX(1.46);
     transform-origin: left bottom;
     background-image: url("https://i.postimg.cc/sxDSc9vH/wei-xin-tu-pian-20260504213558-removebg-preview.png");
     background-repeat: no-repeat;
@@ -208,11 +208,12 @@
 .theater-speaker::after {
     content: "✦";
     position: absolute;
-    right: -14px;
-    top: 4px;
-    font-size: 11px;
-    color: rgba(215, 185, 135, 0.95);
-    text-shadow: 0 0 4px rgba(255, 235, 180, 0.8);
+    right: -16px;
+    top: 6px;
+    font-size: 14px;
+    line-height: 1;
+    color: #c49a45;
+    text-shadow: 0 0 8px rgba(255, 238, 190, 0.85);
     animation: theaterStarBlink 2.5s infinite ease-in-out;
     z-index: 2;
 }
@@ -230,19 +231,19 @@
     right: 0;
     top: 100%;
     margin-top: -16px;
-    transform: scaleX(1.22);
+    transform: scaleX(1.46);
     transform-origin: right bottom;
     background-position: right bottom;
 }
 /* 用户在右边，星星放到左边 */
 .theater-dialogue-area.user-line:not(.narration) .theater-speaker::after {
     right: auto;
-    left: -14px;
+    left: -16px;
 }
 
 @keyframes theaterStarBlink {
-    0%, 100% { opacity: 0.4; transform: scale(0.85); }
-    50% { opacity: 1; transform: scale(1.1); }
+    0%, 100% { opacity: 0.78; transform: scale(0.92); }
+    50% { opacity: 1; transform: scale(1.08); }
 }
 
 .theater-text {
@@ -471,6 +472,35 @@
 }
 .theater-sub-screen.active { transform: translateY(0); pointer-events: auto; visibility: visible; }
 
+/* 剧场设置：拖立绘滑块时透视主界面；仅保留上方微调条可点 */
+#theater-settings-screen.theater-tune-peek {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    pointer-events: none;
+}
+#theater-settings-screen.theater-tune-peek .theater-sub-topbar {
+    display: none;
+}
+#theater-settings-screen.theater-tune-peek .theater-sub-scroll {
+    padding: max(8px, env(safe-area-inset-top, 0px)) 14px 12px;
+    overflow: visible;
+    background: transparent;
+}
+#theater-settings-screen.theater-tune-peek .theater-settings-peek-hide {
+    display: none !important;
+}
+#theater-settings-screen.theater-tune-peek .theater-sprite-tune {
+    pointer-events: auto;
+    margin-top: 0;
+    margin-bottom: 0;
+    background: rgba(14, 10, 22, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
 .theater-sub-topbar {
     flex-shrink: 0;
     box-sizing: border-box;
@@ -689,7 +719,7 @@
             rgba(255, 80, 130, 0.065) 2px 3px
         ),
         linear-gradient(180deg, #fff8fd 0%, #ffeef6 30%, #f5d2e8 62%, #dea0bd 100%);
-    border: 1px solid rgba(255, 90, 150, 0.72);
+    border: none;
     border-radius: 0 0 3px 3px;
     box-shadow:
         inset 0 3px 5px rgba(255, 255, 255, 0.65),
@@ -736,7 +766,6 @@
             rgba(255, 95, 165, 0.06) 2px 3px
         ),
         linear-gradient(180deg, #fff6fc 0%, #fce8f4 30%, #edb8d4 65%, #c878a8 100%);
-    border-color: rgba(255, 120, 185, 0.7);
 }
 .theater-polaroid-img-wrap {
     aspect-ratio: 3/4;
@@ -887,6 +916,14 @@ input.theater-hidden-cb { display: none; }
     opacity: 0.88;
     margin-bottom: 12px;
     line-height: 1.45;
+}
+.theater-tune-peek-hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    opacity: 0.72;
+    font-weight: 500;
 }
 .theater-tune-grid {
     display: grid;
