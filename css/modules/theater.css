@@ -204,13 +204,13 @@
     z-index: -1;
     pointer-events: none;
 }
-/* 用 ::after 画那个闪光小星星 ✦ */
+/* 用 ::after 画那个闪光小星星 ✦（手机端也需够大才看得清） */
 .theater-speaker::after {
     content: "✦";
     position: absolute;
-    right: -16px;
-    top: 6px;
-    font-size: 14px;
+    right: -18px;
+    top: 2px;
+    font-size: 20px;
     line-height: 1;
     color: #c49a45;
     text-shadow: 0 0 8px rgba(255, 238, 190, 0.85);
@@ -238,7 +238,7 @@
 /* 用户在右边，星星放到左边 */
 .theater-dialogue-area.user-line:not(.narration) .theater-speaker::after {
     right: auto;
-    left: -16px;
+    left: -26px;
 }
 
 @keyframes theaterStarBlink {
