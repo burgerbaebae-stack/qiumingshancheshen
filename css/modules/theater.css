@@ -207,14 +207,14 @@
     z-index: -1;
     pointer-events: none;
 }
-/* 用 ::after 画那个闪光小星星 ✦（手机端也需够大才看得清） */
+/* 用 ::after 画闪光小星星 ✦（Noto Symbols 与各端对齐） */
 .theater-speaker::after {
     content: "✦";
     position: absolute;
-    right: -18px;
-    top: 2px;
+    right: -17px;
+    top: 7px;
     font-family: "Noto Sans Symbols 2", "Segoe UI Symbol", sans-serif;
-    font-size: 20px;
+    font-size: 17px;
     font-weight: 400;
     font-style: normal;
     font-synthesis: none;
@@ -246,7 +246,7 @@
 /* 用户在右边，星星放到左边 */
 .theater-dialogue-area.user-line:not(.narration) .theater-speaker::after {
     right: auto;
-    left: -26px;
+    left: -24px;
 }
 
 @keyframes theaterStarBlink {
