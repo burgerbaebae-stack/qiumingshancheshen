@@ -130,6 +130,8 @@
     transition: transform 0.3s ease, opacity 0.3s ease;
     display: flex;
     flex-direction: column;
+    /* 独立层叠上下文：配合 ::before 用 z-index:0 而非 -1，缓解 iOS 上 blur 失效 */
+    isolation: isolate;
 }
 
 .theater-dialogue-area::before {
@@ -137,22 +139,22 @@
     position: absolute;
     /* 角色对白：光晕铺得更满，避免文字落在暗区看不清；旁白在 .narration::before 里单独收紧 */
     inset: 0 10px;
-    z-index: -1;
+    /* 勿用 -1：WebKit 在负层级上绘制 filter:blur 易间歇失效成「方框」 */
+    z-index: 0;
     background: rgba(255, 255, 255, 0.95);
     border-radius: 40px;
     filter: blur(28px);
     -webkit-filter: blur(28px);
     pointer-events: none;
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
 }
 
 /* 必须写这一条：否则上面的 display:flex 会盖掉 [hidden] 的默认隐藏，刷新后进剧场会出现「空对话框壳」且点不动 */
 #theater-screen .theater-dialogue-area[hidden] {
     display: none !important;
     pointer-events: none !important;
-}
-
-.theater-dialogue-area.narration {
-    /* 移除硬边框和背景，由 ::before 接管 */
 }
 
 .theater-dialogue-area.narration::before {
@@ -244,6 +246,8 @@
 }
 
 .theater-text {
+    position: relative;
+    z-index: 1;
     flex: 1;
     min-height: 0;
     pointer-events: auto;
@@ -284,6 +288,7 @@
 
 .theater-next-hint {
     position: absolute;
+    z-index: 2;
     right: 64px;
     bottom: 40px;
     width: 16px;
