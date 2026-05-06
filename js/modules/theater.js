@@ -84,6 +84,12 @@ const TheaterMode = (() => {
         return db.characters.find(c => c.id === currentChatId) || null;
     }
 
+    /** 剧场 JSON speaker、立绘名字框与回顾标签：优先角色真名 */
+    function theaterCharSpeakerLabel(chat) {
+        if (!chat) return '角色';
+        return chat.realName || chat.remarkName || chat.name || '角色';
+    }
+
     function theaterState(chat) {
         if (!chat.theater) {
             chat.theater = {
@@ -132,7 +138,7 @@ const TheaterMode = (() => {
     function buildTheaterWritingInjections(chat) {
         const s = theaterState(chat).settings;
         const myName = chat.myName || '我';
-        const charDisp = chat.remarkName || chat.realName || chat.name || '角色';
+        const charDisp = theaterCharSpeakerLabel(chat);
         const parts = [];
 
         const person = s.theaterProtagonistPerson === 'second' ? 'second' : 'third';
@@ -781,7 +787,7 @@ const TheaterMode = (() => {
         if (block.type === 'dialogue') {
             const name = state.playbackKind === 'user'
                 ? (chat ? (chat.myName || '我') : '我')
-                : safeText(block.speaker || (chat ? (chat.remarkName || chat.realName || '角色') : '角色'));
+                : safeText(block.speaker || theaterCharSpeakerLabel(chat));
             $('theater-speaker').textContent = name;
         } else {
             $('theater-speaker').textContent = '';
@@ -866,7 +872,7 @@ const TheaterMode = (() => {
     function assistantContentToReplayBlocks(raw, chat) {
         const text = String(raw || '').replace(/\r\n/g, '\n').trim();
         if (!text) return [];
-        const defaultSpeaker = chat ? (chat.remarkName || chat.realName || chat.name || '角色') : '角色';
+        const defaultSpeaker = theaterCharSpeakerLabel(chat);
         const paras = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
         const quotePairs = [
             ['\u201c', '\u201d'],
@@ -1129,7 +1135,7 @@ const TheaterMode = (() => {
             : typeof generatePrivateSystemPrompt === 'function'
                 ? generatePrivateSystemPrompt(chat)
                 : `你是角色 ${chat.realName || chat.name}。`;
-        const blockSpeakerExample = chat.remarkName || chat.realName || chat.name || '角色';
+        const blockSpeakerExample = theaterCharSpeakerLabel(chat);
         const writingInjections = buildTheaterWritingInjections(chat);
         const tn = theaterState(chat).settings;
         const theaterFullNovel = !!tn.theaterAiFullNovelMode;
@@ -1380,7 +1386,7 @@ ${blocksJsonExampleInner}
                 const ty = coerceTheaterBlockType(b.type);
                 return {
                     type: ty,
-                    speaker: b.speaker || (ty === 'dialogue' ? (chat.remarkName || chat.realName || chat.name) : ''),
+                    speaker: b.speaker || (ty === 'dialogue' ? theaterCharSpeakerLabel(chat) : ''),
                     text: String(b.text || '').trim()
                 };
             }).filter(b => b.text);
@@ -1990,7 +1996,7 @@ ${blocksJsonExampleInner}
 
         const items = timelineMsgs
             .map((m) => {
-                const label = m.role === 'user' ? (chat.myName || '我') : (chat.remarkName || chat.realName || '角色');
+                const label = m.role === 'user' ? (chat.myName || '我') : theaterCharSpeakerLabel(chat);
                 const isNarration = m.role === 'assistant' && m.theaterBlocks && m.theaterBlocks.every(b => String(b.type || '').toLowerCase() !== 'dialogue');
                 let detail = m.content || '';
                 if (m.role === 'user' && Array.isArray(m.theaterUserBlocks) && m.theaterUserBlocks.length) {
