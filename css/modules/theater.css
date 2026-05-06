@@ -965,12 +965,46 @@ input.theater-hidden-cb { display: none; }
     accent-color: #e8b4ff;
 }
 
-/* 剧情回顾：卡片编辑与半屏编辑层 */
+/* 剧情回顾：卡片头部（名字 / 字数+编辑）与正文 */
+.theater-log-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    min-height: 34px;
+}
+.theater-log-head--narration {
+    justify-content: flex-end;
+}
+.theater-log-name-wrap {
+    flex: 1;
+    min-width: 0;
+}
+.theater-log-name-wrap .theater-log-name {
+    margin-bottom: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: top;
+}
+.theater-log-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-direction: row;
+    flex-shrink: 0;
+}
+.theater-log-char-count {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.62);
+    white-space: nowrap;
+    line-height: 1;
+}
 .theater-log-edit-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 2;
+    position: relative;
     width: 34px;
     height: 34px;
     padding: 0;
@@ -996,9 +1030,6 @@ input.theater-hidden-cb { display: none; }
 .theater-log-edit-btn:active {
     transform: scale(0.92);
     opacity: 0.85;
-}
-.theater-log-item-replayable .theater-log-text {
-    padding-right: 40px;
 }
 
 .theater-history-edit-sheet {

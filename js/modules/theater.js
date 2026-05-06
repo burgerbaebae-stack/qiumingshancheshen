@@ -2163,15 +2163,28 @@ ${blocksJsonExampleInner}
                 if (m.role === 'user' && Array.isArray(m.theaterUserBlocks) && m.theaterUserBlocks.length) {
                     detail = m.theaterUserBlocks.map(b => (b.type === 'dialogue' ? `「${b.text}」` : b.text)).join('\n');
                 }
+                const charCount = m.role === 'assistant' ? (detail || '').length : 0;
+                const charCountHtml = m.role === 'assistant'
+                    ? `<span class="theater-log-char-count" aria-hidden="true">${charCount}字</span>`
+                    : '';
                 const idAttr = encodeURIComponent(m.id);
+                const headClass = `theater-log-head${isNarration ? ' theater-log-head--narration' : ''}`;
+                const nameCol = isNarration
+                    ? ''
+                    : `<div class="theater-log-name-wrap"><div class="theater-log-name">${safeText(label)}</div></div>`;
                 return `
                     <div class="theater-log-item theater-log-item-replayable ${isNarration ? 'narration' : ''}" data-theater-msg-id="${idAttr}" data-role="${m.role === 'user' ? 'user' : 'assistant'}" tabindex="0">
-                        <button type="button" class="theater-log-edit-btn" data-theater-msg-id="${idAttr}" aria-label="编辑" title="编辑">
-                            <svg class="theater-log-edit-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7 21l-4 1 1-4L17 3z"/>
-                            </svg>
-                        </button>
-                        ${isNarration ? '' : `<div class="theater-log-name">${safeText(label)}</div>`}
+                        <div class="${headClass}">
+                            ${nameCol}
+                            <div class="theater-log-item-actions">
+                                ${charCountHtml}
+                                <button type="button" class="theater-log-edit-btn" data-theater-msg-id="${idAttr}" aria-label="编辑" title="编辑">
+                                    <svg class="theater-log-edit-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7 21l-4 1 1-4L17 3z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
                         <div class="theater-log-text">${safeText(detail)}</div>
                     </div>
                 `;
