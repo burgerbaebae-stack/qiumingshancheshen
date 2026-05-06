@@ -211,8 +211,8 @@
 .theater-speaker::after {
     content: "✦";
     position: absolute;
-    right: -12px;
-    top: 9px;
+    right: -8px;
+    top: 8px;
     font-family: "Noto Sans Symbols 2", "Segoe UI Symbol", sans-serif;
     font-size: 11px;
     font-weight: 400;
@@ -246,7 +246,7 @@
 /* 用户在右边，星星放到左边 */
 .theater-dialogue-area.user-line:not(.narration) .theater-speaker::after {
     right: auto;
-    left: -18px;
+    left: -14px;
 }
 
 @keyframes theaterStarBlink {
