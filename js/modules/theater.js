@@ -1246,6 +1246,7 @@ const TheaterMode = (() => {
                 mode: 'theater',
                 theaterSessionId: session.id,
                 theaterBlocks: blocks,
+                theaterDiag: data.theaterDiag,
                 scenePrompt: String(data.scenePrompt || '').trim(),
                 sessionState: data.sessionState || ''
             };
@@ -1357,11 +1358,15 @@ ${blocksJsonExampleInner}
                 generationConfig: { temperature: db.apiSettings.temperature !== undefined ? db.apiSettings.temperature : 0.9 }
             };
             const raw = await fetchAiResponse(db.apiSettings, requestBody, headers, endpoint, { forceNonStream: true });
+            const rawCharLen = String(raw || '').length;
             const parsed = parseTheaterJson(raw);
+            const blocks = normalizeBlocks(parsed.blocks, null, chat, { modelRaw: raw });
+            const theaterDiag = buildTheaterDiag(rawCharLen, parsed.parseTrace, blocks, model, provider);
             return {
-                blocks: normalizeBlocks(parsed.blocks, null, chat, { modelRaw: raw }),
+                blocks,
                 scenePrompt: String(parsed.scenePrompt || '').trim(),
-                sessionState: String(parsed.sessionState || '')
+                sessionState: String(parsed.sessionState || ''),
+                theaterDiag
             };
         }
 
@@ -1378,11 +1383,15 @@ ${blocksJsonExampleInner}
             response_format: { type: 'json_object' }
         };
         const raw = await fetchAiResponse(db.apiSettings, requestBody, headers, endpoint, { forceNonStream: true });
+        const rawCharLen = String(raw || '').length;
         const parsed = parseTheaterJson(raw);
+        const blocks = normalizeBlocks(parsed.blocks, null, chat, { modelRaw: raw });
+        const theaterDiag = buildTheaterDiag(rawCharLen, parsed.parseTrace, blocks, model, provider);
         return {
-            blocks: normalizeBlocks(parsed.blocks, null, chat, { modelRaw: raw }),
+            blocks,
             scenePrompt: String(parsed.scenePrompt || '').trim(),
-            sessionState: String(parsed.sessionState || '')
+            sessionState: String(parsed.sessionState || ''),
+            theaterDiag
         };
     }
 
@@ -1501,9 +1510,14 @@ ${blocksJsonExampleInner}
     function parseTheaterJson(raw) {
         const text = String(raw || '').trim().replace(/```json/gi, '').replace(/```/g, '').trim();
         let obj = tryParseTheaterJsonSlice(text);
+        let parseTrace = 'strict';
         if (!obj) {
             const slice = extractFirstJsonObjectString(text);
-            obj = tryParseTheaterJsonSlice(slice);
+            const obj2 = tryParseTheaterJsonSlice(slice);
+            if (obj2) {
+                obj = obj2;
+                parseTrace = 'extract';
+            }
         }
         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
             if (looksLikeTheaterBlocksJson(text)) {
@@ -1512,11 +1526,12 @@ ${blocksJsonExampleInner}
                     return {
                         blocks: salvaged,
                         scenePrompt: tryExtractTheaterJsonStringField(text, 'scenePrompt').trim(),
-                        sessionState: tryExtractTheaterJsonStringField(text, 'sessionState')
+                        sessionState: tryExtractTheaterJsonStringField(text, 'sessionState'),
+                        parseTrace: 'salvage'
                     };
                 }
             }
-            return { blocks: null, scenePrompt: '', sessionState: '' };
+            return { blocks: null, scenePrompt: '', sessionState: '', parseTrace: 'fail' };
         }
         let blocks = obj.blocks;
         if (!Array.isArray(blocks) && obj.data && typeof obj.data === 'object' && Array.isArray(obj.data.blocks)) {
@@ -1528,7 +1543,8 @@ ${blocksJsonExampleInner}
         return {
             blocks,
             scenePrompt: obj.scenePrompt != null ? String(obj.scenePrompt) : '',
-            sessionState: obj.sessionState != null ? String(obj.sessionState) : ''
+            sessionState: obj.sessionState != null ? String(obj.sessionState) : '',
+            parseTrace: blocks ? parseTrace : 'empty'
         };
     }
 
@@ -1592,6 +1608,70 @@ ${blocksJsonExampleInner}
             if (b.type === 'dialogue') return `${b.speaker || '角色'}：“${b.text}”`;
             return b.text;
         }).join('\n\n');
+    }
+
+    const THEATER_PARSE_TRACE_LABELS = {
+        strict: '首遍JSON',
+        extract: '括号提取',
+        salvage: '抢救',
+        fail: '失败',
+        empty: '无blocks'
+    };
+
+    function summarizeTheaterBlocksForDiag(blocks) {
+        if (!Array.isArray(blocks) || !blocks.length) {
+            return { blockCount: 0, textSumLen: 0, contentLen: 0 };
+        }
+        let textSumLen = 0;
+        for (const b of blocks) textSumLen += String(b.text || '').length;
+        return {
+            blockCount: blocks.length,
+            textSumLen,
+            contentLen: blocksToText(blocks).length
+        };
+    }
+
+    function buildTheaterDiag(rawCharLen, parseTrace, blocks, model, provider) {
+        const s = summarizeTheaterBlocksForDiag(blocks);
+        return {
+            rawCharLen,
+            parseTrace: parseTrace || 'fail',
+            blockCount: s.blockCount,
+            textSumLen: s.textSumLen,
+            contentLen: s.contentLen,
+            provider: provider != null ? String(provider) : '',
+            model: model != null ? String(model) : '',
+            at: Date.now()
+        };
+    }
+
+    function buildManualTheaterDiag(blocks, model, provider) {
+        const s = summarizeTheaterBlocksForDiag(blocks);
+        return {
+            source: 'manual-edit',
+            blockCount: s.blockCount,
+            textSumLen: s.textSumLen,
+            contentLen: s.contentLen,
+            provider: provider != null ? String(provider) : '',
+            model: model != null ? String(model) : '',
+            at: Date.now()
+        };
+    }
+
+    /** 剧情回顾列表副文（勿用于编辑层） */
+    function formatTheaterHistoryDiagLine(diag) {
+        if (!diag || typeof diag !== 'object') return '';
+        if (diag.source === 'manual-edit') {
+            return `手写修订 · ${diag.blockCount ?? 0} 条 · 正文 ${diag.contentLen ?? 0} 字`;
+        }
+        const trace = THEATER_PARSE_TRACE_LABELS[diag.parseTrace] || String(diag.parseTrace || '—');
+        const parts = [
+            `接口约 ${diag.rawCharLen ?? 0} 字`,
+            trace,
+            `${diag.blockCount ?? 0} 条`,
+            `正文 ${diag.contentLen ?? 0} 字`
+        ];
+        return parts.join(' · ');
     }
 
     function userTheaterBlocksToEditDraft(msg) {
@@ -2003,6 +2083,8 @@ ${blocksJsonExampleInner}
             msg.theaterBlocks = blocks;
             msg.content = blocksToText(blocks);
             msg.parts = [{ type: 'text', text: msg.content }];
+            const { model, provider } = db.apiSettings;
+            msg.theaterDiag = buildManualTheaterDiag(blocks, model, provider);
             const n = blocks.length;
             const v = Number(msg.lastViewedBlockIndex);
             if (!Number.isFinite(v) || v >= n) msg.lastViewedBlockIndex = Math.max(0, n - 1);
@@ -2162,10 +2244,15 @@ ${blocksJsonExampleInner}
                 let detail = m.content || '';
                 if (m.role === 'user' && Array.isArray(m.theaterUserBlocks) && m.theaterUserBlocks.length) {
                     detail = m.theaterUserBlocks.map(b => (b.type === 'dialogue' ? `「${b.text}」` : b.text)).join('\n');
+                } else if (m.role === 'assistant' && Array.isArray(m.theaterBlocks) && m.theaterBlocks.length) {
+                    detail = blocksToText(m.theaterBlocks);
                 }
                 const charCount = m.role === 'assistant' ? (detail || '').length : 0;
                 const charCountHtml = m.role === 'assistant'
                     ? `<span class="theater-log-char-count" aria-hidden="true">${charCount}字</span>`
+                    : '';
+                const diagHtml = m.role === 'assistant' && m.theaterDiag
+                    ? `<div class="theater-log-diag">${safeText(formatTheaterHistoryDiagLine(m.theaterDiag))}</div>`
                     : '';
                 const idAttr = encodeURIComponent(m.id);
                 const headClass = `theater-log-head${isNarration ? ' theater-log-head--narration' : ''}`;
@@ -2186,6 +2273,7 @@ ${blocksJsonExampleInner}
                             </div>
                         </div>
                         <div class="theater-log-text">${safeText(detail)}</div>
+                        ${diagHtml}
                     </div>
                 `;
             }).join('') || '<div class="theater-log-item">暂无剧情记录。</div>';

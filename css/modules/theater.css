@@ -662,6 +662,14 @@
     border-left: 2px solid #fff;
 }
 .theater-log-text { font-size: 14px; line-height: 1.6; color: rgba(255,255,255,0.85); white-space: pre-wrap; }
+.theater-log-diag {
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: rgba(255,255,255,0.42);
+    white-space: normal;
+    word-break: break-word;
+}
 
 .theater-polaroid-grid {
     display: grid;
