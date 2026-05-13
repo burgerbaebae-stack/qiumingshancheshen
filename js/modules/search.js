@@ -173,6 +173,9 @@ const SearchSystem = {
                 // 排除系统消息、撤回消息等（简单处理：只要 content 包含关键词且非空）
                 if (!msg.content) return false;
 
+                // 全局搜索仅线上：排除线下剧场写入历史的条目（与主聊天气泡可见范围一致）
+                if (msg.mode === 'theater') return false;
+
                 // 过滤特殊消息（互动、表情包、图片等）
                 if (this.isSpecialMessage(msg.content, msg)) return false;
                 

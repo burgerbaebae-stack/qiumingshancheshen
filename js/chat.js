@@ -673,7 +673,7 @@ function setupChatRoom() {
     }
 }
 
-/** 与 renderMessages 分页一致：返回包含 history[targetIndex] 的最小页码 */
+/** 与 renderMessages 一致：对 visibleHistory（排除剧场消息）按下标分页 */
 function computePageForMessageIndex(totalMessages, pageSize, targetIndex) {
     if (totalMessages <= 0 || targetIndex < 0 || targetIndex >= totalMessages) return 1;
     const maxPage = Math.ceil(totalMessages / pageSize) || 1;
@@ -728,9 +728,10 @@ function openChatRoom(chatId, type, options = {}) {
     const pageSize = (typeof MESSAGES_PER_PAGE !== 'undefined') ? MESSAGES_PER_PAGE : 50;
     currentPage = 1;
     if (scrollToMessageId && chat.history && chat.history.length > 0) {
-        const idx = chat.history.findIndex(m => m.id === scrollToMessageId);
-        if (idx !== -1) {
-            currentPage = computePageForMessageIndex(chat.history.length, pageSize, idx);
+        const visibleHist = chat.history.filter(m => !(m && m.mode === 'theater'));
+        const visibleHistoryIdx = visibleHist.findIndex(m => m.id === scrollToMessageId);
+        if (visibleHistoryIdx !== -1) {
+            currentPage = computePageForMessageIndex(visibleHist.length, pageSize, visibleHistoryIdx);
         } else {
             scrollToMessageId = null;
         }
