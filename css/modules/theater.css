@@ -249,6 +249,16 @@
     left: -14px;
 }
 
+/* NPC 第三方对白：名字灰紫 + 弱化右侧小星，与男主/主控区分 */
+.theater-dialogue-area.npc-line:not(.narration) .theater-speaker {
+    color: #6b6580;
+}
+.theater-dialogue-area.npc-line:not(.narration) .theater-speaker::after {
+    color: #9690aa;
+    text-shadow: 0 0 6px rgba(150, 144, 170, 0.45);
+    opacity: 0.55;
+}
+
 @keyframes theaterStarBlink {
     0%, 100% { opacity: 0.78; transform: scale(0.92); }
     50% { opacity: 1; transform: scale(1.08); }
@@ -319,8 +329,8 @@
     width: 9px;
     height: 9px;
     box-sizing: border-box;
-    border-right: 2px solid rgba(82, 72, 108, 0.92);
-    border-bottom: 2px solid rgba(82, 72, 108, 0.92);
+    border-right: 2px solid #4a3525;
+    border-bottom: 2px solid #4a3525;
     transform: translateX(-50%) rotate(45deg);
 }
 .theater-next-hint::before {

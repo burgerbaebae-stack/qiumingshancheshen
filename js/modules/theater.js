@@ -674,6 +674,19 @@ const TheaterMode = (() => {
         return sp === mine;
     }
 
+    /** 本场私聊角色对白：与 showBlock 中 block.speaker 缺省为 theaterCharSpeakerLabel 一致 */
+    function speakerIsTheaterPartner(chat, speakerRaw) {
+        if (!chat) return false;
+        const sp = String(speakerRaw || '').trim();
+        if (!sp) return true;
+        const labels = new Set(
+            [theaterCharSpeakerLabel(chat), chat.realName, chat.remarkName, chat.name]
+                .filter(Boolean)
+                .map(s => String(s).trim())
+        );
+        return labels.has(sp);
+    }
+
     function updateStandees(chat, block, playbackKind) {
         const charImg = $('theater-sprite');
         const userImg = $('theater-user-sprite');
@@ -701,7 +714,7 @@ const TheaterMode = (() => {
                 userImg.style.transform = `translateY(${uoy}px) scale(${us})`;
                 userImg.classList.add('visible');
             }
-        } else if (playbackKind === 'assistant') {
+        } else if (playbackKind === 'assistant' && speakerIsTheaterPartner(chat, block.speaker)) {
             if (settings.spriteDataUrl) {
                 const url = settings.spriteDataUrl;
                 if (charImg.dataset.standeeSrc !== url) {
@@ -778,12 +791,18 @@ const TheaterMode = (() => {
         const isProtagonistLine = block.type === 'dialogue'
             && (state.playbackKind === 'user' || speakerIsTheaterProtagonist(chat, block.speaker));
 
+        const isNpcAssistantLine = block.type === 'dialogue'
+            && state.playbackKind === 'assistant'
+            && !speakerIsTheaterProtagonist(chat, block.speaker)
+            && !speakerIsTheaterPartner(chat, block.speaker);
+
         $('theater-empty').hidden = true;
         const area = $('theater-dialogue-area');
         area.hidden = false;
         const isNarr = block.type !== 'dialogue';
         area.classList.toggle('narration', isNarr);
         area.classList.toggle('user-line', isProtagonistLine);
+        area.classList.toggle('npc-line', isNpcAssistantLine);
         if (block.type === 'dialogue') {
             const name = state.playbackKind === 'user'
                 ? (chat ? (chat.myName || '我') : '我')
