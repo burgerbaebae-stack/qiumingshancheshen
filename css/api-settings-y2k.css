@@ -44,6 +44,12 @@
     flex: 1;
     padding-bottom: 8px;
 }
+
+/* iOS Safari：hub 仍滚 main；进入任一子页后只滚 .api-view-sub（与生图/TTS 等一致） */
+#api-settings-screen.is-api-sub-view > .content.api-settings-content {
+    overflow-y: hidden;
+    overscroll-behavior: none;
+}
 #api-settings-screen .kkt-settings-container.api-settings-root,
 #api-settings-screen .api-settings-root {
     display: flex;

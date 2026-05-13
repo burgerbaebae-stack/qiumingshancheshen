@@ -535,6 +535,8 @@ function setApiSettingsView(view) {
     if (!screen) return;
     const v = view && ['hub', 'main', 'ig', 'tts', 'runtime'].includes(view) ? view : 'hub';
     screen.dataset.apiView = v;
+    /* iOS Safari：避免 main.content 与 .api-view-sub 双层 overflow 嵌套导致子页无法纵滑 */
+    screen.classList.toggle('is-api-sub-view', v !== 'hub');
     const titleEl = document.getElementById('api-settings-title');
     if (titleEl) titleEl.textContent = API_SETTINGS_VIEW_TITLES[v] || 'API 设置';
     const ids = {
