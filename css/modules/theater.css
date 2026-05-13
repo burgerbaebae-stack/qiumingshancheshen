@@ -249,14 +249,14 @@
     left: -14px;
 }
 
-/* NPC 第三方对白：名字灰紫 + 弱化右侧小星，与男主/主控区分 */
+/* NPC 第三方对白：深紫灰名 + 略深紫色星（无描边） */
 .theater-dialogue-area.npc-line:not(.narration) .theater-speaker {
-    color: #6b6580;
+    color: #4d3d58;
 }
 .theater-dialogue-area.npc-line:not(.narration) .theater-speaker::after {
-    color: #9690aa;
-    text-shadow: 0 0 6px rgba(150, 144, 170, 0.45);
-    opacity: 0.55;
+    color: #584465;
+    text-shadow: 0 0 8px rgba(100, 80, 125, 0.42);
+    opacity: 0.88;
 }
 
 @keyframes theaterStarBlink {
