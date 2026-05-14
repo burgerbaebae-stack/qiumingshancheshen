@@ -738,25 +738,70 @@ async function readStreamResponse(response, provider) {
 }
 
 // --- 图片查看器 ---
-function openImageViewer(src) {
+// opts.galleryUrls：与本场顺序一致的 URL 数组；≥2 时横向滑动翻看。opts.startIndex：起始页。
+function openImageViewer(src, opts) {
     const modal = document.getElementById('full-image-modal');
-    const img = document.getElementById('full-image-view');
-    
-    if (!modal || !img) return;
-    
-    img.src = src;
+    const track = document.getElementById('full-image-carousel-track');
+    const closeBtn = document.getElementById('full-image-modal-close');
+
+    if (!modal || !track || !closeBtn) return;
+
+    const galleryUrls = opts && Array.isArray(opts.galleryUrls) && opts.galleryUrls.length ? opts.galleryUrls.slice() : null;
+
+    let urls;
+    let startIdx = 0;
+    if (galleryUrls && galleryUrls.length >= 2) {
+        urls = galleryUrls;
+        if (opts && typeof opts.startIndex === 'number') {
+            startIdx = Math.max(0, Math.min(opts.startIndex, urls.length - 1));
+        } else if (src) {
+            const found = urls.indexOf(src);
+            startIdx = found >= 0 ? found : 0;
+        }
+    } else if (galleryUrls && galleryUrls.length === 1) {
+        urls = galleryUrls;
+        startIdx = 0;
+    } else if (src) {
+        urls = [src];
+    } else {
+        return;
+    }
+
+    track.innerHTML = '';
+    urls.forEach(url => {
+        const slide = document.createElement('div');
+        slide.className = 'full-image-carousel-slide';
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = '';
+        img.draggable = false;
+        slide.appendChild(img);
+        track.appendChild(slide);
+    });
+
     modal.classList.add('visible');
-    
+
+    const jumpToStart = () => {
+        if (urls.length > 1) track.scrollLeft = startIdx * track.clientWidth;
+    };
+    if (urls.length > 1) requestAnimationFrame(() => requestAnimationFrame(jumpToStart));
+
     const closeModal = () => {
         modal.classList.remove('visible');
-        setTimeout(() => { img.src = ''; }, 300); // 动画结束后清空
+        closeBtn.onclick = null;
+        modal.onclick = null;
+        setTimeout(() => {
+            track.innerHTML = '';
+            track.scrollLeft = 0;
+        }, 300);
     };
-    
-    modal.onclick = (e) => {
-        if (e.target === modal || e.target.closest('.modal-window')) {
-            closeModal();
-        }
+
+    closeBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
     };
+    modal.onclick = null;
 }
 
 // 暴露给全局

@@ -38,6 +38,11 @@ const TheaterMode = (() => {
         historyBrowseSessionId: null
     };
 
+    /** 背景图册：多选删除 */
+    let gallerySelectMode = false;
+    /** @type {Set<string>} */
+    const gallerySelectedIds = new Set();
+
     /** 立绘滑块透视主界面：pointer 按下计数，与 document 级松开配对 */
     let theaterTunePeekLocks = 0;
     let theaterTunePeekGlobalBound = false;
@@ -531,12 +536,16 @@ const TheaterMode = (() => {
         gallery.id = GALLERY_SCREEN_ID;
         gallery.className = 'theater-sub-screen';
         gallery.innerHTML = `
-            <div class="theater-sub-topbar">
+            <div class="theater-sub-topbar theater-gallery-topbar">
                 <button type="button" class="theater-icon-btn" id="theater-gallery-back" title="返回">‹</button>
                 <div class="theater-title">背景图册</div>
-                <span class="theater-topbar-spacer"></span>
+                <button type="button" class="theater-gallery-top-btn" id="theater-gallery-select-toggle">选择</button>
             </div>
-            <div class="theater-sub-scroll" id="theater-gallery-body"></div>
+            <div id="theater-gallery-select-bar" class="theater-gallery-select-bar is-hidden" aria-hidden="true">
+                <button type="button" class="theater-gallery-select-bar-btn" id="theater-gallery-select-all">全选</button>
+                <button type="button" class="theater-gallery-select-bar-btn theater-gallery-delete-selected-btn" id="theater-gallery-delete-selected">删除 (0)</button>
+            </div>
+            <div class="theater-sub-scroll theater-gallery-scroll" id="theater-gallery-body"></div>
         `;
 
         host.appendChild(settings);
@@ -555,8 +564,44 @@ const TheaterMode = (() => {
             $(HISTORY_SCREEN_ID).classList.remove('active');
         });
         gallery.querySelector('#theater-gallery-back').addEventListener('click', () => {
+            resetGallerySelectState();
             $(GALLERY_SCREEN_ID).classList.remove('active');
             snapTheaterSubScreenOpen($(SETTINGS_SCREEN_ID));
+        });
+
+        $('theater-gallery-select-toggle').addEventListener('click', () => {
+            const chat = currentChat();
+            if (!chat) return;
+            const sessionId = state.sessionId;
+            const cnt = theaterState(chat).backgrounds.filter(b => !sessionId || b.sessionId === sessionId).length;
+            if (!cnt) return;
+            gallerySelectMode = !gallerySelectMode;
+            if (!gallerySelectMode) gallerySelectedIds.clear();
+            syncGallerySelectChrome(chat);
+            mountGalleryScreen(chat);
+        });
+        $('theater-gallery-select-all').addEventListener('click', () => {
+            const chat = currentChat();
+            if (!chat || !gallerySelectMode) return;
+            const sessionId = state.sessionId;
+            const bgs = theaterState(chat).backgrounds.filter(b => !sessionId || b.sessionId === sessionId);
+            const allSelected = bgs.length > 0 && bgs.every(b => gallerySelectedIds.has(b.id));
+            if (allSelected) gallerySelectedIds.clear();
+            else bgs.forEach(b => gallerySelectedIds.add(b.id));
+            syncGallerySelectChrome(chat);
+            mountGalleryScreen(chat);
+        });
+        $('theater-gallery-delete-selected').addEventListener('click', async () => {
+            const chat = currentChat();
+            if (!chat || gallerySelectedIds.size === 0) return;
+            const n = gallerySelectedIds.size;
+            if (!confirm(`确定删除选中的 ${n} 张背景图吗？删除后会从存储中移除，不可恢复。`)) return;
+            const ids = Array.from(gallerySelectedIds);
+            await removeTheaterBackgroundsByIds(chat, ids);
+            gallerySelectedIds.clear();
+            gallerySelectMode = false;
+            syncGallerySelectChrome(chat);
+            mountGalleryScreen(chat);
         });
     }
 
@@ -2792,40 +2837,96 @@ ${blocksJsonExampleInner}
         snapTheaterSubScreenOpen($(GALLERY_SCREEN_ID));
     }
 
+    function syncGallerySelectChrome(chat) {
+        const toggle = $('theater-gallery-select-toggle');
+        const bar = $('theater-gallery-select-bar');
+        const delBtn = $('theater-gallery-delete-selected');
+        const allBtn = $('theater-gallery-select-all');
+        if (!toggle || !bar) return;
+
+        const c = chat || currentChat();
+        const sessionId = state.sessionId;
+        const bgs = (c ? theaterState(c).backgrounds : []).filter(bg => !sessionId || bg.sessionId === sessionId);
+        const hasPhotos = bgs.length > 0;
+
+        toggle.textContent = gallerySelectMode ? '完成' : '选择';
+        toggle.disabled = !hasPhotos;
+
+        if (gallerySelectMode && hasPhotos) {
+            bar.classList.remove('is-hidden');
+            bar.setAttribute('aria-hidden', 'false');
+            if (delBtn) delBtn.textContent = `删除 (${gallerySelectedIds.size})`;
+            if (allBtn) {
+                const allOn = bgs.length > 0 && bgs.every(b => gallerySelectedIds.has(b.id));
+                allBtn.textContent = allOn ? '取消全选' : '全选';
+            }
+        } else {
+            bar.classList.add('is-hidden');
+            bar.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    function resetGallerySelectState() {
+        gallerySelectMode = false;
+        gallerySelectedIds.clear();
+        syncGallerySelectChrome(currentChat());
+    }
+
+    async function removeTheaterBackgroundsByIds(chat, ids) {
+        if (!chat || !ids || ids.length === 0) return;
+        const idSet = new Set(ids);
+        const ts = theaterState(chat);
+        ts.backgrounds = ts.backgrounds.filter(b => !idSet.has(b.id));
+        (chat.history || []).forEach(m => {
+            if (m && idSet.has(m.backgroundImageId)) delete m.backgroundImageId;
+        });
+        if (typeof saveData === 'function') await saveData();
+        renderLatestBackground(chat, state.sessionId);
+    }
+
     function mountGalleryScreen(chat) {
         const body = $('theater-gallery-body');
         if (!body) return;
         const sessionId = state.sessionId;
         const bgs = theaterState(chat).backgrounds.filter(b => !sessionId || b.sessionId === sessionId);
+        const urls = bgs.map(b => b.dataUrl).filter(Boolean);
+
         const html = bgs.length ? `
             <div class="theater-gallery-grid">
-                ${bgs.map(b => `
-                    <div class="theater-gallery-card" data-id="${b.id}">
+                ${bgs.map(b => {
+                    const sel = gallerySelectedIds.has(b.id);
+                    return `
+                    <div class="theater-gallery-card${gallerySelectMode ? ' is-gallery-select-mode' : ''}${sel ? ' is-selected' : ''}" data-id="${b.id}">
+                        ${gallerySelectMode ? `<span class="theater-gallery-card-check" aria-hidden="true">${sel ? '✓' : ''}</span>` : ''}
                         <img src="${b.dataUrl}" alt="">
-                        <button type="button" data-action="delete-bg" data-id="${b.id}">删除</button>
-                    </div>
-                `).join('')}
+                    </div>`;
+                }).join('')}
             </div>
         ` : '<div class="theater-log-item">还没有生成背景图。</div>';
         body.innerHTML = html;
-        document.querySelectorAll('#theater-gallery-body [data-action="delete-bg"]').forEach(btn => {
-            btn.addEventListener('click', async (ev) => {
-                ev.stopPropagation();
-                const id = btn.dataset.id;
-                if (!confirm('确定删除这张背景图吗？删除后会从存储中移除。')) return;
-                const ts = theaterState(chat);
-                ts.backgrounds = ts.backgrounds.filter(b => b.id !== id);
-                (chat.history || []).forEach(m => {
-                    if (m.backgroundImageId === id) delete m.backgroundImageId;
-                });
-                await saveData();
-                mountGalleryScreen(chat);
-                renderLatestBackground(chat, state.sessionId);
-            });
-        });
-        document.querySelectorAll('#theater-gallery-body .theater-gallery-card img').forEach(img => {
-            img.addEventListener('click', () => {
-                if (typeof openImageViewer === 'function') openImageViewer(img.src);
+
+        syncGallerySelectChrome(chat);
+
+        document.querySelectorAll('#theater-gallery-body .theater-gallery-card').forEach(card => {
+            const id = card.dataset.id;
+            const img = card.querySelector('img');
+            if (!id || !img || !img.src) return;
+
+            card.addEventListener('click', () => {
+                if (gallerySelectMode) {
+                    if (gallerySelectedIds.has(id)) gallerySelectedIds.delete(id);
+                    else gallerySelectedIds.add(id);
+                    syncGallerySelectChrome(chat);
+                    mountGalleryScreen(chat);
+                    return;
+                }
+                const idx = bgs.findIndex(b => b.id === id);
+                if (typeof openImageViewer !== 'function') return;
+                if (urls.length >= 2) {
+                    openImageViewer(img.src, { galleryUrls: urls, startIndex: idx >= 0 ? idx : 0 });
+                } else {
+                    openImageViewer(img.src);
+                }
             });
         });
     }
@@ -2838,6 +2939,7 @@ ${blocksJsonExampleInner}
             if (el) el.classList.remove('active');
         });
         closeTheaterHistoryEdit();
+        resetGallerySelectState();
     }
 
     function openJournalForSession(chat, session) {

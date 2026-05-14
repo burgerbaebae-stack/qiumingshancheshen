@@ -92,6 +92,93 @@ body {
     min-height: -webkit-fill-available;
 }
 
+.full-image-modal-root {
+    align-items: stretch;
+    justify-content: center;
+    position: relative;
+}
+
+.full-image-modal-close {
+    position: absolute;
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
+    z-index: 20001;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-size: 28px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.full-image-modal-close:active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.full-image-modal-window {
+    flex: 1;
+    align-self: stretch;
+    width: 100%;
+    height: auto;
+    min-height: 100%;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    overflow: hidden;
+    display: block;
+}
+
+#full-image-carousel-track.full-image-carousel-track {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    height: 100%;
+    max-height: 100dvh;
+    max-height: -webkit-fill-available;
+    scrollbar-width: none;
+    box-sizing: border-box;
+}
+
+#full-image-carousel-track.full-image-carousel-track::-webkit-scrollbar {
+    display: none;
+}
+
+.full-image-carousel-slide {
+    flex: 0 0 100%;
+    min-width: 100%;
+    width: 100%;
+    height: 100%;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 8px;
+}
+
+.full-image-carousel-slide img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    vertical-align: middle;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
 .modal-window {
     background: #ffffff;
     padding: 15px;

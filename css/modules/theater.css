@@ -921,10 +921,87 @@ input.theater-hidden-cb { display: none; }
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 .theater-gallery-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.theater-gallery-card button {
-    position: absolute; right: 4px; bottom: 4px;
-    padding: 4px 8px; border-radius: 6px; border: none;
-    background: rgba(0,0,0,0.6); color: #fff; font-size: 11px;
+#theater-gallery-screen .theater-gallery-topbar .theater-title {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+}
+#theater-gallery-screen .theater-gallery-top-btn {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255,255,255,.12);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+#theater-gallery-screen .theater-gallery-top-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.theater-gallery-select-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px calc(16px + env(safe-area-inset-right, 0px)) 12px calc(16px + env(safe-area-inset-left, 0px));
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    background: rgba(16,10,22,0.55);
+}
+.theater-gallery-select-bar.is-hidden {
+    display: none !important;
+}
+.theater-gallery-select-bar-btn {
+    flex: 1;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.22);
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+}
+.theater-gallery-delete-selected-btn {
+    border-color: rgba(255,120,140,.55);
+    background: rgba(255,80,100,.22);
+}
+.theater-gallery-card.is-gallery-select-mode {
+    cursor: pointer;
+}
+.theater-gallery-card-check {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.9);
+    background: rgba(0,0,0,.42);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+    z-index: 2;
+    pointer-events: none;
+}
+.theater-gallery-card.is-selected .theater-gallery-card-check {
+    background: #e8b4ff;
+    border-color: #fff;
+    color: #23182a;
+}
+#theater-gallery-screen .theater-gallery-scroll {
+    flex: 1;
+    min-height: 0;
 }
 .theater-file-input-hidden { display: none; }
 

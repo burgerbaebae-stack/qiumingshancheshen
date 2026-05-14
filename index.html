@@ -3498,9 +3498,10 @@
 </div>
 
 <!-- Full Image Viewer Modal -->
-<div id="full-image-modal" class="modal-overlay" style="z-index: 20000; background: rgba(0,0,0,0.95);">
-    <div class="modal-window" style="background: transparent; box-shadow: none; width: 100%; height: 100%; max-width: none; padding: 0; display: flex; align-items: center; justify-content: center; position: relative;">
-        <img id="full-image-view" src="" style="max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.3s ease;">
+<div id="full-image-modal" class="modal-overlay full-image-modal-root" style="z-index: 20000; background: rgba(0,0,0,0.95);">
+    <button type="button" id="full-image-modal-close" class="full-image-modal-close" aria-label="关闭">×</button>
+    <div class="modal-window full-image-modal-window" style="background: transparent; box-shadow: none; width: 100%; height: 100%; max-width: none; padding: 0; position: relative;">
+        <div id="full-image-carousel-track" class="full-image-carousel-track" aria-hidden="false"></div>
     </div>
 </div>
  
