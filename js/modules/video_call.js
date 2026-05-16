@@ -1409,11 +1409,14 @@ const VideoCallModule = {
         frames.forEach((frame, idx) => {
             const slide = document.createElement('div');
             slide.className = 'vc-film-preview-slide';
+            const inner = document.createElement('div');
+            inner.className = 'vc-film-preview-slide-inner';
             const img = document.createElement('img');
             img.src = frame.dataUrl;
             img.alt = `照片 ${idx + 1}`;
             img.draggable = false;
-            slide.appendChild(img);
+            inner.appendChild(img);
+            slide.appendChild(inner);
             slides.appendChild(slide);
         });
 

@@ -770,11 +770,14 @@ function openImageViewer(src, opts) {
     urls.forEach(url => {
         const slide = document.createElement('div');
         slide.className = 'full-image-carousel-slide';
+        const inner = document.createElement('div');
+        inner.className = 'full-image-carousel-slide-inner';
         const img = document.createElement('img');
         img.src = url;
         img.alt = '';
         img.draggable = false;
-        slide.appendChild(img);
+        inner.appendChild(img);
+        slide.appendChild(inner);
         track.appendChild(slide);
     });
 
