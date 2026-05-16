@@ -742,9 +742,8 @@ async function readStreamResponse(response, provider) {
 function openImageViewer(src, opts) {
     const modal = document.getElementById('full-image-modal');
     const track = document.getElementById('full-image-carousel-track');
-    const closeBtn = document.getElementById('full-image-modal-close');
 
-    if (!modal || !track || !closeBtn) return;
+    if (!modal || !track) return;
 
     const galleryUrls = opts && Array.isArray(opts.galleryUrls) && opts.galleryUrls.length ? opts.galleryUrls.slice() : null;
 
@@ -788,7 +787,6 @@ function openImageViewer(src, opts) {
 
     const closeModal = () => {
         modal.classList.remove('visible');
-        closeBtn.onclick = null;
         modal.onclick = null;
         setTimeout(() => {
             track.innerHTML = '';
@@ -796,12 +794,7 @@ function openImageViewer(src, opts) {
         }, 300);
     };
 
-    closeBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        closeModal();
-    };
-    modal.onclick = null;
+    modal.onclick = () => closeModal();
 }
 
 // 暴露给全局

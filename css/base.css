@@ -98,32 +98,6 @@ body {
     position: relative;
 }
 
-.full-image-modal-close {
-    position: absolute;
-    top: calc(12px + env(safe-area-inset-top, 0px));
-    right: calc(12px + env(safe-area-inset-right, 0px));
-    z-index: 20001;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    margin: 0;
-    border: none;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.45);
-    color: #fff;
-    font-size: 28px;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.full-image-modal-close:active {
-    background: rgba(255, 255, 255, 0.2);
-}
-
 .full-image-modal-window {
     flex: 1;
     align-self: stretch;
